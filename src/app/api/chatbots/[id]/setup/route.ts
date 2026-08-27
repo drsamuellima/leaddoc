@@ -1,0 +1,81 @@
+import { NextResponse } from "next/server";
+import {
+  applyExtractToBot,
+  ensureSetup,
+  faqsFromDrafts,
+  parseSetupStep,
+  treatmentsFromDrafts,
+} from "@/lib/chatbot-setup";
+import { mutateStore } from "@/lib/store";
+import { loadOwnedBot, setupPayload } from "@/lib/setup-state";
+import type { SetupExtract, SetupFaqDraft } from "@/lib/types";
+
+function asFaqs(value: unknown): SetupFaqDraft[] | null {
+  if (!Array.isArray(value)) return null;
+  return value.map((row) => ({
+    title: String((row as { title?: string }).title || "FAQ"),
+    question: String((row as { question?: string }).question || ""),
+    answer: String((row as { answer?: string }).answer || ""),
+  }));
+}
+
+export async function PATCH(request: Request, ctx: { params: Promise<{ id: string }> }) {
+  const { id } = await ctx.params;
+  const owned = await loadOwnedBot(id);
+  if (!owned) return NextResponse.json({ error: "Chatbot not found" }, { status: 404 });
+
+  const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+  if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+
+  const snapshot = await mutateStore((data) => {
+    const bot = data.chatbots.find((b) => b.id === id && b.organizationId === owned.org.id);
+    if (!bot) return null;
+    bot.setup = ensureSetup(bot);
+
+    if (typeof body.step === "string") bot.setup.step = parseSetupStep(body.step);
+    if (typeof body.websiteUrl === "string") bot.setup.websiteUrl = body.websiteUrl.trim();
+    if (typeof body.name === "string" && body.name.trim()) bot.name = body.name.trim();
+    if (typeof body.phone === "string") bot.phone = body.phone.trim();
+    if (typeof body.bookingUrl === "string") bot.bookingUrl = body.bookingUrl.trim();
+    if (typeof body.avatarName === "string") bot.avatarName = body.avatarName.trim();
+    if (typeof body.systemPrompt === "string" && body.systemPrompt.trim()) bot.systemPrompt = body.systemPrompt.trim();
+    if (Array.isArray(body.greetings)) {
+      const greetings = body.greetings.map((g) => String(g).trim()).filter(Boolean);
+      if (greetings.length) {
+        bot.greetings = greetings;
+        bot.greeting = greetings[0];
+      }
+    }
+
+    const pendingFaqs = asFaqs(body.pendingFaqs);
+    if (pendingFaqs && bot.setup.pendingExtract) {
+      bot.setup.pendingExtract.faqs = pendingFaqs;
+    }
+
+    if (body.approveKnowledge === true && bot.setup.pendingExtract) {
+      const extract = bot.setup.pendingExtract as SetupExtract;
+      applyExtractToBot(bot, extract);
+      const faqs = faqsFromDrafts(bot.id, extract.faqs || []);
+      data.knowledgeItems = data.knowledgeItems.filter((k) => k.chatbotId !== bot.id).concat(faqs);
+      if (extract.treatments?.length) {
+        const treatments = treatmentsFromDrafts(bot.id, extract.treatments);
+        if (treatments.length) {
+          data.chatbotOptions = data.chatbotOptions.filter((o) => o.chatbotId !== bot.id).concat(treatments);
+        }
+      }
+      bot.setup.checklist.knowledge = true;
+      bot.setup.step = "interview";
+    }
+
+    if (body.goLive === true) {
+      bot.active = true;
+      bot.setupComplete = true;
+      bot.setup.step = "live";
+    }
+
+    return setupPayload(data, bot);
+  });
+
+  if (!snapshot) return NextResponse.json({ error: "Chatbot not found" }, { status: 404 });
+  return NextResponse.json(snapshot);
+}

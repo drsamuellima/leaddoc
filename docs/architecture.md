@@ -57,7 +57,7 @@ Main records (types in [`src/lib/types.ts`](../src/lib/types.ts)):
 
 - **organizations** — a practice: branding, phone, booking URL, Stripe ids, subscription status.
 - **profiles** — people who can log in.
-- **chatbots** — one embeddable widget per bot: greetings, widget key, skin, font, colour tokens (accent, panel, ink, surface, bubbles, launcher), avatar, phone, booking URL.
+- **chatbots** — one embeddable widget per bot: greetings, widget key, skin, font, colour tokens (accent, panel, ink, surface, bubbles, launcher), avatar, phone, booking URL, plus setup state (`setupComplete`, website scan, pending extract, interview thread, checklist). New clinic bots start as inactive drafts until Go live. Existing bots are treated as already set up.
 - **chatbotOptions** — treatment buttons on the widget (lead / book / call).
 - **knowledgeItems** — FAQ snippets the AI can use. Clinics edit example text, add it, then edit or remove it later.
 - **leads** — captured visitors, with status, assignee, pipeline stage, value.
@@ -102,7 +102,7 @@ sequenceDiagram
   ChatApi->>Store: Append transcript
 ```
 
-1. The clinic copies a snippet from the chatbot studio. It loads `/widget.js` with `data-widget-key`.
+1. The clinic runs **Set up with AI** (or opens an existing bot in the studio) and copies a snippet. It loads `/widget.js` with `data-widget-key`.
 2. The script injects a transparent iframe pointing at `/w/{key}`. Closed, it is a small launcher in the corner; open, it is a tall panel. The iframe tells the parent to resize via `postMessage` (`source: "dentchat"`).
 3. The visitor must submit contact details first. That creates a lead, a conversation, an in-app notification, and (if Resend is configured) an email to the clinic owner.
 4. Further messages go to `/api/widget/chat`. Replies use OpenAI when `OPENAI_API_KEY` is set; otherwise a FAQ keyword fallback.
@@ -111,7 +111,7 @@ Studio live preview loads the same page with `?preview=1` and can overlay colour
 
 ## AI replies
 
-[`src/lib/openai.ts`](../src/lib/openai.ts) builds a clinic reply from the chatbot’s system prompt, knowledge items, and chat history. Without an API key, it matches the visitor’s text against FAQ questions and returns a canned answer.
+[`src/lib/openai.ts`](../src/lib/openai.ts) builds a clinic reply from the chatbot’s system prompt, knowledge items, and chat history. Without an API key, it matches the visitor’s text against FAQ questions and returns a canned answer. The same key is used during chatbot setup to extract facts from a practice website (`src/lib/site-scan.ts`) and to run the setup interview (`src/lib/setup-interview.ts`).
 
 ## File uploads
 
@@ -127,5 +127,6 @@ Chatbot avatar photos are JPEG only, max 1.5 MB, stored under `.data/uploads/` a
 | Auth | `src/lib/auth.ts` |
 | Persistence | `src/lib/store.ts` |
 | Widget look and access | `src/lib/widget.ts`, `src/lib/widget-appearance.ts` |
+| Chatbot setup wizard | `src/lib/site-scan.ts`, `src/lib/setup-interview.ts`, `src/lib/chatbot-setup.ts`, `src/components/chatbot-setup/` |
 | Clinic CRM helpers | `src/lib/leads.ts`, `src/lib/pipelines.ts` |
 | Shared UI chrome | `src/components/dashboard-shell.tsx`, `src/components/ui.tsx` |

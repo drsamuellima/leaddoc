@@ -42,7 +42,7 @@ Clinic. Saves studio fields: name, greetings, prompt, colours, skin, font, avata
 
 ### createChatbot
 
-Clinic. Creates another chatbot (and widget key) for this practice.
+Clinic. Creates a draft chatbot (inactive, setup incomplete) and sends the clinic to `/app/chatbots/[id]/setup`.
 
 ### addOption
 
@@ -178,7 +178,39 @@ Platform admin. Turns `allowWidgetWithoutSub` on or off so the embed can run wit
 
 ### adminCreateChatbot
 
-Platform admin. Creates a chatbot for a chosen clinic.
+Platform admin. Creates a finished chatbot for a chosen clinic (setup already complete) and impersonates into the studio.
+
+## POST /api/chatbots/[id]/scan
+
+**File:** `src/app/api/chatbots/[id]/scan/route.ts`  
+**Method:** POST (JSON)  
+**Who:** signed-in clinic that owns this bot
+
+Body: `{ url }`. Fetches the practice homepage and a few linked key pages, then extracts name, phone, booking URL, greetings, prompt, treatments, and FAQs (OpenAI when `OPENAI_API_KEY` is set; otherwise heuristics plus the FAQ catalog). Stores a pending extract on the bot. Does not write FAQs until the clinic approves them in setup.
+
+Rejects non-http(s) URLs, localhost, and private IPs. Returns the updated bot payload, or 400 with an error message.
+
+**Writes:** `chatbots.setup`.
+
+## PATCH /api/chatbots/[id]/setup
+
+**File:** `src/app/api/chatbots/[id]/setup/route.ts`  
+**Method:** PATCH (JSON)  
+**Who:** signed-in clinic that owns this bot
+
+Autosave for the setup wizard. Can patch step, website URL, name, phone, booking URL, greetings, pending FAQs, **approve knowledge** (writes FAQs and fills extracted fields), or **go live** (sets `active` and `setupComplete`).
+
+**Writes:** `chatbots`, sometimes `knowledgeItems` and `chatbotOptions`.
+
+## POST /api/chatbots/[id]/setup-chat
+
+**File:** `src/app/api/chatbots/[id]/setup-chat/route.ts`  
+**Method:** POST (JSON)  
+**Who:** signed-in clinic that owns this bot
+
+One interview turn. Body: `{ start: true }` to open the thread, or `{ message }` for a reply. The assistant only asks for checklist gaps. Parsed facts are patched onto the bot immediately.
+
+**Writes:** `chatbots`, sometimes `knowledgeItems` and `chatbotOptions`.
 
 ## /api/widget/lead
 

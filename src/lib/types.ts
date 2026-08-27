@@ -74,6 +74,8 @@ export type Chatbot = {
   phone: string;
   bookingUrl: string;
   createdAt: string;
+  setupComplete: boolean;
+  setup: ChatbotSetup;
 };
 
 export type ChatbotOption = {
@@ -93,6 +95,64 @@ export type KnowledgeItem = {
   question: string;
   answer: string;
 };
+
+export type SetupStep = "website" | "knowledge" | "interview" | "booking" | "live";
+
+export type SetupScanStatus = "idle" | "scanning" | "ready" | "error";
+
+export type SetupFaqDraft = {
+  title: string;
+  question: string;
+  answer: string;
+};
+
+export type SetupTreatmentDraft = {
+  label: string;
+  actionType: ChatbotActionType;
+  starterMessage: string;
+  url: string;
+};
+
+export type SetupExtract = {
+  name: string;
+  phone: string;
+  bookingUrl: string;
+  avatarName: string;
+  greetings: string[];
+  systemPrompt: string;
+  faqs: SetupFaqDraft[];
+  treatments: SetupTreatmentDraft[];
+  pages: string[];
+};
+
+export type SetupChecklist = {
+  website: boolean;
+  knowledge: boolean;
+  name: boolean;
+  phone: boolean;
+  booking: boolean;
+  greetings: boolean;
+  treatments: boolean;
+  prompt: boolean;
+};
+
+export type ChatbotSetup = {
+  step: SetupStep;
+  websiteUrl: string;
+  scanStatus: SetupScanStatus;
+  scanError: string;
+  pendingExtract: SetupExtract | null;
+  interview: { role: "user" | "assistant"; content: string }[];
+  checklist: SetupChecklist;
+};
+
+export const SETUP_STEPS: { id: SetupStep; title: string; blurb: string }[] = [
+  { id: "website", title: "Website", blurb: "Paste your practice site. We’ll read the homepage and a few key pages." },
+  { id: "knowledge", title: "Review knowledge", blurb: "Check what we found. Edit anything before it goes into the chat." },
+  { id: "interview", title: "Finish with AI", blurb: "A few short questions to fill the gaps." },
+  { id: "booking", title: "Booking", blurb: "Add your Dentally or booking link, and the practice phone." },
+  { id: "live", title: "Go live", blurb: "Turn the chat on and copy the snippet." },
+];
 
 export type Lead = {
   id: string;

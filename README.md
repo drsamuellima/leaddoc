@@ -44,7 +44,7 @@ The running app uses the JSON store. SQL for Postgres + RLS is in [`supabase/sch
 
 ## Widget
 
-Clinic staff design the public chat on **Chatbots → a bot** (`/app/chatbots/[id]`). That studio is a dense two-column page: controls on the left, a live preview on the right.
+Clinic staff start on **Chatbots** (`/app/chatbots`). **Set up with AI** creates a draft and opens `/app/chatbots/[id]/setup`: paste the practice website, scan a few pages, approve FAQs, answer a short AI interview, add a booking link, then go live. After that, **Chatbots → a bot** (`/app/chatbots/[id]`) is the dense studio: controls on the left, a live preview on the right.
 
 What you can set there:
 
@@ -54,7 +54,7 @@ What you can set there:
 - **Treatments** — buttons for lead (form then AI chat), book (booking URL), or call (practice phone).
 - **Embed** — copy the snippet onto the practice website.
 
-Full page write-up: [docs/pages/clinic-app.md](docs/pages/clinic-app.md#appchatbotsid). Widget behaviour: [docs/pages/widget.md](docs/pages/widget.md).
+Full page write-up: [docs/pages/clinic-app.md](docs/pages/clinic-app.md#appchatbotsidsetup) (wizard) and [studio](docs/pages/clinic-app.md#appchatbotsid). Widget behaviour: [docs/pages/widget.md](docs/pages/widget.md).
 
 ```html
 <script src="http://localhost:3000/widget.js" data-widget-key="dc_..." async></script>

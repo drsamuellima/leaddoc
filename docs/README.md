@@ -60,6 +60,7 @@ Every heading below must stay as a markdown `##` heading in the linked file (the
 | `/app` | [pages/clinic-app.md](pages/clinic-app.md) |
 | `/app/chatbots` | [pages/clinic-app.md](pages/clinic-app.md) |
 | `/app/chatbots/[id]` | [pages/clinic-app.md](pages/clinic-app.md) — chatbot studio: skins, palettes, knowledge edit & add |
+| `/app/chatbots/[id]/setup` | [pages/clinic-app.md](pages/clinic-app.md) — AI setup wizard |
 | `/app/leads` | [pages/clinic-app.md](pages/clinic-app.md) |
 | `/app/leads/[id]` | [pages/clinic-app.md](pages/clinic-app.md) |
 | `/app/pipelines` | [pages/clinic-app.md](pages/clinic-app.md) |
@@ -93,6 +94,9 @@ Every heading below must stay as a markdown `##` heading in the linked file (the
 | --- | --- |
 | `/api/auth/login` | [apis.md](apis.md) |
 | `/api/form/[name]` | [apis.md](apis.md) |
+| `/api/chatbots/[id]/scan` | [apis.md](apis.md) |
+| `/api/chatbots/[id]/setup` | [apis.md](apis.md) |
+| `/api/chatbots/[id]/setup-chat` | [apis.md](apis.md) |
 | `/api/widget/lead` | [apis.md](apis.md) |
 | `/api/widget/chat` | [apis.md](apis.md) |
 | `/api/stripe/webhook` | [apis.md](apis.md) |

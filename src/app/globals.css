@@ -1893,3 +1893,263 @@ body:not(:has([data-widget-root])) .chatbot-studio select {
   font-size: 0.72rem;
 }
 
+.setup-shell {
+  max-width: 52rem;
+  margin: 0 auto 3rem;
+}
+
+.setup-kicker {
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 0.35rem;
+}
+
+.setup-title {
+  font-size: clamp(1.8rem, 4vw, 2.6rem);
+  letter-spacing: -0.04em;
+  line-height: 1.1;
+  margin: 0;
+}
+
+.setup-lede {
+  color: var(--muted);
+  font-size: 1.05rem;
+  line-height: 1.5;
+  margin: 0.65rem 0 0;
+  max-width: 36rem;
+}
+
+.setup-percent {
+  font-size: 1.8rem;
+  font-weight: 650;
+  letter-spacing: -0.04em;
+}
+
+.setup-saved {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.setup-bar {
+  margin-top: 1.2rem;
+  height: 6px;
+  border-radius: 999px;
+  background: #e7e7e1;
+  overflow: hidden;
+}
+
+.setup-bar span {
+  display: block;
+  height: 100%;
+  background: #111;
+  border-radius: inherit;
+  transition: width 0.35s ease;
+}
+
+.setup-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 1rem;
+  margin: 0.9rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.setup-checks li {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.setup-checks li span {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: #d4d4ce;
+}
+
+.setup-checks li.done {
+  color: #111;
+}
+
+.setup-checks li.done span {
+  background: #111;
+}
+
+.setup-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+  gap: 0.7rem;
+  margin: 1.6rem 0 1.2rem;
+}
+
+.setup-nav-card {
+  text-align: left;
+  background: #fff;
+  border: 0;
+  border-radius: 1.2rem;
+  padding: 1rem 1rem 1.1rem;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  min-height: 7.2rem;
+}
+
+.setup-nav-card strong {
+  display: block;
+  font-size: 0.95rem;
+  margin-bottom: 0.35rem;
+}
+
+.setup-nav-card span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.setup-nav-card.active {
+  box-shadow: 0 0 0 2px #111, var(--shadow);
+}
+
+.setup-nav-card.is-done strong::after {
+  content: " ✓";
+  font-weight: 500;
+}
+
+.setup-nav-card.locked {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.setup-panel {
+  background: #fff;
+  border-radius: 1.6rem;
+  padding: 1.6rem 1.5rem 1.7rem;
+  box-shadow: var(--shadow);
+}
+
+.setup-panel h2 {
+  font-size: 1.55rem;
+  letter-spacing: -0.03em;
+  margin: 0 0 0.4rem;
+}
+
+.setup-panel p {
+  color: var(--muted);
+  margin: 0 0 1.1rem;
+  line-height: 1.5;
+}
+
+.setup-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.82rem;
+  font-weight: 650;
+  margin-bottom: 0.9rem;
+}
+
+.setup-label input,
+.setup-faq input,
+.setup-faq textarea,
+.setup-composer input {
+  width: 100%;
+  border: 0;
+  background: #f6f6f1;
+  border-radius: 0.9rem;
+  padding: 0.75rem 0.9rem;
+  font: inherit;
+}
+
+.setup-error {
+  color: #9a2f12;
+  font-size: 0.9rem;
+}
+
+.setup-note {
+  font-size: 0.9rem;
+}
+
+.setup-found {
+  display: grid;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+}
+
+.setup-faq-list {
+  display: grid;
+  gap: 0.8rem;
+  margin-bottom: 1rem;
+}
+
+.setup-faq {
+  padding: 0.85rem;
+  border-radius: 1.1rem;
+  background: #fafaf6;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.setup-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  max-height: 22rem;
+  overflow: auto;
+  margin-bottom: 1rem;
+  padding-right: 0.25rem;
+}
+
+.setup-bubble {
+  max-width: 85%;
+  padding: 0.8rem 1rem;
+  border-radius: 1.1rem;
+  line-height: 1.45;
+  font-size: 0.98rem;
+}
+
+.setup-bubble.assistant {
+  background: #f3f3ee;
+  align-self: flex-start;
+}
+
+.setup-bubble.user {
+  background: #111;
+  color: #fff;
+  align-self: flex-end;
+}
+
+.setup-bubble.muted {
+  opacity: 0.7;
+}
+
+.setup-composer {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.setup-snippet {
+  white-space: pre-wrap;
+  word-break: break-all;
+  background: #111;
+  color: #f4f4ef;
+  border-radius: 1rem;
+  padding: 0.9rem 1rem;
+  font-size: 0.78rem;
+  margin: 0 0 1rem;
+}
+
+.setup-foot {
+  margin-top: 1.2rem;
+  font-size: 0.9rem;
+}
+
+.setup-foot a {
+  color: var(--muted);
+}
+
+

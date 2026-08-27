@@ -18,6 +18,7 @@ import {
   type StoreData,
 } from "./types";
 import { applyPipelineToLead, demoPipelines, generalPipeline, matchPipeline, stageIdForStatus } from "./pipelines";
+import { completedSetup, emptySetup } from "./chatbot-setup";
 
 const filePath = path.join(process.cwd(), ".data", "store.json");
 export const DEMO_WIDGET_KEY = "bright-smile-demo";
@@ -537,6 +538,8 @@ function seed(): StoreData {
         phone: "020 7946 0123",
         bookingUrl: "https://brightsmile.dently.app/book",
         createdAt: now(),
+        setupComplete: true,
+        setup: completedSetup({ phone: "020 7946 0123", bookingUrl: "https://brightsmile.dently.app/book" }),
       },
     ],
     chatbotOptions: [
@@ -716,6 +719,14 @@ function normalizeStore(data: StoreData): { data: StoreData; changed: boolean } 
     }
     if (bot.fontFamily !== font) {
       bot.fontFamily = font;
+      changed = true;
+    }
+    if (typeof bot.setupComplete !== "boolean") {
+      bot.setupComplete = true;
+      changed = true;
+    }
+    if (!bot.setup) {
+      bot.setup = bot.setupComplete ? completedSetup(bot) : emptySetup();
       changed = true;
     }
   }

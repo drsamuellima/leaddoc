@@ -17,6 +17,7 @@ import { appUrl, hasStripe, stripeGet, stripeRequest } from "./integrations";
 import { mutateStore, readStore, slugify } from "./store";
 import { knowledgeKey, KNOWLEDGE_PACKS } from "./knowledge-examples";
 import { parseActionType, parseWidgetFont, parseWidgetStyle, widgetFieldDefaults, type ChatbotActionType, type StoreData, type SubscriptionStatus } from "./types";
+import { completedSetup, emptySetup } from "./chatbot-setup";
 import { isLeadStatus, LEAD_STAGE_LABELS } from "./leads";
 import { applyPipelineToLead, findPipeline, parseGbpToPence, sortedStages } from "./pipelines";
 
@@ -135,6 +136,8 @@ export async function signupAction(formData: FormData) {
       widgetKey: widgetKey(),
       active: true,
       createdAt: iso(),
+      setupComplete: true,
+      setup: completedSetup({ phone: "", bookingUrl: "" }),
     });
     data.chatbotOptions.push(...defaultTreatments(botId));
     return { userId };
@@ -210,25 +213,26 @@ export async function saveChatbotAction(formData: FormData) {
   redirect(`/app/chatbots/${id}?ok=saved`);
 }
 
-export async function createChatbotAction(formData: FormData) {
+export async function createChatbotAction(_formData: FormData) {
   const { org } = await getClinicContext();
-  const name = String(formData.get("name") || "New chatbot").trim();
   const id = await mutateStore((data) => {
     const botId = randomUUID();
     data.chatbots.push({
       id: botId,
       organizationId: org.id,
-      name,
+      name: "New chatbot",
       ...widgetFieldDefaults(org.name, org.primaryColor),
       systemPrompt: `You are a helpful receptionist for ${org.name}.`,
       widgetKey: widgetKey(),
-      active: true,
+      active: false,
       createdAt: iso(),
+      setupComplete: false,
+      setup: emptySetup(),
     });
     data.chatbotOptions.push(...defaultTreatments(botId));
     return botId;
   });
-  redirect(`/app/chatbots/${id}`);
+  redirect(`/app/chatbots/${id}/setup`);
 }
 
 export async function addOptionAction(formData: FormData) {
@@ -1027,6 +1031,8 @@ export async function adminCreateChatbotAction(formData: FormData) {
       widgetKey: widgetKey(),
       active: true,
       createdAt: iso(),
+      setupComplete: true,
+      setup: completedSetup({ phone: "", bookingUrl: "" }),
     });
     data.chatbotOptions.push(...defaultTreatments(botId));
     return botId;

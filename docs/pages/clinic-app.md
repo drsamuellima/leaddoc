@@ -22,18 +22,41 @@ The practice overview. It shows how many leads the clinic has captured, a 14-day
 **File:** `src/app/app/chatbots/page.tsx`  
 **Who:** clinic owner, clinic staff, impersonating admin
 
-Lists this practice’s chatbots as cards (name, greeting, widget key, active/inactive). A small form creates a new bot (`POST /api/form/createChatbot`). Click a card to open the studio.
+Lists this practice’s chatbots as cards (name, greeting, widget key, active/inactive). **Set up with AI** creates a draft bot (`POST /api/form/createChatbot`) and opens the beginner wizard. Incomplete drafts show **Continue setup**. Finished bots open the studio.
 
-**Reads/writes:** reads `chatbots`; create writes a new chatbot with a generated widget key.
+**Reads/writes:** reads `chatbots`; create writes an inactive draft chatbot with a generated widget key and `setupComplete: false`.
 
-**Related:** [/app/chatbots/[id]](#appchatbotsid)
+**Related:** [/app/chatbots/[id]/setup](#appchatbotsidsetup), [/app/chatbots/[id]](#appchatbotsid)
+
+## /app/chatbots/[id]/setup
+
+**File:** `src/app/app/chatbots/[id]/setup/page.tsx` (UI: `src/components/chatbot-setup/wizard.tsx`)  
+**Who:** clinic owner, clinic staff, impersonating admin (must own this bot)
+
+AI-guided setup for a new chatbot. Progress bar plus a checklist (website scanned, knowledge approved, name, phone, booking link, greetings, treatment buttons, system prompt). Cards: Website → Review knowledge → Finish with AI → Booking → Go live. Completed cards can be reopened; later cards stay locked until the previous work is done (knowledge is required before interview, booking, and go live). Every field, scan, approval, and chat turn auto-saves (`PATCH /api/chatbots/[id]/setup`). There is no Save button.
+
+**Website.** Paste an `http`/`https` URL and **Scan**. The server fetches the homepage and a few same-site pages (About, Contact, Treatments, Hours, and similar). Localhost and private IPs are blocked. OpenAI (when configured) returns a structured draft; otherwise heuristics plus the dental FAQ catalog. Results sit as pending extract until approval.
+
+**Review knowledge.** Editable FAQ list plus name, phone, and booking if we found them. **Approve knowledge** writes FAQs onto the bot and fills those fields.
+
+**Finish with AI.** A short interview that only asks what the checklist still lacks. Each reply is parsed and patched onto the bot (`POST /api/chatbots/[id]/setup-chat`).
+
+**Booking.** Dedicated form for a Dentally (or other) booking URL and the practice phone.
+
+**Go live.** Activates the widget, marks setup complete, copies the embed snippet, and opens the studio.
+
+Unknown ids return 404. Incomplete bots that open `/app/chatbots/[id]` are sent here.
+
+**Reads/writes:** `chatbots`, `chatbotOptions`, `knowledgeItems`.
+
+**Related:** [scan](../apis.md#post-apichatbotsidscan), [setup](../apis.md#patch-apichatbotsidsetup), [setup-chat](../apis.md#post-apichatbotsidsetup-chat)
 
 ## /app/chatbots/[id]
 
 **File:** `src/app/app/chatbots/[id]/page.tsx` (UI: `src/components/chatbot-studio/studio.tsx`)  
 **Who:** clinic owner, clinic staff, impersonating admin (must own this bot)
 
-The chatbot studio. Dense two-column layout: editors on the left, sticky live preview on the right. This is where a practice designs the public widget.
+The chatbot studio. Dense two-column layout: editors on the left, sticky live preview on the right. This is where a practice designs the public widget after the AI setup wizard (or when opening a finished bot). Drafts that are not yet complete redirect to [setup](#appchatbotsidsetup).
 
 **Look.** Six skins — orbital, glass, sheet, messenger, dock, pulse. They share the same actions (greetings, lead, book, call, chat) and only change chrome. Each skin has a modern suggested palette (accent, panel, ink, surface, visitor bubble, bot bubble, launcher) shown as colour dots. Choosing a skin applies that palette; colour and font fields stay editable so any combination is valid.
 

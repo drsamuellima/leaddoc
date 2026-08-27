@@ -4,7 +4,7 @@ import { getClinicContext } from "@/lib/auth";
 import { publicOrigin } from "@/lib/integrations";
 import { readStore } from "@/lib/store";
 import { widgetTheme } from "@/lib/widget";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 export default async function ChatbotEditorPage({
   params,
@@ -19,6 +19,7 @@ export default async function ChatbotEditorPage({
   const store = await readStore();
   const bot = store.chatbots.find((b) => b.id === id && b.organizationId === org.id);
   if (!bot) notFound();
+  if (!bot.setupComplete) redirect(`/app/chatbots/${id}/setup`);
   const options = store.chatbotOptions.filter((o) => o.chatbotId === bot.id).sort((a, b) => a.sortOrder - b.sortOrder);
   const faqs = store.knowledgeItems.filter((k) => k.chatbotId === bot.id);
   const origin = await publicOrigin();

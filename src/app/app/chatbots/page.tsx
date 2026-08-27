@@ -13,32 +13,36 @@ export default async function ChatbotsPage() {
       <PageHeader
         kicker="Widgets"
         title="Chatbots"
-        description="Build branded chats, then paste one snippet on your site."
+        description="Set up a new chat with AI, then polish it in the studio."
         action={
-          <form action="/api/form/createChatbot" method="post" className="flex gap-2">
-            <input name="name" placeholder="New chatbot name" className="w-52" />
+          <form action="/api/form/createChatbot" method="post">
             <button className="btn" type="submit">
-              Create
+              Set up with AI
             </button>
           </form>
         }
       />
       {bots.length === 0 ? (
         <div className="card">
-          <EmptyState title="No chatbots yet" body="Create one to get a widget key and snippet." />
+          <EmptyState title="No chatbots yet" body="Set up with AI to scan your website and build the first draft." />
         </div>
       ) : (
         <div className="stagger grid gap-4 md:grid-cols-2">
-          {bots.map((bot) => (
-            <Link key={bot.id} href={`/app/chatbots/${bot.id}`} className="card lift block">
-              <div className="flex items-start justify-between gap-3">
-                <div className="font-semibold">{bot.name}</div>
-                <StatusBadge status={bot.active ? "active" : "inactive"} />
-              </div>
-              <p className="mt-2 line-clamp-2 text-sm text-neutral-500">{bot.greetings?.[0] || bot.greeting}</p>
-              <p className="mt-4 text-xs text-neutral-400">{bot.widgetKey}</p>
-            </Link>
-          ))}
+          {bots.map((bot) => {
+            const href = bot.setupComplete ? `/app/chatbots/${bot.id}` : `/app/chatbots/${bot.id}/setup`;
+            return (
+              <Link key={bot.id} href={href} className="card lift block">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="font-semibold">{bot.name === "New chatbot" ? "Untitled chatbot" : bot.name}</div>
+                  <StatusBadge status={bot.active ? "active" : "inactive"} />
+                </div>
+                <p className="mt-2 line-clamp-2 text-sm text-neutral-500">{bot.greetings?.[0] || bot.greeting}</p>
+                <p className="mt-4 text-xs text-neutral-400">
+                  {bot.setupComplete ? "Open studio" : "Continue setup"} · {bot.widgetKey}
+                </p>
+              </Link>
+            );
+          })}
         </div>
       )}
     </div>
