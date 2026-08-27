@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { loginAction } from "@/lib/actions";
+import { LoginForm } from "./login-form";
 
 export default async function LoginPage({
   searchParams,
@@ -8,30 +8,28 @@ export default async function LoginPage({
 }) {
   const { error } = await searchParams;
   return (
-    <div className="flex min-h-full items-center justify-center p-6">
-      <form action={loginAction} className="card w-full max-w-md space-y-4">
-        <h1 className="text-xl font-semibold">Log in to DentChat</h1>
-        {error ? <p className="text-sm text-red-700">Invalid email or password.</p> : null}
-        <div>
-          <label htmlFor="email">Email</label>
-          <input id="email" name="email" type="email" required defaultValue="clinic@dentchat.local" />
+    <div className="auth-shell">
+      <div className="w-full max-w-md">
+        <div className="mb-6 flex items-center gap-3">
+          <div className="dash-mark">D</div>
+          <div>
+            <div className="text-lg font-bold tracking-tight">DentChat</div>
+            <div className="text-sm text-neutral-500">Clinic &amp; admin sign in</div>
+          </div>
         </div>
-        <div>
-          <label htmlFor="password">Password</label>
-          <input id="password" name="password" type="password" required defaultValue="password" />
-        </div>
-        <button className="btn w-full" type="submit">
-          Continue
-        </button>
-        <p className="text-sm text-slate-600">
+        <LoginForm error={error} />
+        <p className="mt-5 text-sm text-neutral-500">
           Demo clinic: clinic@dentchat.local / password
           <br />
           Platform admin: admin@dentchat.local / password
         </p>
-        <p className="text-sm">
-          New practice? <Link href="/signup" className="text-teal-800 underline">Sign up</Link>
+        <p className="mt-3 text-sm">
+          New practice?{" "}
+          <Link href="/signup" className="font-semibold underline">
+            Sign up
+          </Link>
         </p>
-      </form>
+      </div>
     </div>
   );
 }

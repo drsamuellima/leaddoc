@@ -1,6 +1,5 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { impersonateAction } from "@/lib/actions";
+import { BackLink, EmptyState, PageHeader, StatusBadge } from "@/components/ui";
 import { requireAdmin } from "@/lib/auth";
 import { readStore } from "@/lib/store";
 
@@ -13,44 +12,51 @@ export default async function AdminLeadsPage({ params }: { params: Promise<{ id:
   const leads = store.leads.filter((l) => l.organizationId === id);
 
   return (
-    <div className="space-y-4">
-      <Link href={`/admin/clinics/${id}`} className="text-sm text-teal-800 underline">
-        Back to {org.name}
-      </Link>
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Leads</h1>
-        <form action={impersonateAction}>
-          <input type="hidden" name="organizationId" value={id} />
-          <button className="btn" type="submit">
-            Edit in clinic CRM
-          </button>
-        </form>
-      </div>
-      <div className="card p-0 overflow-x-auto">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-slate-50">
-            <tr>
-              <th className="px-4 py-2">Name</th>
-              <th className="px-4 py-2">Contact</th>
-              <th className="px-4 py-2">Inquiry</th>
-              <th className="px-4 py-2">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {leads.map((lead) => (
-              <tr key={lead.id} className="border-t">
-                <td className="px-4 py-2">{lead.name}</td>
-                <td className="px-4 py-2">
-                  {lead.email}
-                  <br />
-                  {lead.phone}
-                </td>
-                <td className="px-4 py-2">{lead.inquiry}</td>
-                <td className="px-4 py-2">{lead.status}</td>
+    <div>
+      <BackLink href={`/admin/clinics/${id}`}>{org.name}</BackLink>
+      <PageHeader
+        kicker="Leads"
+        title={org.name}
+        action={
+          <form action="/api/form/impersonate" method="post">
+            <input type="hidden" name="organizationId" value={id} />
+            <button className="btn" type="submit">
+              Edit in clinic CRM
+            </button>
+          </form>
+        }
+      />
+      <div className="table-wrap page-enter">
+        {leads.length === 0 ? (
+          <EmptyState title="No leads" body="This clinic has not captured enquiries yet." />
+        ) : (
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Contact</th>
+                <th>Inquiry</th>
+                <th>Status</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {leads.map((lead) => (
+                <tr key={lead.id}>
+                  <td className="font-medium">{lead.name}</td>
+                  <td>
+                    {lead.email}
+                    <br />
+                    <span className="text-neutral-500">{lead.phone}</span>
+                  </td>
+                  <td className="max-w-sm truncate">{lead.inquiry}</td>
+                  <td>
+                    <StatusBadge status={lead.status} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );

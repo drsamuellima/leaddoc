@@ -23,10 +23,14 @@ export function widgetTheme(org: Organization, bot: Chatbot) {
   };
 }
 
-export async function loadWidget(widgetKey: string): Promise<{ org: Organization; bot: Chatbot } | null> {
+export async function loadWidget(
+  widgetKey: string,
+  opts?: { allowInactive?: boolean },
+): Promise<{ org: Organization; bot: Chatbot } | null> {
   const store = await readStore();
-  const bot = store.chatbots.find((b) => b.widgetKey === widgetKey && b.active);
+  const bot = store.chatbots.find((b) => b.widgetKey === widgetKey);
   if (!bot) return null;
+  if (!opts?.allowInactive && !bot.active) return null;
   const org = store.organizations.find((o) => o.id === bot.organizationId);
   if (!org) return null;
   return { org, bot };

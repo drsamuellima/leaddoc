@@ -4,6 +4,7 @@ import { hashPassword } from "./crypto";
 import { parseActionType, widgetFieldDefaults, type Chatbot, type ChatbotOption, type Organization, type StoreData } from "./types";
 
 const filePath = path.join(process.cwd(), ".data", "store.json");
+export const DEMO_WIDGET_KEY = "bright-smile-demo";
 
 let queue: Promise<unknown> = Promise.resolve();
 
@@ -91,7 +92,7 @@ function seed(): StoreData {
         ],
         systemPrompt:
           "You are a friendly receptionist for Bright Smile Dental in the UK. Answer questions about hygiene, whitening, Invisalign, and emergency appointments. Never give clinical diagnoses. Collect enough detail to book a visit and offer to have the team call back.",
-        widgetKey: "bright-smile-demo",
+        widgetKey: DEMO_WIDGET_KEY,
         active: true,
         phone: "020 7946 0123",
         bookingUrl: "https://brightsmile.dently.app/book",
@@ -195,6 +196,15 @@ function normalizeStore(data: StoreData): { data: StoreData; changed: boolean } 
     }
     if (typeof org.bookingUrl !== "string") {
       org.bookingUrl = "";
+      changed = true;
+    }
+  }
+
+  const demoBot = data.chatbots.find((b) => b.id === "bot_demo");
+  if (demoBot && demoBot.widgetKey !== DEMO_WIDGET_KEY) {
+    const taken = data.chatbots.some((b) => b.id !== demoBot.id && b.widgetKey === DEMO_WIDGET_KEY);
+    if (!taken) {
+      demoBot.widgetKey = DEMO_WIDGET_KEY;
       changed = true;
     }
   }

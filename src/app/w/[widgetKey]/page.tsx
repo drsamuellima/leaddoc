@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { readStore } from "@/lib/store";
-import { widgetAllowed, widgetTheme } from "@/lib/widget";
+import { loadWidget, widgetAllowed, widgetTheme } from "@/lib/widget";
 import { ChatWidget } from "./chat-widget";
 
 export default async function WidgetPage({
@@ -13,19 +13,18 @@ export default async function WidgetPage({
   const { widgetKey } = await params;
   const { preview } = await searchParams;
   const isPreview = preview === "1";
+  const loaded = await loadWidget(widgetKey, { allowInactive: isPreview });
+  if (!loaded) notFound();
+  const { org, bot } = loaded;
   const store = await readStore();
-  const bot = store.chatbots.find((b) => b.widgetKey === widgetKey && b.active);
-  if (!bot) notFound();
-  const org = store.organizations.find((o) => o.id === bot.organizationId);
-  if (!org) notFound();
   const options = store.chatbotOptions
     .filter((o) => o.chatbotId === bot.id)
     .sort((a, b) => a.sortOrder - b.sortOrder);
   const theme = widgetTheme(org, bot);
 
-  if (!widgetAllowed(org)) {
+  if (!isPreview && !widgetAllowed(org)) {
     return (
-      <div data-widget-root className="flex h-screen items-end justify-end bg-transparent p-4">
+      <div data-widget-root className="absolute inset-0 flex h-full items-center justify-center bg-white p-4">
         <div className="card max-w-sm text-sm">This chat is temporarily unavailable.</div>
       </div>
     );

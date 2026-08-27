@@ -20,6 +20,11 @@ function telHref(phone: string) {
   return cleaned ? `tel:${cleaned}` : "";
 }
 
+function notifyParent(type: "open" | "close") {
+  if (typeof window === "undefined") return;
+  window.parent.postMessage({ source: "dentchat", type }, "*");
+}
+
 function Avatar(props: { src: string; name: string; accent: string; size: number }) {
   const initial = (props.name.trim()[0] || "?").toUpperCase();
   return (
@@ -43,6 +48,16 @@ function Avatar(props: { src: string; name: string; accent: string; size: number
         </div>
       )}
     </div>
+  );
+}
+
+function TypingDots(props: { color: string }) {
+  return (
+    <span className="dentchat-typing" style={{ color: props.color }} aria-label="Typing">
+      <i />
+      <i />
+      <i />
+    </span>
   );
 }
 
@@ -72,21 +87,38 @@ export function ChatWidget(props: {
   const [draft, setDraft] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [seqKey, setSeqKey] = useState(0);
+  const [introDone, setIntroDone] = useState(false);
 
   const accent = props.accent || "#e0569f";
   const panel = props.panel || "#ffffff";
   const buttonText = props.buttonText || "#1a1a1a";
   const avatarLabel = props.avatarName || props.clinicName;
+  const greetings = useMemo(
+    () => (props.greetings || []).map((g) => g.trim()).filter(Boolean),
+    [props.greetings],
+  );
+  const playIntro = open && view === "home" && !introDone;
+  const introMs = greetings.length * 1000 + 500;
 
   useEffect(() => {
-    window.parent.postMessage({ source: "dentchat", type: open ? "open" : "close" }, "*");
+    notifyParent(open ? "open" : "close");
   }, [open]);
+
+  useEffect(() => {
+    if (!open) {
+      setIntroDone(false);
+      return;
+    }
+    if (!playIntro) return;
+    const id = window.setTimeout(() => setIntroDone(true), introMs);
+    return () => window.clearTimeout(id);
+  }, [open, playIntro, introMs, seqKey]);
 
   const previewStyle = useMemo(() => {
     if (!props.preview) return undefined;
     return {
-      background:
-        "linear-gradient(160deg, rgba(80,70,60,.35), rgba(40,50,55,.45)), linear-gradient(180deg, #cbb8a4 0%, #8fa0a8 55%, #6d7f74 100%)",
+      background: "linear-gradient(180deg, #f8f4ee 0%, #eef3f5 48%, #e7eee9 100%)",
     };
   }, [props.preview]);
 
@@ -101,10 +133,18 @@ export function ChatWidget(props: {
     setDraft("");
     setError("");
     setBusy(false);
+    setIntroDone(false);
+    setSeqKey((k) => k + 1);
   }
 
   function close() {
+    notifyParent("close");
     setOpen(false);
+  }
+
+  function openChat() {
+    notifyParent("open");
+    setOpen(true);
   }
 
   function onAction(option: Option) {
@@ -128,6 +168,7 @@ export function ChatWidget(props: {
       return;
     }
     setInquiry(option.starterMessage || option.label);
+    setIntroDone(true);
     setView("lead");
   }
 
@@ -181,49 +222,118 @@ export function ChatWidget(props: {
     setMessages((m) => [...m, { role: "assistant", content: json.reply }]);
   }
 
-  return (
-    <div data-widget-root className="relative h-screen w-screen overflow-hidden" style={previewStyle}>
-      {open ? (
-        <div className="flex h-full justify-end bg-black/30">
-          <div className="relative flex h-full w-full max-w-[420px] flex-col px-4 pb-4 pt-5 sm:px-5">
-            <button
-              type="button"
-              onClick={reset}
-              aria-label="Reset chat"
-              className="absolute right-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-md"
-              style={{ color: accent }}
-            >
-              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.2">
-                <path d="M21 12a9 9 0 1 1-3.2-6.8" strokeLinecap="round" />
-                <path d="M21 4v6h-6" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
+  const headerPad = {
+    paddingTop: "max(0.7rem, env(safe-area-inset-top, 0px))",
+    paddingLeft: "max(0.85rem, env(safe-area-inset-left, 0px))",
+    paddingRight: "max(0.85rem, env(safe-area-inset-right, 0px))",
+  };
 
-            <div className="min-h-0 flex-1 overflow-y-auto pr-1 pt-6">
-              <div className="mb-4 inline-flex items-center gap-2 rounded-full px-2 py-1 shadow-sm" style={{ background: panel }}>
+  return (
+    <div
+      data-widget-root
+      className="relative h-full max-h-full min-h-0 w-full overflow-hidden bg-transparent"
+      style={previewStyle}
+    >
+      {open ? (
+        <div className="flex h-full max-h-full min-h-0 justify-end bg-transparent">
+          <div
+            className="dentchat-panel relative flex h-full max-h-full min-h-0 w-full max-w-[420px] flex-col"
+            style={
+              props.preview
+                ? undefined
+                : {
+                    background:
+                      "linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.14) 28%, rgba(0,0,0,0.26) 100%)",
+                  }
+            }
+          >
+            <header
+              className="sticky top-0 z-20 flex shrink-0 items-center justify-between gap-2 pb-2"
+              style={headerPad}
+            >
+              <div
+                className="inline-flex min-w-0 items-center gap-2 rounded-full px-2 py-1 shadow-sm"
+                style={{ background: panel }}
+              >
                 <Avatar src={props.avatarImageUrl} name={avatarLabel} accent={accent} size={28} />
-                <span className="pr-2 text-sm font-semibold" style={{ color: buttonText }}>
+                <span className="truncate pr-2 text-sm font-semibold" style={{ color: buttonText }}>
                   {props.clinicName}
                 </span>
               </div>
+              <div className="flex shrink-0 items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={reset}
+                  aria-label="Reset chat"
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-md"
+                  style={{ color: accent }}
+                >
+                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.2">
+                    <path d="M21 12a9 9 0 1 1-3.2-6.8" strokeLinecap="round" />
+                    <path d="M21 4v6h-6" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  onClick={close}
+                  aria-label="Close chat"
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-md"
+                  style={{ color: buttonText }}
+                >
+                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.4">
+                    <path d="M18 6 6 18M6 6l12 12" strokeLinecap="round" />
+                  </svg>
+                </button>
+              </div>
+            </header>
 
+            <div
+              className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pr-3"
+              style={{
+                paddingLeft: "max(1rem, env(safe-area-inset-left, 0px))",
+                paddingRight: "max(0.75rem, env(safe-area-inset-right, 0px))",
+              }}
+            >
               {view === "home" ? (
-                <>
+                <div key={seqKey}>
                   <div className="space-y-3">
-                    {props.greetings.map((greeting, i) => (
-                      <div key={`${i}-${greeting.slice(0, 24)}`} className="flex items-end gap-2">
-                        <Avatar src={props.avatarImageUrl} name={avatarLabel} accent={accent} size={36} />
+                    {greetings.map((greeting, i) => (
+                      <div key={`${i}-${greeting.slice(0, 24)}`} className="grid">
+                        {playIntro ? (
+                          <div
+                            className="dentchat-seq-typing col-start-1 row-start-1 flex items-end gap-2"
+                            style={{ animationDelay: `${i * 1}s` }}
+                            aria-hidden
+                          >
+                            <Avatar src={props.avatarImageUrl} name={avatarLabel} accent={accent} size={36} />
+                            <div className="rounded-2xl px-3.5 py-2.5 shadow-sm" style={{ background: panel }}>
+                              <TypingDots color={accent} />
+                            </div>
+                          </div>
+                        ) : null}
                         <div
-                          className="max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-snug shadow-sm"
-                          style={{ background: panel, color: buttonText }}
+                          className={`col-start-1 row-start-1 flex items-end gap-2 ${playIntro ? "dentchat-seq-bubble" : ""}`}
+                          style={playIntro ? { animationDelay: `${i * 1 + 0.38}s` } : undefined}
                         >
-                          {greeting}
+                          <Avatar src={props.avatarImageUrl} name={avatarLabel} accent={accent} size={36} />
+                          <div
+                            className="max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-snug shadow-sm"
+                            style={{ background: panel, color: buttonText }}
+                          >
+                            {greeting}
+                          </div>
                         </div>
                       </div>
                     ))}
                   </div>
 
-                  <div className="mt-5 rounded-[1.35rem] p-2.5 shadow-lg" style={{ background: panel }}>
+                  <div
+                    className={`mt-5 rounded-[1.35rem] p-2.5 shadow-lg ${playIntro ? "dentchat-seq-bubble" : ""}`}
+                    style={{
+                      background: panel,
+                      ...(playIntro ? { animationDelay: `${greetings.length * 1 + 0.2}s` } : {}),
+                    }}
+                  >
                     <div className="grid grid-cols-2 gap-2.5">
                       {props.options.map((option) => (
                         <button
@@ -242,11 +352,11 @@ export function ChatWidget(props: {
                       ))}
                     </div>
                   </div>
-                </>
+                </div>
               ) : null}
 
               {view === "lead" ? (
-                <form onSubmit={startLead} className="mt-2 space-y-3 rounded-[1.35rem] p-4 shadow-lg" style={{ background: panel }}>
+                <form onSubmit={startLead} className="mt-1 space-y-3 rounded-[1.35rem] p-4 shadow-lg" style={{ background: panel }}>
                   <p className="text-sm font-semibold" style={{ color: buttonText }}>
                     Leave your details and we’ll help with your enquiry.
                   </p>
@@ -266,7 +376,7 @@ export function ChatWidget(props: {
               ) : null}
 
               {view === "chat" ? (
-                <div className="mt-2 flex min-h-[320px] flex-col rounded-[1.35rem] p-3 shadow-lg" style={{ background: panel }}>
+                <div className="mt-1 flex min-h-[12rem] flex-col rounded-[1.35rem] p-3 shadow-lg" style={{ background: panel }}>
                   <div className="min-h-0 flex-1 space-y-2 overflow-y-auto text-sm">
                     {messages.map((m, i) => (
                       <div
@@ -292,34 +402,36 @@ export function ChatWidget(props: {
               ) : null}
             </div>
 
-            <div className="mt-3 flex items-end justify-end gap-2 pt-1">
+            <div
+              className="flex shrink-0 items-center justify-end px-4 pt-2"
+              style={{
+                paddingBottom: "max(0.65rem, env(safe-area-inset-bottom, 0px))",
+                paddingRight: "max(1rem, env(safe-area-inset-right, 0px))",
+              }}
+            >
               <div
                 className="rounded-full px-3 py-1.5 text-xs font-semibold shadow-md"
                 style={{ background: panel, color: accent }}
               >
                 ⚡ By DentChat
               </div>
-              <button
-                type="button"
-                onClick={close}
-                aria-label="Close chat"
-                className="flex h-14 w-14 items-center justify-center rounded-full bg-white"
-                style={{ boxShadow: `0 0 0 3px ${accent}, 0 10px 24px rgba(0,0,0,0.18)` }}
-              >
-                <svg viewBox="0 0 24 24" className="h-6 w-6 text-slate-700" fill="none" stroke="currentColor" strokeWidth="2.4">
-                  <path d="M18 6 6 18M6 6l12 12" strokeLinecap="round" />
-                </svg>
-              </button>
             </div>
           </div>
         </div>
       ) : (
-        <div className="flex h-full items-end justify-end p-2">
+        <div
+          className="flex h-full max-h-full items-end justify-end"
+          style={{
+            padding: "0.5rem",
+            paddingBottom: "max(0.5rem, env(safe-area-inset-bottom, 0px))",
+            paddingRight: "max(0.5rem, env(safe-area-inset-right, 0px))",
+          }}
+        >
           <button
             type="button"
             className="flex h-14 w-14 items-center justify-center rounded-full text-white shadow-lg"
             style={{ background: accent }}
-            onClick={() => setOpen(true)}
+            onClick={openChat}
             aria-label="Open chat"
           >
             <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="1.8">

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { BackLink, PageHeader } from "@/components/ui";
 import { getClinicContext } from "@/lib/auth";
 import { readStore } from "@/lib/store";
 
@@ -13,20 +14,28 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
   const messages = store.messages.filter((m) => m.conversationId === id);
 
   return (
-    <div className="card space-y-4">
-      <h1 className="text-xl font-semibold">{lead?.name ?? "Conversation"}</h1>
-      {lead ? (
-        <Link href={`/app/leads/${lead.id}`} className="text-sm text-teal-800 underline">
-          Open lead
-        </Link>
-      ) : null}
-      <div className="space-y-3">
+    <div>
+      <BackLink href="/app/conversations">All conversations</BackLink>
+      <PageHeader
+        kicker="Conversation"
+        title={lead?.name ?? "Visitor chat"}
+        description={lead?.inquiry || "Widget conversation"}
+        action={
+          lead ? (
+            <Link href={`/app/leads/${lead.id}`} className="btn secondary">
+              Open lead
+            </Link>
+          ) : null
+        }
+      />
+      <div className="card mx-auto max-w-2xl space-y-3 page-enter">
         {messages.map((m) => (
-          <div key={m.id} className="rounded-lg bg-slate-50 p-3 text-sm">
-            <div className="text-xs uppercase text-slate-400">{m.role}</div>
-            <p className="mt-1">{m.content}</p>
+          <div key={m.id} className={`chat-bubble ${m.role === "user" ? "user" : "assistant"}`}>
+            <div className="mb-1 text-[10px] font-bold uppercase tracking-wide opacity-60">{m.role}</div>
+            <p>{m.content}</p>
           </div>
         ))}
+        {messages.length === 0 ? <p className="text-sm text-neutral-500">No messages in this thread.</p> : null}
       </div>
     </div>
   );

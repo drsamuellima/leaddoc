@@ -1,0 +1,65 @@
+import { NextResponse } from "next/server";
+import {
+  addKnowledgeAction,
+  addOptionAction,
+  adminAddSupportNoteAction,
+  adminChargeAction,
+  adminCreateChatbotAction,
+  adminCreateClinicAction,
+  adminCreateStripeSubAction,
+  adminLinkStripeAction,
+  adminSavePlanAction,
+  adminToggleWidgetExceptionAction,
+  createChatbotAction,
+  deleteKnowledgeAction,
+  deleteOptionAction,
+  exitImpersonateAction,
+  impersonateAction,
+  inviteStaffAction,
+  logoutAction,
+  markNotificationsReadAction,
+  saveBrandingAction,
+  saveChatbotAction,
+  signupAction,
+  startCheckoutAction,
+  updateLeadAction,
+  updateOptionAction,
+} from "@/lib/actions";
+
+const handlers: Record<string, (formData: FormData) => Promise<void>> = {
+  signup: signupAction,
+  logout: () => logoutAction(),
+  checkout: () => startCheckoutAction(),
+  saveChatbot: saveChatbotAction,
+  createChatbot: createChatbotAction,
+  addOption: addOptionAction,
+  updateOption: updateOptionAction,
+  deleteOption: deleteOptionAction,
+  addKnowledge: addKnowledgeAction,
+  deleteKnowledge: deleteKnowledgeAction,
+  saveBranding: saveBrandingAction,
+  inviteStaff: inviteStaffAction,
+  updateLead: updateLeadAction,
+  markNotificationsRead: () => markNotificationsReadAction(),
+  adminCreateClinic: adminCreateClinicAction,
+  impersonate: impersonateAction,
+  exitImpersonate: () => exitImpersonateAction(),
+  adminLinkStripe: adminLinkStripeAction,
+  adminCreateStripeSub: adminCreateStripeSubAction,
+  adminCharge: adminChargeAction,
+  adminSavePlan: adminSavePlanAction,
+  adminAddSupportNote: adminAddSupportNoteAction,
+  adminToggleWidgetException: adminToggleWidgetExceptionAction,
+  adminCreateChatbot: adminCreateChatbotAction,
+};
+
+export async function POST(request: Request, ctx: { params: Promise<{ name: string }> }) {
+  const { name } = await ctx.params;
+  const formData = await request.formData();
+  const handler = handlers[name];
+  if (!handler) {
+    return NextResponse.json({ error: "Unknown form" }, { status: 404 });
+  }
+  await handler(formData);
+  return NextResponse.json({ ok: true });
+}

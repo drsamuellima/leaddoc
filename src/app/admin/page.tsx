@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { impersonateAction } from "@/lib/actions";
+import { EmptyState, PageHeader, StatusBadge } from "@/components/ui";
 import { requireAdmin } from "@/lib/auth";
 import { readStore } from "@/lib/store";
 
@@ -15,52 +15,57 @@ export default async function AdminHome({
   const clinics = store.organizations.filter((o) => !query || o.name.toLowerCase().includes(query));
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Clinics</h1>
-        <Link href="/admin/clinics/new" className="btn">
-          Add clinic
-        </Link>
-      </div>
-      <form className="flex gap-2">
-        <input name="q" defaultValue={q} placeholder="Search clinics" />
-        <button className="btn secondary" type="submit">
-          Search
-        </button>
-      </form>
-      <div className="card p-0 overflow-x-auto">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-slate-50">
-            <tr>
-              <th className="px-4 py-2">Clinic</th>
-              <th className="px-4 py-2">Subscription</th>
-              <th className="px-4 py-2">Leads</th>
-              <th className="px-4 py-2"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {clinics.map((org) => (
-              <tr key={org.id} className="border-t">
-                <td className="px-4 py-2 font-medium">{org.name}</td>
-                <td className="px-4 py-2">{org.subscriptionStatus}</td>
-                <td className="px-4 py-2">{store.leads.filter((l) => l.organizationId === org.id).length}</td>
-                <td className="px-4 py-2">
-                  <div className="flex gap-2">
-                    <Link href={`/admin/clinics/${org.id}`} className="btn secondary">
-                      Open
-                    </Link>
-                    <form action={impersonateAction}>
-                      <input type="hidden" name="organizationId" value={org.id} />
-                      <button className="btn" type="submit">
-                        Open as clinic
-                      </button>
-                    </form>
-                  </div>
-                </td>
+    <div>
+      <PageHeader
+        kicker="Platform"
+        title="Clinics"
+        description="Every practice on DentChat. Open a hub or jump in as the clinic."
+        action={
+          <Link href="/admin/clinics/new" className="btn">
+            Add clinic
+          </Link>
+        }
+      />
+      {query ? <p className="mb-4 text-sm text-neutral-500">Showing “{q}”</p> : null}
+      <div className="table-wrap page-enter">
+        {clinics.length === 0 ? (
+          <EmptyState title="No clinics" body="Create one to start a practice workspace." />
+        ) : (
+          <table>
+            <thead>
+              <tr>
+                <th>Clinic</th>
+                <th>Subscription</th>
+                <th>Leads</th>
+                <th></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {clinics.map((org) => (
+                <tr key={org.id}>
+                  <td className="font-semibold">{org.name}</td>
+                  <td>
+                    <StatusBadge status={org.subscriptionStatus} />
+                  </td>
+                  <td>{store.leads.filter((l) => l.organizationId === org.id).length}</td>
+                  <td>
+                    <div className="flex flex-wrap justify-end gap-2">
+                      <Link href={`/admin/clinics/${org.id}`} className="btn secondary">
+                        Open
+                      </Link>
+                      <form action="/api/form/impersonate" method="post">
+                        <input type="hidden" name="organizationId" value={org.id} />
+                        <button className="btn" type="submit">
+                          Open as clinic
+                        </button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );

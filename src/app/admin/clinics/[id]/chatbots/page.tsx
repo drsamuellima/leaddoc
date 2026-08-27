@@ -1,6 +1,5 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { adminCreateChatbotAction, impersonateAction } from "@/lib/actions";
+import { BackLink, EmptyState, PageHeader, StatusBadge } from "@/components/ui";
 import { requireAdmin } from "@/lib/auth";
 import { readStore } from "@/lib/store";
 
@@ -13,37 +12,45 @@ export default async function AdminChatbotsPage({ params }: { params: Promise<{ 
   const bots = store.chatbots.filter((b) => b.organizationId === id);
 
   return (
-    <div className="space-y-4">
-      <Link href={`/admin/clinics/${id}`} className="text-sm text-teal-800 underline">
-        Back to {org.name}
-      </Link>
-      <h1 className="text-2xl font-semibold">Chatbots</h1>
-      <p className="text-sm text-slate-600">
-        Open as clinic to edit prompt, FAQs, options and widget code with full clinic tools.
-      </p>
-      <form action={adminCreateChatbotAction} className="flex gap-2">
-        <input type="hidden" name="organizationId" value={id} />
-        <input name="name" placeholder="Chatbot name" />
-        <button className="btn" type="submit">
-          Add chatbot
-        </button>
-      </form>
-      <ul className="card divide-y p-0">
-        {bots.map((bot) => (
-          <li key={bot.id} className="flex items-center justify-between px-4 py-3">
-            <div>
-              <div className="font-medium">{bot.name}</div>
-              <div className="text-xs text-slate-500">{bot.widgetKey}</div>
+    <div>
+      <BackLink href={`/admin/clinics/${id}`}>{org.name}</BackLink>
+      <PageHeader
+        kicker="Chatbots"
+        title={org.name}
+        description="Open as clinic to edit prompt, FAQs, options and widget code."
+        action={
+          <form action="/api/form/adminCreateChatbot" method="post" className="flex gap-2">
+            <input type="hidden" name="organizationId" value={id} />
+            <input name="name" placeholder="Chatbot name" className="w-44" />
+            <button className="btn" type="submit">
+              Add
+            </button>
+          </form>
+        }
+      />
+      <div className="card p-2 page-enter">
+        {bots.length === 0 ? (
+          <EmptyState title="No chatbots" body="Add one for this clinic." />
+        ) : (
+          bots.map((bot) => (
+            <div key={bot.id} className="list-row px-3">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <div className="font-medium">{bot.name}</div>
+                  <StatusBadge status={bot.active ? "active" : "inactive"} />
+                </div>
+                <div className="text-xs text-neutral-400">{bot.widgetKey}</div>
+              </div>
+              <form action="/api/form/impersonate" method="post">
+                <input type="hidden" name="organizationId" value={id} />
+                <button className="btn secondary" type="submit">
+                  Edit in clinic UI
+                </button>
+              </form>
             </div>
-            <form action={impersonateAction}>
-              <input type="hidden" name="organizationId" value={id} />
-              <button className="btn secondary" type="submit">
-                Edit in clinic UI
-              </button>
-            </form>
-          </li>
-        ))}
-      </ul>
+          ))
+        )}
+      </div>
     </div>
   );
 }

@@ -1,5 +1,51 @@
+import { headers } from "next/headers";
+
+function configuredAppUrl() {
+  return (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "");
+}
+
+function isLocalHost(hostname: string) {
+  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]";
+}
+
+function isLocalUrl(url: string) {
+  try {
+    return isLocalHost(new URL(url).hostname);
+  } catch {
+    return false;
+  }
+}
+
 export function appUrl() {
-  return process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  return configuredAppUrl() || "http://localhost:3000";
+}
+
+/** Prefer the live request host so snippets/iframes match the running port (e.g. 3001). */
+export function originFromRequest(request: Request) {
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  const host = (forwardedHost || request.headers.get("host") || "").split(",")[0].trim();
+  if (host) {
+    const proto =
+      request.headers.get("x-forwarded-proto") ||
+      (isLocalHost(host.split(":")[0]) ? "http" : new URL(request.url).protocol.replace(":", ""));
+    return `${proto}://${host}`;
+  }
+  return new URL(request.url).origin;
+}
+
+export function resolvePublicOrigin(request?: Request) {
+  const env = configuredAppUrl();
+  const fromRequest = request ? originFromRequest(request) : "";
+  if (fromRequest && (!env || isLocalUrl(env))) return fromRequest;
+  return env || fromRequest || "http://localhost:3000";
+}
+
+export async function publicOrigin() {
+  const h = await headers();
+  const host = (h.get("x-forwarded-host") || h.get("host") || "").split(",")[0].trim();
+  if (!host) return resolvePublicOrigin();
+  const proto = h.get("x-forwarded-proto") || (isLocalHost(host.split(":")[0]) ? "http" : "https");
+  return resolvePublicOrigin(new Request(`${proto}://${host}/`, { headers: h }));
 }
 
 export function hasStripe() {
