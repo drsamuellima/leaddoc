@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { StatusBadge } from "@/components/ui";
+import { deleteLeadsAction } from "@/lib/actions";
 import { formatLeadDateTime } from "@/lib/leads";
 import type { LeadStatus } from "@/lib/types";
 import { LeadAvatar } from "./lead-avatar";
@@ -36,8 +37,7 @@ export function LeadListTable({ leads }: { leads: LeadListRow[] }) {
 
   return (
     <form
-      action="/api/form/deleteLeads"
-      method="post"
+      action={deleteLeadsAction}
       onSubmit={(event) => {
         if (selectedIds.length === 0) {
           event.preventDefault();
@@ -49,6 +49,9 @@ export function LeadListTable({ leads }: { leads: LeadListRow[] }) {
         }
       }}
     >
+      {selectedIds.map((id) => (
+        <input key={id} type="hidden" name="ids" value={id} />
+      ))}
       <div className="lead-bulk-bar">
         <span className="text-sm text-neutral-500">
           {selectedIds.length ? `${selectedIds.length} selected` : "Select leads to delete"}
@@ -85,8 +88,6 @@ export function LeadListTable({ leads }: { leads: LeadListRow[] }) {
                 <td className="lead-check-col">
                   <input
                     type="checkbox"
-                    name="ids"
-                    value={lead.id}
                     checked={Boolean(selected[lead.id])}
                     onChange={(event) =>
                       setSelected((prev) => ({ ...prev, [lead.id]: event.target.checked }))

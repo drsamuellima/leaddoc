@@ -178,6 +178,7 @@ export type StoreData = {
   notifications: AppNotification[];
   supportNotes: SupportNote[];
   auditLogs: AuditLog[];
+  clinicDemoCrmSeeded?: boolean;
 };
 
 export function defaultGreetings(clinicName: string, avatarName = ""): string[] {

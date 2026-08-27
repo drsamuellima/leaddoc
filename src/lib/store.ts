@@ -333,6 +333,16 @@ function mergeClinicDemoCrm(data: StoreData) {
   if (!org || !bot || !owner || !staff) return false;
 
   const pack = clinicDemoCrm(org.id, bot.id, owner.id, staff.id);
+  const alreadySeeded =
+    data.clinicDemoCrmSeeded === true || pack.leads.some((lead) => data.leads.some((row) => row.id === lead.id));
+  if (alreadySeeded) {
+    if (!data.clinicDemoCrmSeeded) {
+      data.clinicDemoCrmSeeded = true;
+      return true;
+    }
+    return false;
+  }
+
   let changed = false;
 
   const pushIfMissing = <T extends { id: string }>(list: T[], item: T) => {
@@ -359,7 +369,8 @@ function mergeClinicDemoCrm(data: StoreData) {
     changed = true;
   }
 
-  return changed;
+  data.clinicDemoCrmSeeded = true;
+  return true;
 }
 
 function seed(): StoreData {
@@ -547,6 +558,7 @@ function seed(): StoreData {
     ],
     supportNotes: [],
     auditLogs: [],
+    clinicDemoCrmSeeded: true,
   };
 }
 

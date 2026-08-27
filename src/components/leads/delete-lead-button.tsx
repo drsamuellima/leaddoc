@@ -1,10 +1,11 @@
 "use client";
 
+import { deleteLeadsAction } from "@/lib/actions";
+
 export function DeleteLeadButton({ leadId, name }: { leadId: string; name: string }) {
   return (
     <form
-      action="/api/form/deleteLeads"
-      method="post"
+      action={deleteLeadsAction}
       onSubmit={(event) => {
         if (
           !window.confirm(
