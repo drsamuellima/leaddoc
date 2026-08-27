@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f4f7f6;
+  --foreground: #14221f;
 }
 
 @theme inline {
@@ -12,15 +12,61 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html:has([data-widget-root]),
+body:has([data-widget-root]) {
+  background: transparent;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+input,
+textarea,
+select {
+  width: 100%;
+  border: 1px solid #d5ddd9;
+  border-radius: 0.5rem;
+  padding: 0.55rem 0.75rem;
+  background: white;
+  color: inherit;
+}
+
+label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+  color: #3d4f49;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border-radius: 0.55rem;
+  padding: 0.55rem 0.95rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  background: #0f766e;
+  color: white;
+  border: 0;
+  cursor: pointer;
+}
+
+.btn.secondary {
+  background: white;
+  color: #14221f;
+  border: 1px solid #d5ddd9;
+}
+
+.card {
+  background: white;
+  border: 1px solid #e2e8e5;
+  border-radius: 1rem;
+  padding: 1.25rem;
+  box-shadow: 0 1px 2px rgb(20 34 31 / 0.04);
 }
