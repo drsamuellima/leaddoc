@@ -2,15 +2,14 @@ import Link from "next/link";
 import { EmptyState, PageHeader } from "@/components/ui";
 import { LeadListTable } from "@/components/leads/lead-list-table";
 import { getClinicContext } from "@/lib/auth";
-import { isLeadStatus, LEAD_STAGE_LABELS, LEAD_STATUSES } from "@/lib/leads";
 import { readStore } from "@/lib/store";
 
 const PAGE_SIZE = 8;
 
-function hrefWith(params: { q?: string; status?: string; assigned?: string; page?: number }) {
+function hrefWith(params: { q?: string; pipeline?: string; assigned?: string; page?: number }) {
   const search = new URLSearchParams();
   if (params.q) search.set("q", params.q);
-  if (params.status) search.set("status", params.status);
+  if (params.pipeline) search.set("pipeline", params.pipeline);
   if (params.assigned) search.set("assigned", params.assigned);
   if (params.page && params.page > 1) search.set("page", String(params.page));
   const qs = search.toString();
@@ -20,24 +19,25 @@ function hrefWith(params: { q?: string; status?: string; assigned?: string; page
 export default async function LeadsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; status?: string; assigned?: string; page?: string; ok?: string }>;
+  searchParams: Promise<{ q?: string; pipeline?: string; assigned?: string; page?: string; ok?: string }>;
 }) {
-  const { q, status, assigned, page: pageRaw, ok } = await searchParams;
+  const { q, pipeline, assigned, page: pageRaw, ok } = await searchParams;
   const { org } = await getClinicContext();
   const store = await readStore();
   const query = (q || "").trim().toLowerCase();
   const staff = store.profiles.filter((p) => p.organizationId === org.id);
   const bots = store.chatbots.filter((b) => b.organizationId === org.id);
+  const pipelines = store.pipelines.filter((p) => p.organizationId === org.id);
 
-  const all = store.leads
-    .filter((l) => l.organizationId === org.id)
+  const orgLeads = store.leads.filter((l) => l.organizationId === org.id);
+  const all = orgLeads
     .filter((l) => {
       if (!query) return true;
-      return `${l.name} ${l.email} ${l.phone} ${l.inquiry} ${l.status}`.toLowerCase().includes(query);
+      return `${l.name} ${l.email} ${l.phone} ${l.inquiry} ${l.treatment} ${l.status}`.toLowerCase().includes(query);
     })
     .filter((l) => {
-      if (!status) return true;
-      return l.status === status;
+      if (!pipeline) return true;
+      return l.pipelineId === pipeline;
     })
     .filter((l) => {
       if (!assigned) return true;
@@ -49,25 +49,30 @@ export default async function LeadsPage({
   const totalPages = Math.max(1, Math.ceil(all.length / PAGE_SIZE));
   const page = Math.min(Math.max(1, Number(pageRaw) || 1), totalPages);
   const leads = all.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  const filters = { q: query, status: status || "", assigned: assigned || "" };
+  const filters = { q: query, pipeline: pipeline || "", assigned: assigned || "" };
+  const returnTo = hrefWith({ ...filters, page });
 
   return (
     <div>
       <PageHeader
         kicker="Patient CRM"
         title="Patient leads"
-        description="Every enquiry from your widget, ready for reception to follow up."
-        action={<span className="lead-count-badge">{all.length} leads</span>}
+        description="Edit treatment, value and pipeline stage here — open a record for notes and recalls."
+        action={
+          <Link href="/app/pipelines" className="btn secondary">
+            Pipelines
+          </Link>
+        }
       />
       {ok === "deleted" ? <p className="lead-flash">Selected leads were deleted.</p> : null}
 
       <form action="/app/leads" method="get" className="lead-toolbar page-enter">
-        <input name="q" defaultValue={q || ""} placeholder="Search patients, emails, reasons…" />
-        <select name="status" defaultValue={status && isLeadStatus(status) ? status : ""}>
-          <option value="">All stages</option>
-          {LEAD_STATUSES.map((s) => (
-            <option key={s} value={s}>
-              {LEAD_STAGE_LABELS[s]}
+        <input name="q" defaultValue={q || ""} placeholder="Search patients, treatments…" />
+        <select name="pipeline" defaultValue={pipeline || ""}>
+          <option value="">All treatments</option>
+          {pipelines.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
             </option>
           ))}
         </select>
@@ -86,16 +91,17 @@ export default async function LeadsPage({
       </form>
 
       <div className="lead-chips">
-        <Link href={hrefWith({ q: query, assigned: filters.assigned })} className={!status ? "active" : undefined}>
+        <Link href={hrefWith({ q: query, assigned: filters.assigned })} className={!pipeline ? "active" : undefined}>
           All
         </Link>
-        {LEAD_STATUSES.map((s) => (
+        {pipelines.map((p) => (
           <Link
-            key={s}
-            href={hrefWith({ q: query, status: s, assigned: filters.assigned })}
-            className={status === s ? "active" : undefined}
+            key={p.id}
+            href={hrefWith({ q: query, pipeline: p.id, assigned: filters.assigned })}
+            className={pipeline === p.id ? "active" : undefined}
           >
-            {LEAD_STAGE_LABELS[s]}
+            {p.name}
+            <span className="lead-chip-count">{orgLeads.filter((l) => l.pipelineId === p.id).length}</span>
           </Link>
         ))}
       </div>
@@ -109,13 +115,17 @@ export default async function LeadsPage({
         </div>
       ) : (
         <LeadListTable
+          returnTo={returnTo}
+          pipelines={pipelines}
           leads={leads.map((lead) => ({
             id: lead.id,
             name: lead.name,
             email: lead.email,
             phone: lead.phone,
             inquiry: lead.inquiry,
-            status: lead.status,
+            pipelineId: lead.pipelineId,
+            stageId: lead.stageId,
+            amountPence: lead.amountPence,
             followUpAt: lead.followUpAt,
             source: bots.find((b) => b.id === lead.chatbotId)?.name ?? "Widget",
             owners: staff.filter((s) => s.id === lead.assignedTo).map((s) => ({ id: s.id, name: s.name })),

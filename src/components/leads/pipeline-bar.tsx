@@ -1,8 +1,5 @@
-import type { LeadStatus } from "@/lib/types";
-import { LEAD_STAGE_PROGRESS } from "@/lib/leads";
-
-export function PipelineBar({ status }: { status: LeadStatus }) {
-  const pct = LEAD_STAGE_PROGRESS[status];
+export function PipelineBar({ percent }: { percent: number }) {
+  const pct = Math.max(0, Math.min(100, percent));
   return (
     <div className="lead-pipe">
       <div className="track lead-pipe-track">

@@ -97,6 +97,42 @@ export type Lead = {
   assignedTo: string | null;
   followUpAt: string | null;
   notes: string;
+  treatment: string;
+  pipelineId: string | null;
+  stageId: string | null;
+  amountPence: number | null;
+  createdAt: string;
+};
+
+export type PipelineStage = {
+  id: string;
+  name: string;
+  sortOrder: number;
+};
+
+export type TreatmentPipeline = {
+  id: string;
+  organizationId: string;
+  name: string;
+  stages: PipelineStage[];
+  createdAt: string;
+};
+
+export type LeadNote = {
+  id: string;
+  leadId: string;
+  body: string;
+  authorId: string;
+  createdAt: string;
+};
+
+export type LeadRecall = {
+  id: string;
+  leadId: string;
+  dueAt: string;
+  reason: string;
+  completedAt: string | null;
+  createdBy: string;
   createdAt: string;
 };
 
@@ -171,14 +207,18 @@ export type StoreData = {
   chatbotOptions: ChatbotOption[];
   knowledgeItems: KnowledgeItem[];
   leads: Lead[];
+  pipelines: TreatmentPipeline[];
   leadTasks: LeadTask[];
   leadEvents: LeadEvent[];
+  leadNotes: LeadNote[];
+  leadRecalls: LeadRecall[];
   conversations: Conversation[];
   messages: Message[];
   notifications: AppNotification[];
   supportNotes: SupportNote[];
   auditLogs: AuditLog[];
   clinicDemoCrmSeeded?: boolean;
+  clinicPipelinesSeeded?: boolean;
 };
 
 export function defaultGreetings(clinicName: string, avatarName = ""): string[] {

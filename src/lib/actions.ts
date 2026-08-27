@@ -17,6 +17,7 @@ import { appUrl, hasStripe, stripeGet, stripeRequest } from "./integrations";
 import { mutateStore, readStore, slugify } from "./store";
 import { parseActionType, widgetFieldDefaults, type ChatbotActionType, type StoreData, type SubscriptionStatus } from "./types";
 import { isLeadStatus, LEAD_STAGE_LABELS } from "./leads";
+import { applyPipelineToLead, findPipeline, parseGbpToPence, sortedStages } from "./pipelines";
 
 function iso() {
   return new Date().toISOString();
@@ -352,16 +353,32 @@ export async function updateLeadAction(formData: FormData) {
     if (!Array.isArray(data.leadEvents)) data.leadEvents = [];
     const prevStatus = lead.status;
     const prevAssigned = lead.assignedTo;
-    const nextStatus = String(formData.get("status") || lead.status);
-    lead.status = isLeadStatus(nextStatus) ? nextStatus : lead.status;
+    const prevPipeline = lead.pipelineId;
+    const prevStage = lead.stageId;
+    lead.name = String(formData.get("name") || lead.name).trim() || lead.name;
+    lead.email = String(formData.get("email") || lead.email).trim() || lead.email;
+    lead.phone = String(formData.get("phone") || lead.phone).trim() || lead.phone;
+    lead.inquiry = String(formData.get("inquiry") || lead.inquiry);
+    const amount = parseGbpToPence(String(formData.get("amount") || ""));
+    if (formData.has("amount")) lead.amountPence = amount;
+    const orgPipes = data.pipelines.filter((p) => p.organizationId === org.id);
+    const pipeline = findPipeline(orgPipes, String(formData.get("pipelineId") || lead.pipelineId));
+    if (pipeline) {
+      applyPipelineToLead(lead, pipeline, String(formData.get("stageId") || lead.stageId));
+    } else {
+      const nextStatus = String(formData.get("status") || lead.status);
+      lead.status = isLeadStatus(nextStatus) ? nextStatus : lead.status;
+    }
     lead.assignedTo = String(formData.get("assignedTo") || "") || null;
     lead.followUpAt = String(formData.get("followUpAt") || "") || null;
-    lead.notes = String(formData.get("notes") || "");
-    if (prevStatus !== lead.status) {
+    lead.notes = String(formData.get("notes") || lead.notes);
+    if (prevPipeline !== lead.pipelineId || prevStage !== lead.stageId || prevStatus !== lead.status) {
+      const pipe = findPipeline(orgPipes, lead.pipelineId);
+      const stage = pipe?.stages.find((s) => s.id === lead.stageId);
       data.leadEvents.push({
         id: randomUUID(),
         leadId: lead.id,
-        body: `${user.name} moved this enquiry to ${LEAD_STAGE_LABELS[lead.status]}.`,
+        body: `${user.name} moved this enquiry to ${stage?.name || LEAD_STAGE_LABELS[lead.status]} (${pipe?.name || "pipeline"}).`,
         createdAt: iso(),
       });
     }
@@ -436,6 +453,8 @@ function purgeLeads(data: StoreData, orgId: string, ids: string[]) {
   data.messages = data.messages.filter((m) => !conversationIds.has(m.conversationId));
   data.leadTasks = (data.leadTasks || []).filter((t) => !allowed.has(t.leadId));
   data.leadEvents = (data.leadEvents || []).filter((e) => !allowed.has(e.leadId));
+  data.leadNotes = (data.leadNotes || []).filter((n) => !allowed.has(n.leadId));
+  data.leadRecalls = (data.leadRecalls || []).filter((n) => !allowed.has(n.leadId));
   data.notifications = data.notifications.filter((n) => !allowed.has(n.leadId));
   return [...allowed];
 }
@@ -459,6 +478,197 @@ export async function deleteLeadsAction(formData: FormData) {
     });
   });
   redirect("/app/leads?ok=deleted");
+}
+
+function safeLeadsReturn(path: string) {
+  return path.startsWith("/app/leads") ? path : "/app/leads";
+}
+
+export async function patchLeadInlineAction(formData: FormData) {
+  const { org, user } = await getClinicContext();
+  const id = String(formData.get("id") || "");
+  const back = safeLeadsReturn(String(formData.get("returnTo") || "/app/leads"));
+  await mutateStore((data) => {
+    const lead = data.leads.find((l) => l.id === id && l.organizationId === org.id);
+    if (!lead) return;
+    if (!Array.isArray(data.leadEvents)) data.leadEvents = [];
+    const orgPipes = data.pipelines.filter((p) => p.organizationId === org.id);
+    if (formData.has("amount")) {
+      lead.amountPence = parseGbpToPence(String(formData.get("amount") || ""));
+    }
+    if (formData.has("pipelineId")) {
+      const pipeline = findPipeline(orgPipes, String(formData.get("pipelineId") || ""));
+      if (pipeline) applyPipelineToLead(lead, pipeline, lead.pipelineId === pipeline.id ? lead.stageId : null);
+    }
+    if (formData.has("stageId")) {
+      const pipeline = findPipeline(orgPipes, lead.pipelineId);
+      if (pipeline) applyPipelineToLead(lead, pipeline, String(formData.get("stageId") || lead.stageId));
+    }
+    data.leadEvents.push({
+      id: randomUUID(),
+      leadId: lead.id,
+      body: `${user.name} updated treatment, stage or value from the leads list.`,
+      createdAt: iso(),
+    });
+  });
+  redirect(back);
+}
+
+export async function createPipelineAction(formData: FormData) {
+  const { org } = await getClinicContext();
+  const name = String(formData.get("name") || "").trim();
+  await mutateStore((data) => {
+    if (!name) return;
+    if (!Array.isArray(data.pipelines)) data.pipelines = [];
+    const id = randomUUID();
+    data.pipelines.push({
+      id,
+      organizationId: org.id,
+      name,
+      createdAt: iso(),
+      stages: [
+        { id: randomUUID(), name: "New enquiry", sortOrder: 0 },
+        { id: randomUUID(), name: "In progress", sortOrder: 1 },
+        { id: randomUUID(), name: "Booked", sortOrder: 2 },
+        { id: randomUUID(), name: "Closed", sortOrder: 3 },
+      ],
+    });
+  });
+  redirect("/app/pipelines?ok=created");
+}
+
+export async function updatePipelineAction(formData: FormData) {
+  const { org } = await getClinicContext();
+  const id = String(formData.get("id") || "");
+  const name = String(formData.get("name") || "").trim();
+  await mutateStore((data) => {
+    const pipeline = data.pipelines.find((p) => p.id === id && p.organizationId === org.id);
+    if (!pipeline || !name) return;
+    pipeline.name = name;
+    data.leads
+      .filter((l) => l.pipelineId === pipeline.id)
+      .forEach((l) => {
+        l.treatment = name;
+      });
+  });
+  redirect(`/app/pipelines/${id}?ok=saved`);
+}
+
+export async function addPipelineStageAction(formData: FormData) {
+  const { org } = await getClinicContext();
+  const id = String(formData.get("id") || "");
+  const name = String(formData.get("stageName") || "").trim();
+  await mutateStore((data) => {
+    const pipeline = data.pipelines.find((p) => p.id === id && p.organizationId === org.id);
+    if (!pipeline || !name) return;
+    const next = pipeline.stages.reduce((max, s) => Math.max(max, s.sortOrder), -1) + 1;
+    pipeline.stages.push({ id: randomUUID(), name, sortOrder: next });
+  });
+  redirect(`/app/pipelines/${id}?ok=saved`);
+}
+
+export async function updatePipelineStageAction(formData: FormData) {
+  const { org } = await getClinicContext();
+  const id = String(formData.get("id") || "");
+  const stageId = String(formData.get("stageId") || "");
+  const name = String(formData.get("stageName") || "").trim();
+  await mutateStore((data) => {
+    const pipeline = data.pipelines.find((p) => p.id === id && p.organizationId === org.id);
+    const stage = pipeline?.stages.find((s) => s.id === stageId);
+    if (!stage || !name) return;
+    stage.name = name;
+  });
+  redirect(`/app/pipelines/${id}?ok=saved`);
+}
+
+export async function deletePipelineStageAction(formData: FormData) {
+  const { org } = await getClinicContext();
+  const id = String(formData.get("id") || "");
+  const stageId = String(formData.get("stageId") || "");
+  await mutateStore((data) => {
+    const pipeline = data.pipelines.find((p) => p.id === id && p.organizationId === org.id);
+    if (!pipeline || pipeline.stages.length <= 1) return;
+    pipeline.stages = pipeline.stages.filter((s) => s.id !== stageId);
+    const fallback = sortedStages(pipeline)[0];
+    data.leads
+      .filter((l) => l.pipelineId === pipeline.id && l.stageId === stageId)
+      .forEach((l) => applyPipelineToLead(l, pipeline, fallback?.id));
+  });
+  redirect(`/app/pipelines/${id}?ok=saved`);
+}
+
+export async function deletePipelineAction(formData: FormData) {
+  const { org } = await getClinicContext();
+  const id = String(formData.get("id") || "");
+  await mutateStore((data) => {
+    const pipeline = data.pipelines.find((p) => p.id === id && p.organizationId === org.id);
+    if (!pipeline) return;
+    const remaining = data.pipelines.filter((p) => p.organizationId === org.id && p.id !== id);
+    const fallback = remaining[0];
+    if (!fallback) return;
+    data.leads
+      .filter((l) => l.pipelineId === id)
+      .forEach((l) => applyPipelineToLead(l, fallback, null));
+    data.pipelines = data.pipelines.filter((p) => p.id !== id);
+  });
+  redirect("/app/pipelines?ok=deleted");
+}
+
+export async function addLeadNoteAction(formData: FormData) {
+  const { org, user } = await getClinicContext();
+  const leadId = String(formData.get("leadId") || "");
+  const body = String(formData.get("body") || "").trim();
+  await mutateStore((data) => {
+    if (!body) return;
+    const lead = data.leads.find((l) => l.id === leadId && l.organizationId === org.id);
+    if (!lead) return;
+    if (!Array.isArray(data.leadNotes)) data.leadNotes = [];
+    data.leadNotes.push({
+      id: randomUUID(),
+      leadId: lead.id,
+      body,
+      authorId: user.id,
+      createdAt: iso(),
+    });
+  });
+  redirect(`/app/leads/${leadId}?tab=notes&ok=saved`);
+}
+
+export async function addLeadRecallAction(formData: FormData) {
+  const { org, user } = await getClinicContext();
+  const leadId = String(formData.get("leadId") || "");
+  const reason = String(formData.get("reason") || "").trim();
+  const dueAt = String(formData.get("dueAt") || "");
+  await mutateStore((data) => {
+    if (!reason || !dueAt) return;
+    const lead = data.leads.find((l) => l.id === leadId && l.organizationId === org.id);
+    if (!lead) return;
+    if (!Array.isArray(data.leadRecalls)) data.leadRecalls = [];
+    data.leadRecalls.push({
+      id: randomUUID(),
+      leadId: lead.id,
+      dueAt,
+      reason,
+      completedAt: null,
+      createdBy: user.id,
+      createdAt: iso(),
+    });
+  });
+  redirect(`/app/leads/${leadId}?tab=recalls&ok=saved`);
+}
+
+export async function completeLeadRecallAction(formData: FormData) {
+  const { org } = await getClinicContext();
+  const id = String(formData.get("id") || "");
+  const leadId = String(formData.get("leadId") || "");
+  await mutateStore((data) => {
+    const lead = data.leads.find((l) => l.id === leadId && l.organizationId === org.id);
+    if (!lead) return;
+    const recall = (data.leadRecalls || []).find((r) => r.id === id && r.leadId === lead.id);
+    if (!recall || recall.completedAt) return;
+    recall.completedAt = iso();
+  });
+  redirect(`/app/leads/${leadId}?tab=recalls&ok=saved`);
 }
 
 export async function markNotificationsReadAction() {
@@ -665,7 +875,7 @@ export async function adminChargeAction(formData: FormData) {
   params.set("currency", "gbp");
   params.set("confirm", "true");
   params.set("off_session", "true");
-  params.set("description", `DentChat charge for ${org.name}`);
+  params.set("description", `LeadDoc charge for ${org.name}`);
   try {
     await stripeRequest("payment_intents", params);
   } catch (e) {

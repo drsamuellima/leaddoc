@@ -6,6 +6,7 @@ const nav = [
   { href: "/app", label: "Overview", icon: "home" as const },
   { href: "/app/chatbots", label: "Chatbots", icon: "bots" as const },
   { href: "/app/leads", label: "Leads", icon: "leads" as const },
+  { href: "/app/pipelines", label: "Pipelines", icon: "pipeline" as const },
   { href: "/app/conversations", label: "Conversations", icon: "chat" as const },
   { href: "/app/settings", label: "Settings", icon: "settings" as const },
 ];

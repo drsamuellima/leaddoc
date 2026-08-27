@@ -12,8 +12,10 @@ import {
   type LeadTask,
   type Message,
   type Organization,
+  type TreatmentPipeline,
   type StoreData,
 } from "./types";
+import { applyPipelineToLead, demoPipelines, generalPipeline, matchPipeline, stageIdForStatus } from "./pipelines";
 
 const filePath = path.join(process.cwd(), ".data", "store.json");
 export const DEMO_WIDGET_KEY = "bright-smile-demo";
@@ -192,6 +194,10 @@ function clinicDemoCrm(orgId: string, botId: string, ownerId: string, staffId: s
       assignedTo: row.assignedTo,
       followUpAt: row.followUpAt,
       notes: row.notes,
+      treatment: "",
+      pipelineId: null,
+      stageId: null,
+      amountPence: null,
       createdAt: row.createdAt,
     });
     conversations.push({
@@ -373,6 +379,76 @@ function mergeClinicDemoCrm(data: StoreData) {
   return true;
 }
 
+function seedClinicPipelines(data: StoreData) {
+  const org = data.organizations.find((o) => o.id === "org_demo");
+  if (!org) return false;
+  if (data.clinicPipelinesSeeded) return false;
+  if (data.pipelines.some((p) => p.organizationId === org.id)) {
+    data.clinicPipelinesSeeded = true;
+    return true;
+  }
+  data.pipelines.push(...demoPipelines(org.id, now()));
+  data.clinicPipelinesSeeded = true;
+  return true;
+}
+
+function ensureOrgPipelines(data: StoreData) {
+  let changed = false;
+  for (const org of data.organizations) {
+    if (data.pipelines.some((p) => p.organizationId === org.id)) continue;
+    data.pipelines.push(generalPipeline(org.id, now()));
+    changed = true;
+  }
+  return changed;
+}
+
+const DEMO_AMOUNTS: Record<string, number> = {
+  lead_demo: 18500,
+  lead_priya: 350000,
+  lead_tom: 9500,
+  lead_eleanor: 45000,
+  lead_jenny: 280000,
+  lead_ronald: 16500,
+  lead_maya: 0,
+  lead_oliver: 320000,
+  lead_sophie: 42000,
+  lead_daniel: 12000,
+};
+
+function migrateLeadCrm(data: StoreData) {
+  let changed = false;
+  for (const lead of data.leads) {
+    if (typeof lead.treatment !== "string") {
+      lead.treatment = "";
+      changed = true;
+    }
+    if (lead.pipelineId === undefined) {
+      lead.pipelineId = null;
+      changed = true;
+    }
+    if (lead.stageId === undefined) {
+      lead.stageId = null;
+      changed = true;
+    }
+    if (lead.amountPence === undefined) {
+      lead.amountPence = DEMO_AMOUNTS[lead.id] ?? null;
+      changed = true;
+    }
+    const orgPipes = data.pipelines.filter((p) => p.organizationId === lead.organizationId);
+    if (!orgPipes.length) continue;
+    const pipeline = orgPipes.find((p) => p.id === lead.pipelineId);
+    if (!pipeline) {
+      const matched = matchPipeline(lead.inquiry || lead.treatment, orgPipes);
+      applyPipelineToLead(lead, matched, stageIdForStatus(matched, lead.status));
+      changed = true;
+    } else if (!pipeline.stages.some((s) => s.id === lead.stageId)) {
+      applyPipelineToLead(lead, pipeline, stageIdForStatus(pipeline, lead.status));
+      changed = true;
+    }
+  }
+  return changed;
+}
+
 function seed(): StoreData {
   const orgId = "org_demo";
   const ownerId = "user_clinic";
@@ -513,6 +589,10 @@ function seed(): StoreData {
         assignedTo: ownerId,
         followUpAt: daysAgo(-1, 10, 0),
         notes: "Came in via website widget.",
+        treatment: "",
+        pipelineId: null,
+        stageId: null,
+        amountPence: null,
         createdAt: now(),
       },
       ...pack.leads,
@@ -558,7 +638,11 @@ function seed(): StoreData {
     ],
     supportNotes: [],
     auditLogs: [],
+    pipelines: demoPipelines(orgId, now()),
+    leadNotes: [],
+    leadRecalls: [],
     clinicDemoCrmSeeded: true,
+    clinicPipelinesSeeded: true,
   };
 }
 
@@ -638,7 +722,23 @@ function normalizeStore(data: StoreData): { data: StoreData; changed: boolean } 
     data.leadEvents = [];
     changed = true;
   }
+  if (!Array.isArray(data.pipelines)) {
+    data.pipelines = [];
+    changed = true;
+  }
+  if (!Array.isArray(data.leadNotes)) {
+    data.leadNotes = [];
+    changed = true;
+  }
+  if (!Array.isArray(data.leadRecalls)) {
+    data.leadRecalls = [];
+    changed = true;
+  }
+  if (seedClinicPipelines(data)) changed = true;
+  if (ensureOrgPipelines(data)) changed = true;
+  if (migrateLeadCrm(data)) changed = true;
   if (mergeClinicDemoCrm(data)) changed = true;
+  if (migrateLeadCrm(data)) changed = true;
 
   return { data, changed };
 }

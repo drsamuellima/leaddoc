@@ -2,7 +2,7 @@ import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 import { sendLeadEmail } from "@/lib/email";
 import { replyAsClinic } from "@/lib/openai";
-import { mutateStore, readStore } from "@/lib/store";
+import { applyPipelineToLead, matchPipeline, stageIdForStatus } from "@/lib/pipelines";
 import { loadWidget, widgetAllowed } from "@/lib/widget";
 
 export async function POST(request: Request) {
@@ -41,7 +41,9 @@ export async function POST(request: Request) {
       leadId,
       createdAt: at,
     });
-    data.leads.push({
+    const orgPipes = data.pipelines.filter((p) => p.organizationId === loaded.org.id);
+    const pipeline = matchPipeline(inquiry, orgPipes);
+    const leadRecord = {
       id: leadId,
       organizationId: loaded.org.id,
       chatbotId: loaded.bot.id,
@@ -50,12 +52,18 @@ export async function POST(request: Request) {
       email,
       phone,
       inquiry,
-      status: "new",
+      status: "new" as const,
       assignedTo: null,
       followUpAt: null,
       notes: "",
+      treatment: pipeline?.name || "",
+      pipelineId: pipeline?.id || null,
+      stageId: pipeline ? stageIdForStatus(pipeline, "new") : null,
+      amountPence: null,
       createdAt: at,
-    });
+    };
+    if (pipeline) applyPipelineToLead(leadRecord, pipeline, stageIdForStatus(pipeline, "new"));
+    data.leads.push(leadRecord);
     data.messages.push(
       { id: randomUUID(), conversationId, role: "user", content: inquiry, createdAt: at },
       { id: randomUUID(), conversationId, role: "assistant", content: reply, createdAt: at },
