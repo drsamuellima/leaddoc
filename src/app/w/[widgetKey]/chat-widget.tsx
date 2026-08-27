@@ -1,20 +1,68 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import type { ChatbotActionType } from "@/lib/types";
 
-type Option = { id: string; label: string; starterMessage: string };
+type Option = {
+  id: string;
+  label: string;
+  starterMessage: string;
+  actionType: ChatbotActionType;
+  url: string;
+};
+
 type ChatMsg = { role: "user" | "assistant"; content: string };
+
+type View = "home" | "lead" | "chat";
+
+function telHref(phone: string) {
+  const cleaned = phone.replace(/[^\d+]/g, "");
+  return cleaned ? `tel:${cleaned}` : "";
+}
+
+function Avatar(props: { src: string; name: string; accent: string; size: number }) {
+  const initial = (props.name.trim()[0] || "?").toUpperCase();
+  return (
+    <div
+      className="shrink-0 overflow-hidden rounded-full bg-slate-100"
+      style={{
+        width: props.size,
+        height: props.size,
+        boxShadow: `0 0 0 2px ${props.accent}`,
+      }}
+    >
+      {props.src ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={props.src} alt="" className="h-full w-full object-cover" />
+      ) : (
+        <div
+          className="flex h-full w-full items-center justify-center text-xs font-semibold"
+          style={{ color: props.accent }}
+        >
+          {initial}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function ChatWidget(props: {
   widgetKey: string;
   clinicName: string;
-  color: string;
-  logoUrl: string;
-  welcomeImageUrl: string;
-  greeting: string;
+  accent: string;
+  panel: string;
+  buttonText: string;
+  avatarName: string;
+  avatarImageUrl: string;
+  greetings: string[];
   options: Option[];
+  phone: string;
+  bookingUrl: string;
+  startOpen?: boolean;
+  preview?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(Boolean(props.startOpen));
+  const [view, setView] = useState<View>("home");
   const [inquiry, setInquiry] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -25,7 +73,63 @@ export function ChatWidget(props: {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const style = useMemo(() => ({ background: props.color }), [props.color]);
+  const accent = props.accent || "#e0569f";
+  const panel = props.panel || "#ffffff";
+  const buttonText = props.buttonText || "#1a1a1a";
+  const avatarLabel = props.avatarName || props.clinicName;
+
+  useEffect(() => {
+    window.parent.postMessage({ source: "dentchat", type: open ? "open" : "close" }, "*");
+  }, [open]);
+
+  const previewStyle = useMemo(() => {
+    if (!props.preview) return undefined;
+    return {
+      background:
+        "linear-gradient(160deg, rgba(80,70,60,.35), rgba(40,50,55,.45)), linear-gradient(180deg, #cbb8a4 0%, #8fa0a8 55%, #6d7f74 100%)",
+    };
+  }, [props.preview]);
+
+  function reset() {
+    setView("home");
+    setInquiry("");
+    setName("");
+    setEmail("");
+    setPhone("");
+    setConversationId(null);
+    setMessages([]);
+    setDraft("");
+    setError("");
+    setBusy(false);
+  }
+
+  function close() {
+    setOpen(false);
+  }
+
+  function onAction(option: Option) {
+    setError("");
+    if (option.actionType === "book") {
+      const href = (option.url || props.bookingUrl || "").trim();
+      if (!href) {
+        setError("Booking is not set up yet. Add a Dentally link in chatbot settings.");
+        return;
+      }
+      window.open(href, "_blank", "noopener,noreferrer");
+      return;
+    }
+    if (option.actionType === "call") {
+      const href = telHref(props.phone);
+      if (!href) {
+        setError("No practice number is set. Add a phone number in chatbot settings.");
+        return;
+      }
+      window.open(href);
+      return;
+    }
+    setInquiry(option.starterMessage || option.label);
+    setView("lead");
+  }
 
   async function startLead(e: React.FormEvent) {
     e.preventDefault();
@@ -53,6 +157,7 @@ export function ChatWidget(props: {
       { role: "user", content: inquiry },
       { role: "assistant", content: json.reply },
     ]);
+    setView("chat");
   }
 
   async function send(e: React.FormEvent) {
@@ -77,85 +182,155 @@ export function ChatWidget(props: {
   }
 
   return (
-    <div data-widget-root className="flex h-screen flex-col items-end justify-end bg-transparent p-4">
+    <div data-widget-root className="relative h-screen w-screen overflow-hidden" style={previewStyle}>
       {open ? (
-        <div className="mb-3 flex h-[580px] w-[360px] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-          <div className="flex items-center gap-2 px-4 py-3 text-white" style={style}>
-            {props.logoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={props.logoUrl} alt="" className="h-8 w-8 rounded-full object-cover" />
-            ) : null}
-            <div className="min-w-0">
-              <div className="truncate font-semibold">{props.clinicName}</div>
-              <div className="text-xs opacity-80">Usually replies instantly</div>
-            </div>
-            <button className="ml-auto text-white" onClick={() => setOpen(false)} type="button">
-              ✕
+        <div className="flex h-full justify-end bg-black/30">
+          <div className="relative flex h-full w-full max-w-[420px] flex-col px-4 pb-4 pt-5 sm:px-5">
+            <button
+              type="button"
+              onClick={reset}
+              aria-label="Reset chat"
+              className="absolute right-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-md"
+              style={{ color: accent }}
+            >
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.2">
+                <path d="M21 12a9 9 0 1 1-3.2-6.8" strokeLinecap="round" />
+                <path d="M21 4v6h-6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
             </button>
-          </div>
-          <div className="flex-1 space-y-3 overflow-y-auto p-3 text-sm">
-            {props.welcomeImageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={props.welcomeImageUrl} alt="" className="h-28 w-full rounded-lg object-cover" />
-            ) : null}
-            <p>{props.greeting}</p>
-            {!conversationId ? (
-              <>
-                <div className="flex flex-wrap gap-2">
-                  {props.options.map((o) => (
-                    <button
-                      key={o.id}
-                      type="button"
-                      className="rounded-full border px-3 py-1 text-xs"
-                      style={{ borderColor: props.color, color: props.color }}
-                      onClick={() => setInquiry(o.starterMessage)}
-                    >
-                      {o.label}
-                    </button>
-                  ))}
-                </div>
-                <form onSubmit={startLead} className="space-y-2">
+
+            <div className="min-h-0 flex-1 overflow-y-auto pr-1 pt-6">
+              <div className="mb-4 inline-flex items-center gap-2 rounded-full px-2 py-1 shadow-sm" style={{ background: panel }}>
+                <Avatar src={props.avatarImageUrl} name={avatarLabel} accent={accent} size={28} />
+                <span className="pr-2 text-sm font-semibold" style={{ color: buttonText }}>
+                  {props.clinicName}
+                </span>
+              </div>
+
+              {view === "home" ? (
+                <>
+                  <div className="space-y-3">
+                    {props.greetings.map((greeting, i) => (
+                      <div key={`${i}-${greeting.slice(0, 24)}`} className="flex items-end gap-2">
+                        <Avatar src={props.avatarImageUrl} name={avatarLabel} accent={accent} size={36} />
+                        <div
+                          className="max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-snug shadow-sm"
+                          style={{ background: panel, color: buttonText }}
+                        >
+                          {greeting}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-5 rounded-[1.35rem] p-2.5 shadow-lg" style={{ background: panel }}>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      {props.options.map((option) => (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => onAction(option)}
+                          className="min-h-[3.4rem] rounded-xl px-2 py-3 text-center text-[13px] font-medium leading-snug"
+                          style={{
+                            background: panel,
+                            color: buttonText,
+                            boxShadow: "0 1px 3px rgba(15,23,42,0.10), 0 0 0 1px rgba(15,23,42,0.04)",
+                          }}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              ) : null}
+
+              {view === "lead" ? (
+                <form onSubmit={startLead} className="mt-2 space-y-3 rounded-[1.35rem] p-4 shadow-lg" style={{ background: panel }}>
+                  <p className="text-sm font-semibold" style={{ color: buttonText }}>
+                    Leave your details and we’ll help with your enquiry.
+                  </p>
                   <input required value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" />
                   <input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" />
                   <input required value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone" />
                   <textarea required rows={3} value={inquiry} onChange={(e) => setInquiry(e.target.value)} placeholder="Your enquiry" />
-                  {error ? <p className="text-red-700">{error}</p> : null}
-                  <button className="btn w-full" style={style} disabled={busy}>
-                    Start chat
-                  </button>
-                </form>
-              </>
-            ) : (
-              <>
-                {messages.map((m, i) => (
-                  <div
-                    key={i}
-                    className={`max-w-[90%] rounded-xl px-3 py-2 ${m.role === "user" ? "ml-auto bg-slate-100" : "text-white"}`}
-                    style={m.role === "assistant" ? style : undefined}
-                  >
-                    {m.content}
+                  <div className="flex gap-2">
+                    <button type="button" className="btn secondary flex-1" onClick={() => setView("home")}>
+                      Back
+                    </button>
+                    <button className="btn flex-1" style={{ background: accent }} disabled={busy}>
+                      {busy ? "Starting…" : "Start chat"}
+                    </button>
                   </div>
-                ))}
-                <form onSubmit={send} className="flex gap-2">
-                  <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Message" />
-                  <button className="btn" style={style} disabled={busy}>
-                    Send
-                  </button>
                 </form>
-              </>
-            )}
+              ) : null}
+
+              {view === "chat" ? (
+                <div className="mt-2 flex min-h-[320px] flex-col rounded-[1.35rem] p-3 shadow-lg" style={{ background: panel }}>
+                  <div className="min-h-0 flex-1 space-y-2 overflow-y-auto text-sm">
+                    {messages.map((m, i) => (
+                      <div
+                        key={i}
+                        className={`max-w-[90%] rounded-2xl px-3 py-2 ${m.role === "user" ? "ml-auto text-white" : ""}`}
+                        style={m.role === "user" ? { background: accent } : { background: "#f3f4f6", color: buttonText }}
+                      >
+                        {m.content}
+                      </div>
+                    ))}
+                  </div>
+                  <form onSubmit={send} className="mt-3 flex gap-2">
+                    <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Message" />
+                    <button className="btn" style={{ background: accent }} disabled={busy}>
+                      Send
+                    </button>
+                  </form>
+                </div>
+              ) : null}
+
+              {error ? (
+                <p className="mt-3 rounded-xl bg-white/90 px-3 py-2 text-sm text-red-700 shadow">{error}</p>
+              ) : null}
+            </div>
+
+            <div className="mt-3 flex items-end justify-end gap-2 pt-1">
+              <div
+                className="rounded-full px-3 py-1.5 text-xs font-semibold shadow-md"
+                style={{ background: panel, color: accent }}
+              >
+                ⚡ By DentChat
+              </div>
+              <button
+                type="button"
+                onClick={close}
+                aria-label="Close chat"
+                className="flex h-14 w-14 items-center justify-center rounded-full bg-white"
+                style={{ boxShadow: `0 0 0 3px ${accent}, 0 10px 24px rgba(0,0,0,0.18)` }}
+              >
+                <svg viewBox="0 0 24 24" className="h-6 w-6 text-slate-700" fill="none" stroke="currentColor" strokeWidth="2.4">
+                  <path d="M18 6 6 18M6 6l12 12" strokeLinecap="round" />
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
-      ) : null}
-      <button
-        type="button"
-        className="h-14 w-14 rounded-full text-2xl text-white shadow-lg"
-        style={style}
-        onClick={() => setOpen((v) => !v)}
-        aria-label="Open chat"
-      >
-        💬
-      </button>
+      ) : (
+        <div className="flex h-full items-end justify-end p-2">
+          <button
+            type="button"
+            className="flex h-14 w-14 items-center justify-center rounded-full text-white shadow-lg"
+            style={{ background: accent }}
+            onClick={() => setOpen(true)}
+            aria-label="Open chat"
+          >
+            <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="1.8">
+              <path
+                d="M21 12a8.5 8.5 0 0 1-8.5 8.5H7l-4 3V12A8.5 8.5 0 1 1 21 12Z"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        </div>
+      )}
     </div>
   );
 }

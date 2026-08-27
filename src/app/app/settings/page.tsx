@@ -37,6 +37,19 @@ export default async function SettingsPage({
           <label>Welcome photo URL</label>
           <input name="welcomeImageUrl" defaultValue={org.welcomeImageUrl} />
         </div>
+        <div>
+          <label>Practice phone</label>
+          <input name="phone" defaultValue={org.phone || ""} placeholder="Used by Call buttons in the widget" />
+        </div>
+        <div>
+          <label>Dentally / booking URL</label>
+          <input
+            name="bookingUrl"
+            defaultValue={org.bookingUrl || ""}
+            placeholder="https://your-practice.dently.app/book"
+          />
+          <p className="mt-1 text-xs text-slate-500">Book buttons open this link in a new tab unless a treatment overrides it.</p>
+        </div>
         <button className="btn" type="submit">
           Save branding
         </button>

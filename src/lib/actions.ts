@@ -15,10 +15,62 @@ import { hashPassword, verifyPassword, widgetKey } from "./crypto";
 import { sendLeadEmail } from "./email";
 import { appUrl, hasStripe, stripeGet, stripeRequest } from "./integrations";
 import { mutateStore, readStore, slugify } from "./store";
-import type { LeadStatus, SubscriptionStatus } from "./types";
+import { parseActionType, widgetFieldDefaults, type ChatbotActionType, type LeadStatus, type SubscriptionStatus } from "./types";
 
 function iso() {
   return new Date().toISOString();
+}
+
+function parseGreetings(formData: FormData, fallback: string[]): string[] {
+  const lines = String(formData.get("greetingsText") ?? "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  return lines.length ? lines : fallback;
+}
+
+function emptyOrgContact() {
+  return { phone: "", bookingUrl: "" };
+}
+
+function defaultTreatments(chatbotId: string): {
+  id: string;
+  chatbotId: string;
+  label: string;
+  starterMessage: string;
+  sortOrder: number;
+  actionType: ChatbotActionType;
+  url: string;
+}[] {
+  return [
+    {
+      id: randomUUID(),
+      chatbotId,
+      label: "Book an appointment",
+      starterMessage: "I'd like to book an appointment.",
+      sortOrder: 0,
+      actionType: "book",
+      url: "",
+    },
+    {
+      id: randomUUID(),
+      chatbotId,
+      label: "Call the practice",
+      starterMessage: "I'd like to call the practice.",
+      sortOrder: 1,
+      actionType: "call",
+      url: "",
+    },
+    {
+      id: randomUUID(),
+      chatbotId,
+      label: "Send a general enquiry",
+      starterMessage: "I have a general enquiry.",
+      sortOrder: 2,
+      actionType: "lead",
+      url: "",
+    },
+  ];
 }
 
 export async function loginAction(formData: FormData) {
@@ -55,6 +107,7 @@ export async function signupAction(formData: FormData) {
       logoUrl: "",
       primaryColor: "#0f766e",
       welcomeImageUrl: "",
+      ...emptyOrgContact(),
       stripeCustomerId: "",
       stripeSubscriptionId: "",
       subscriptionStatus: "inactive",
@@ -74,19 +127,13 @@ export async function signupAction(formData: FormData) {
       id: botId,
       organizationId: orgId,
       name: "Main chatbot",
-      greeting: `Welcome to ${clinicName}. How can we help?`,
+      ...widgetFieldDefaults(clinicName, "#0f766e"),
       systemPrompt: `You are a helpful receptionist for ${clinicName}, a dental practice.`,
       widgetKey: widgetKey(),
       active: true,
       createdAt: iso(),
     });
-    data.chatbotOptions.push({
-      id: randomUUID(),
-      chatbotId: botId,
-      label: "Book an appointment",
-      starterMessage: "I'd like to book an appointment.",
-      sortOrder: 0,
-    });
+    data.chatbotOptions.push(...defaultTreatments(botId));
     return { userId };
   });
   if ("error" in result) redirect("/signup?error=exists");
@@ -138,9 +185,18 @@ export async function saveChatbotAction(formData: FormData) {
     const bot = data.chatbots.find((b) => b.id === id && b.organizationId === org.id);
     if (!bot) return;
     bot.name = String(formData.get("name") || bot.name);
-    bot.greeting = String(formData.get("greeting") || bot.greeting);
     bot.systemPrompt = String(formData.get("systemPrompt") || bot.systemPrompt);
     bot.active = formData.get("active") === "on";
+    bot.accentColor = String(formData.get("accentColor") || bot.accentColor || org.primaryColor);
+    bot.panelColor = String(formData.get("panelColor") || bot.panelColor || "#ffffff");
+    bot.buttonTextColor = String(formData.get("buttonTextColor") || bot.buttonTextColor || "#1a1a1a");
+    bot.avatarName = String(formData.get("avatarName") || "").trim();
+    bot.avatarImageUrl = String(formData.get("avatarImageUrl") || "").trim();
+    bot.phone = String(formData.get("phone") || "").trim();
+    bot.bookingUrl = String(formData.get("bookingUrl") || "").trim();
+    const greetings = parseGreetings(formData, bot.greetings?.length ? bot.greetings : [bot.greeting]);
+    bot.greetings = greetings;
+    bot.greeting = greetings[0] || bot.greeting;
   });
   redirect(`/app/chatbots/${id}?ok=saved`);
 }
@@ -154,12 +210,13 @@ export async function createChatbotAction(formData: FormData) {
       id: botId,
       organizationId: org.id,
       name,
-      greeting: `Welcome to ${org.name}.`,
+      ...widgetFieldDefaults(org.name, org.primaryColor),
       systemPrompt: `You are a helpful receptionist for ${org.name}.`,
       widgetKey: widgetKey(),
       active: true,
       createdAt: iso(),
     });
+    data.chatbotOptions.push(...defaultTreatments(botId));
     return botId;
   });
   redirect(`/app/chatbots/${id}`);
@@ -170,6 +227,8 @@ export async function addOptionAction(formData: FormData) {
   const chatbotId = String(formData.get("chatbotId") || "");
   const label = String(formData.get("label") || "").trim();
   const starterMessage = String(formData.get("starterMessage") || "").trim();
+  const actionType = parseActionType(String(formData.get("actionType") || "lead"));
+  const url = String(formData.get("url") || "").trim();
   await mutateStore((data) => {
     const bot = data.chatbots.find((b) => b.id === chatbotId && b.organizationId === org.id);
     if (!bot || !label) return;
@@ -180,7 +239,27 @@ export async function addOptionAction(formData: FormData) {
       label,
       starterMessage: starterMessage || label,
       sortOrder,
+      actionType,
+      url,
     });
+  });
+  redirect(`/app/chatbots/${chatbotId}`);
+}
+
+export async function updateOptionAction(formData: FormData) {
+  const { org } = await getClinicContext();
+  const chatbotId = String(formData.get("chatbotId") || "");
+  const optionId = String(formData.get("optionId") || "");
+  await mutateStore((data) => {
+    const bot = data.chatbots.find((b) => b.id === chatbotId && b.organizationId === org.id);
+    if (!bot) return;
+    const opt = data.chatbotOptions.find((o) => o.id === optionId && o.chatbotId === chatbotId);
+    if (!opt) return;
+    const label = String(formData.get("label") || "").trim();
+    if (label) opt.label = label;
+    opt.starterMessage = String(formData.get("starterMessage") || "").trim() || opt.label;
+    opt.actionType = parseActionType(String(formData.get("actionType") || opt.actionType));
+    opt.url = String(formData.get("url") || "").trim();
   });
   redirect(`/app/chatbots/${chatbotId}`);
 }
@@ -235,6 +314,8 @@ export async function saveBrandingAction(formData: FormData) {
     o.primaryColor = String(formData.get("primaryColor") || o.primaryColor);
     o.logoUrl = String(formData.get("logoUrl") || "");
     o.welcomeImageUrl = String(formData.get("welcomeImageUrl") || "");
+    o.phone = String(formData.get("phone") || "").trim();
+    o.bookingUrl = String(formData.get("bookingUrl") || "").trim();
   });
   redirect("/app/settings?ok=branding");
 }
@@ -301,6 +382,7 @@ export async function adminCreateClinicAction(formData: FormData) {
       logoUrl: "",
       primaryColor: "#0f766e",
       welcomeImageUrl: "",
+      ...emptyOrgContact(),
       stripeCustomerId: "",
       stripeSubscriptionId: "",
       subscriptionStatus: "inactive",
@@ -564,12 +646,13 @@ export async function adminCreateChatbotAction(formData: FormData) {
       id: botId,
       organizationId,
       name,
-      greeting: `Welcome to ${org?.name ?? "the practice"}.`,
+      ...widgetFieldDefaults(org?.name ?? "the practice", org?.primaryColor || "#0f766e"),
       systemPrompt: `You are a helpful receptionist for ${org?.name ?? "the practice"}.`,
       widgetKey: widgetKey(),
       active: true,
       createdAt: iso(),
     });
+    data.chatbotOptions.push(...defaultTreatments(botId));
     return botId;
   });
   redirect(`/app/chatbots/${id}?from=admin`);

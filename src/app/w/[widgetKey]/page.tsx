@@ -1,10 +1,18 @@
 import { notFound } from "next/navigation";
 import { readStore } from "@/lib/store";
-import { widgetAllowed } from "@/lib/widget";
+import { widgetAllowed, widgetTheme } from "@/lib/widget";
 import { ChatWidget } from "./chat-widget";
 
-export default async function WidgetPage({ params }: { params: Promise<{ widgetKey: string }> }) {
+export default async function WidgetPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ widgetKey: string }>;
+  searchParams: Promise<{ preview?: string }>;
+}) {
   const { widgetKey } = await params;
+  const { preview } = await searchParams;
+  const isPreview = preview === "1";
   const store = await readStore();
   const bot = store.chatbots.find((b) => b.widgetKey === widgetKey && b.active);
   if (!bot) notFound();
@@ -13,6 +21,7 @@ export default async function WidgetPage({ params }: { params: Promise<{ widgetK
   const options = store.chatbotOptions
     .filter((o) => o.chatbotId === bot.id)
     .sort((a, b) => a.sortOrder - b.sortOrder);
+  const theme = widgetTheme(org, bot);
 
   if (!widgetAllowed(org)) {
     return (
@@ -26,11 +35,23 @@ export default async function WidgetPage({ params }: { params: Promise<{ widgetK
     <ChatWidget
       widgetKey={widgetKey}
       clinicName={org.name}
-      color={org.primaryColor || "#0f766e"}
-      logoUrl={org.logoUrl}
-      welcomeImageUrl={org.welcomeImageUrl}
-      greeting={bot.greeting}
-      options={options.map((o) => ({ id: o.id, label: o.label, starterMessage: o.starterMessage }))}
+      accent={theme.accent}
+      panel={theme.panel}
+      buttonText={theme.buttonText}
+      avatarName={theme.avatarName}
+      avatarImageUrl={theme.avatarImageUrl}
+      greetings={theme.greetings}
+      phone={theme.phone}
+      bookingUrl={theme.bookingUrl}
+      startOpen={isPreview}
+      preview={isPreview}
+      options={options.map((o) => ({
+        id: o.id,
+        label: o.label,
+        starterMessage: o.starterMessage,
+        actionType: o.actionType || "lead",
+        url: o.url || "",
+      }))}
     />
   );
 }

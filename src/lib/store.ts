@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from "fs/promises";
 import path from "path";
-import { hashPassword, widgetKey } from "./crypto";
-import type { StoreData } from "./types";
+import { hashPassword } from "./crypto";
+import { parseActionType, widgetFieldDefaults, type Chatbot, type ChatbotOption, type Organization, type StoreData } from "./types";
 
 const filePath = path.join(process.cwd(), ".data", "store.json");
 
@@ -29,6 +29,8 @@ function seed(): StoreData {
         logoUrl: "",
         primaryColor: "#0f766e",
         welcomeImageUrl: "",
+        phone: "020 7946 0123",
+        bookingUrl: "https://brightsmile.dently.app/book",
         stripeCustomerId: "",
         stripeSubscriptionId: "",
         subscriptionStatus: "active",
@@ -80,18 +82,33 @@ function seed(): StoreData {
         id: botId,
         organizationId: orgId,
         name: "New patient assistant",
-        greeting: "Welcome to Bright Smile Dental. How can we help today?",
+        ...widgetFieldDefaults("Bright Smile Dental", "#e0569f", "Zara"),
+        greeting: "Good afternoon, Welcome to Bright Smile Dental 😊",
+        greetings: [
+          "Good afternoon, Welcome to Bright Smile Dental 😊",
+          "I'm Zara, here to help with your enquiry",
+          "Which of our services are you interested in?",
+        ],
         systemPrompt:
           "You are a friendly receptionist for Bright Smile Dental in the UK. Answer questions about hygiene, whitening, Invisalign, and emergency appointments. Never give clinical diagnoses. Collect enough detail to book a visit and offer to have the team call back.",
-        widgetKey: widgetKey(),
+        widgetKey: "bright-smile-demo",
         active: true,
+        phone: "020 7946 0123",
+        bookingUrl: "https://brightsmile.dently.app/book",
         createdAt: now(),
       },
     ],
     chatbotOptions: [
-      { id: "opt_1", chatbotId: botId, label: "Book a check-up", starterMessage: "I'd like to book a dental check-up.", sortOrder: 0 },
-      { id: "opt_2", chatbotId: botId, label: "Tooth pain", starterMessage: "I have tooth pain and need advice on what to do.", sortOrder: 1 },
-      { id: "opt_3", chatbotId: botId, label: "Teeth whitening", starterMessage: "I'm interested in teeth whitening.", sortOrder: 2 },
+      { id: "opt_1", chatbotId: botId, label: "Book a Consultation", starterMessage: "I'd like to book a consultation.", sortOrder: 0, actionType: "book", url: "" },
+      { id: "opt_2", chatbotId: botId, label: "Book an Invisalign Consultation", starterMessage: "I'd like to book an Invisalign consultation.", sortOrder: 1, actionType: "book", url: "" },
+      { id: "opt_3", chatbotId: botId, label: "Emergency appointment", starterMessage: "I need an emergency dental appointment.", sortOrder: 2, actionType: "call", url: "" },
+      { id: "opt_4", chatbotId: botId, label: "Dental checkup & cleaning", starterMessage: "I'd like a dental checkup and cleaning.", sortOrder: 3, actionType: "lead", url: "" },
+      { id: "opt_5", chatbotId: botId, label: "Straighten my teeth", starterMessage: "I'm interested in straightening my teeth.", sortOrder: 4, actionType: "lead", url: "" },
+      { id: "opt_6", chatbotId: botId, label: "Replace missing teeth", starterMessage: "I'd like to ask about replacing missing teeth.", sortOrder: 5, actionType: "lead", url: "" },
+      { id: "opt_7", chatbotId: botId, label: "Have whiter teeth", starterMessage: "I'm interested in teeth whitening.", sortOrder: 6, actionType: "lead", url: "" },
+      { id: "opt_8", chatbotId: botId, label: "Enquire about our treatments", starterMessage: "I'd like to enquire about your treatments.", sortOrder: 7, actionType: "lead", url: "" },
+      { id: "opt_9", chatbotId: botId, label: "Facial Aesthetics", starterMessage: "I'm interested in facial aesthetics.", sortOrder: 8, actionType: "lead", url: "" },
+      { id: "opt_10", chatbotId: botId, label: "Send a general enquiry", starterMessage: "I have a general enquiry.", sortOrder: 9, actionType: "lead", url: "" },
     ],
     knowledgeItems: [
       {
@@ -168,10 +185,77 @@ function seed(): StoreData {
   };
 }
 
+function normalizeStore(data: StoreData): { data: StoreData; changed: boolean } {
+  let changed = false;
+
+  for (const org of data.organizations as Organization[]) {
+    if (typeof org.phone !== "string") {
+      org.phone = "";
+      changed = true;
+    }
+    if (typeof org.bookingUrl !== "string") {
+      org.bookingUrl = "";
+      changed = true;
+    }
+  }
+
+  for (const bot of data.chatbots as Chatbot[]) {
+    const greetings = Array.isArray(bot.greetings)
+      ? bot.greetings.map((g) => String(g || "").trim()).filter(Boolean)
+      : [];
+    if (!greetings.length && bot.greeting) greetings.push(bot.greeting);
+    if (!greetings.length) greetings.push("Welcome. How can we help?");
+    if (JSON.stringify(bot.greetings) !== JSON.stringify(greetings) || bot.greeting !== greetings[0]) {
+      bot.greetings = greetings;
+      bot.greeting = greetings[0];
+      changed = true;
+    }
+    const defaults = widgetFieldDefaults("the practice", "#0f766e");
+    const keys = [
+      ["accentColor", defaults.accentColor],
+      ["panelColor", defaults.panelColor],
+      ["buttonTextColor", defaults.buttonTextColor],
+      ["avatarName", ""],
+      ["avatarImageUrl", ""],
+      ["phone", ""],
+      ["bookingUrl", ""],
+    ] as const;
+    for (const [key, fallback] of keys) {
+      if (typeof bot[key] !== "string") {
+        bot[key] = fallback;
+        changed = true;
+      }
+    }
+  }
+
+  for (const opt of data.chatbotOptions as ChatbotOption[]) {
+    const actionType = parseActionType(String(opt.actionType || "lead"));
+    if (opt.actionType !== actionType) {
+      opt.actionType = actionType;
+      changed = true;
+    }
+    if (typeof opt.url !== "string") {
+      opt.url = "";
+      changed = true;
+    }
+    if (typeof opt.starterMessage !== "string") {
+      opt.starterMessage = opt.label || "";
+      changed = true;
+    }
+  }
+
+  return { data, changed };
+}
+
 async function readRaw(): Promise<StoreData> {
   try {
     const raw = await readFile(filePath, "utf8");
-    return JSON.parse(raw) as StoreData;
+    const { data, changed } = normalizeStore(JSON.parse(raw) as StoreData);
+    if (changed) {
+      await mkdir(path.dirname(filePath), { recursive: true });
+      await writeFile(filePath, JSON.stringify(data, null, 2));
+    }
+    return data;
   } catch {
     const data = seed();
     await mkdir(path.dirname(filePath), { recursive: true });

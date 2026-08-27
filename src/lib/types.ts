@@ -9,6 +9,8 @@ export type SubscriptionStatus =
 
 export type LeadStatus = "new" | "contacted" | "booked" | "closed";
 
+export type ChatbotActionType = "lead" | "book" | "call";
+
 export type Organization = {
   id: string;
   name: string;
@@ -16,6 +18,8 @@ export type Organization = {
   logoUrl: string;
   primaryColor: string;
   welcomeImageUrl: string;
+  phone: string;
+  bookingUrl: string;
   stripeCustomerId: string;
   stripeSubscriptionId: string;
   subscriptionStatus: SubscriptionStatus;
@@ -46,10 +50,19 @@ export type Chatbot = {
   id: string;
   organizationId: string;
   name: string;
+  /** First greeting; kept in sync with greetings[0] for older screens. */
   greeting: string;
+  greetings: string[];
   systemPrompt: string;
   widgetKey: string;
   active: boolean;
+  accentColor: string;
+  panelColor: string;
+  buttonTextColor: string;
+  avatarName: string;
+  avatarImageUrl: string;
+  phone: string;
+  bookingUrl: string;
   createdAt: string;
 };
 
@@ -59,6 +72,8 @@ export type ChatbotOption = {
   label: string;
   starterMessage: string;
   sortOrder: number;
+  actionType: ChatbotActionType;
+  url: string;
 };
 
 export type KnowledgeItem = {
@@ -143,3 +158,31 @@ export type StoreData = {
   supportNotes: SupportNote[];
   auditLogs: AuditLog[];
 };
+
+export function defaultGreetings(clinicName: string, avatarName = ""): string[] {
+  return [
+    `Welcome to ${clinicName}.`,
+    avatarName ? `I'm ${avatarName}, here to help with your enquiry` : "I'm here to help with your enquiry",
+    "Which of our services are you interested in?",
+  ];
+}
+
+export function widgetFieldDefaults(clinicName: string, primaryColor: string, avatarName = "") {
+  const greetings = defaultGreetings(clinicName, avatarName);
+  return {
+    greeting: greetings[0],
+    greetings,
+    accentColor: primaryColor || "#0f766e",
+    panelColor: "#ffffff",
+    buttonTextColor: "#1a1a1a",
+    avatarName,
+    avatarImageUrl: "",
+    phone: "",
+    bookingUrl: "",
+  };
+}
+
+export function parseActionType(value: string): ChatbotActionType {
+  if (value === "book" || value === "call" || value === "lead") return value;
+  return "lead";
+}

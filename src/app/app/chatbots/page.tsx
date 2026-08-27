@@ -23,7 +23,7 @@ export default async function ChatbotsPage() {
         {bots.map((bot) => (
           <Link key={bot.id} href={`/app/chatbots/${bot.id}`} className="card block hover:border-teal-300">
             <div className="font-semibold">{bot.name}</div>
-            <p className="mt-1 text-sm text-slate-600">{bot.greeting}</p>
+            <p className="mt-1 text-sm text-slate-600">{bot.greetings?.[0] || bot.greeting}</p>
             <p className="mt-2 text-xs text-slate-500">{bot.active ? "Active" : "Paused"} · {bot.widgetKey}</p>
           </Link>
         ))}

@@ -14,6 +14,8 @@ create table public.organizations (
   logo_url text default '',
   primary_color text default '#0f766e',
   welcome_image_url text default '',
+  phone text default '', -- clinic phone for widget Call actions (tel:)
+  booking_url text default '', -- Dentally or other booking URL; widget Book actions open this in a new tab
   stripe_customer_id text default '',
   stripe_subscription_id text default '',
   subscription_status public.subscription_status not null default 'inactive',
@@ -43,10 +45,18 @@ create table public.chatbots (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
   name text not null,
-  greeting text not null default '',
+  greeting text not null default '', -- first greeting; prefer greetings jsonb
+  greetings jsonb not null default '[]'::jsonb, -- 1–N visitor greeting bubbles
   system_prompt text not null default '',
   widget_key text unique not null,
   active boolean not null default true,
+  accent_color text default '', -- close ring, reset icon, branding, avatar ring
+  panel_color text default '#ffffff', -- bubbles, action card, chrome
+  button_text_color text default '#1a1a1a',
+  avatar_name text default '',
+  avatar_image_url text default '',
+  phone text default '', -- optional override of organization.phone
+  booking_url text default '', -- optional override of organization.booking_url
   created_at timestamptz not null default now()
 );
 
@@ -54,8 +64,10 @@ create table public.chatbot_options (
   id uuid primary key default gen_random_uuid(),
   chatbot_id uuid not null references public.chatbots(id) on delete cascade,
   label text not null,
-  starter_message text not null default '',
-  sort_order integer not null default 0
+  starter_message text not null default '', -- enquiry text when action_type = lead
+  sort_order integer not null default 0,
+  action_type text not null default 'lead' check (action_type in ('lead', 'book', 'call')),
+  url text default '' -- optional per-button booking URL; otherwise chatbot/org booking_url
 );
 
 create table public.knowledge_items (
@@ -187,3 +199,18 @@ create policy notes_admin on public.admin_support_notes for all using (public.is
 create policy audit_admin on public.audit_logs for all using (public.is_super_admin());
 create policy plans_read on public.plans for select using (true);
 create policy plans_admin on public.plans for all using (public.is_super_admin());
+
+-- Upgrade notes for an existing DentChat database:
+-- alter table public.organizations add column if not exists phone text default '';
+-- alter table public.organizations add column if not exists booking_url text default '';
+-- alter table public.chatbots add column if not exists greetings jsonb not null default '[]'::jsonb;
+-- alter table public.chatbots add column if not exists accent_color text default '';
+-- alter table public.chatbots add column if not exists panel_color text default '#ffffff';
+-- alter table public.chatbots add column if not exists button_text_color text default '#1a1a1a';
+-- alter table public.chatbots add column if not exists avatar_name text default '';
+-- alter table public.chatbots add column if not exists avatar_image_url text default '';
+-- alter table public.chatbots add column if not exists phone text default '';
+-- alter table public.chatbots add column if not exists booking_url text default '';
+-- alter table public.chatbot_options add column if not exists action_type text not null default 'lead';
+-- alter table public.chatbot_options add column if not exists url text default '';
+

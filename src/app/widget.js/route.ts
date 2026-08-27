@@ -10,7 +10,18 @@ export async function GET() {
   iframe.src=${JSON.stringify(origin)}+"/w/"+encodeURIComponent(key);
   iframe.title="Clinic chat";
   iframe.allow="clipboard-write";
-  iframe.style.cssText="position:fixed;right:0;bottom:0;width:400px;height:680px;border:0;z-index:2147483646;background:transparent;color-scheme:normal;";
+  function closed(){
+    iframe.style.cssText="position:fixed;right:12px;bottom:12px;width:80px;height:80px;border:0;z-index:2147483646;background:transparent;color-scheme:normal;";
+  }
+  function opened(){
+    iframe.style.cssText="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:2147483646;background:transparent;color-scheme:normal;";
+  }
+  closed();
+  window.addEventListener("message", function(e){
+    if(!e.data || e.data.source!=="dentchat") return;
+    if(e.data.type==="open") opened();
+    if(e.data.type==="close") closed();
+  });
   document.body.appendChild(iframe);
 })();`;
   return new Response(js, {
