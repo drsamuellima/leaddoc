@@ -79,6 +79,16 @@ function notifyParent(type: "open" | "close") {
   window.parent.postMessage({ source: "dentchat", type }, "*");
 }
 
+async function readApiJson(res: Response): Promise<{ error?: string; conversationId?: string; reply?: string }> {
+  const text = await res.text();
+  if (!text) return { error: res.ok ? "Empty response" : "Could not start chat" };
+  try {
+    return JSON.parse(text) as { error?: string; conversationId?: string; reply?: string };
+  } catch {
+    return { error: "Could not start chat" };
+  }
+}
+
 export function Avatar(props: { src: string; name: string; accent: string; size: number }) {
   const initial = (props.name.trim()[0] || "?").toUpperCase();
   return (
@@ -206,29 +216,34 @@ export function ChatWidget(props: ChatWidgetProps) {
     e.preventDefault();
     setBusy(true);
     setError("");
-    const res = await fetch("/api/widget/lead", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        widgetKey: props.widgetKey,
-        name,
-        email,
-        phone: visitorPhone,
-        inquiry,
-      }),
-    });
-    const json = await res.json();
-    setBusy(false);
-    if (!res.ok) {
-      setError(json.error || "Could not start chat");
-      return;
+    try {
+      const res = await fetch("/api/widget/lead", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          widgetKey: props.widgetKey,
+          name,
+          email,
+          phone: visitorPhone,
+          inquiry,
+        }),
+      });
+      const json = await readApiJson(res);
+      if (!res.ok) {
+        setError(json.error || "Could not start chat");
+        return;
+      }
+      setConversationId(json.conversationId || null);
+      setMessages([
+        { role: "user", content: inquiry },
+        { role: "assistant", content: json.reply || "" },
+      ]);
+      setView("chat");
+    } catch {
+      setError("Could not start chat");
+    } finally {
+      setBusy(false);
     }
-    setConversationId(json.conversationId);
-    setMessages([
-      { role: "user", content: inquiry },
-      { role: "assistant", content: json.reply },
-    ]);
-    setView("chat");
   }
 
   async function send(e: FormEvent) {
@@ -238,18 +253,23 @@ export function ChatWidget(props: ChatWidgetProps) {
     setDraft("");
     setMessages((m) => [...m, { role: "user", content }]);
     setBusy(true);
-    const res = await fetch("/api/widget/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ widgetKey: props.widgetKey, conversationId, content }),
-    });
-    const json = await res.json();
-    setBusy(false);
-    if (!res.ok) {
-      setError(json.error || "Send failed");
-      return;
+    try {
+      const res = await fetch("/api/widget/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ widgetKey: props.widgetKey, conversationId, content }),
+      });
+      const json = await readApiJson(res);
+      if (!res.ok) {
+        setError(json.error || "Send failed");
+        return;
+      }
+      setMessages((m) => [...m, { role: "assistant", content: json.reply || "" }]);
+    } catch {
+      setError("Send failed");
+    } finally {
+      setBusy(false);
     }
-    setMessages((m) => [...m, { role: "assistant", content: json.reply }]);
   }
 
   const ctrl: WidgetController = {
