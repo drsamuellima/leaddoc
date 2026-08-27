@@ -25,6 +25,7 @@ import {
   updateLeadAction,
   createLeadTaskAction,
   completeLeadTaskAction,
+  deleteLeadsAction,
   updateOptionAction,
 } from "@/lib/actions";
 
@@ -44,6 +45,7 @@ const handlers: Record<string, (formData: FormData) => Promise<void>> = {
   updateLead: updateLeadAction,
   createLeadTask: createLeadTaskAction,
   completeLeadTask: completeLeadTaskAction,
+  deleteLeads: deleteLeadsAction,
   markNotificationsRead: () => markNotificationsReadAction(),
   adminCreateClinic: adminCreateClinicAction,
   impersonate: impersonateAction,

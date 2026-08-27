@@ -1,10 +1,8 @@
 import Link from "next/link";
-import { EmptyState, PageHeader, StatusBadge } from "@/components/ui";
-import { LeadAvatar } from "@/components/leads/lead-avatar";
-import { PipelineBar } from "@/components/leads/pipeline-bar";
-import { StaffAvatars } from "@/components/leads/staff-avatars";
+import { EmptyState, PageHeader } from "@/components/ui";
+import { LeadListTable } from "@/components/leads/lead-list-table";
 import { getClinicContext } from "@/lib/auth";
-import { formatLeadDateTime, isLeadStatus, LEAD_STAGE_LABELS, LEAD_STATUSES } from "@/lib/leads";
+import { isLeadStatus, LEAD_STAGE_LABELS, LEAD_STATUSES } from "@/lib/leads";
 import { readStore } from "@/lib/store";
 
 const PAGE_SIZE = 8;
@@ -22,9 +20,9 @@ function hrefWith(params: { q?: string; status?: string; assigned?: string; page
 export default async function LeadsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; status?: string; assigned?: string; page?: string }>;
+  searchParams: Promise<{ q?: string; status?: string; assigned?: string; page?: string; ok?: string }>;
 }) {
-  const { q, status, assigned, page: pageRaw } = await searchParams;
+  const { q, status, assigned, page: pageRaw, ok } = await searchParams;
   const { org } = await getClinicContext();
   const store = await readStore();
   const query = (q || "").trim().toLowerCase();
@@ -61,6 +59,7 @@ export default async function LeadsPage({
         description="Every enquiry from your widget, ready for reception to follow up."
         action={<span className="lead-count-badge">{all.length} leads</span>}
       />
+      {ok === "deleted" ? <p className="lead-flash">Selected leads were deleted.</p> : null}
 
       <form action="/app/leads" method="get" className="lead-toolbar page-enter">
         <input name="q" defaultValue={q || ""} placeholder="Search patients, emails, reasons…" />
@@ -101,69 +100,28 @@ export default async function LeadsPage({
         ))}
       </div>
 
-      <div className="table-wrap lead-table-wrap page-enter">
-        {leads.length === 0 ? (
+      {leads.length === 0 ? (
+        <div className="table-wrap page-enter">
           <EmptyState
             title="No patient leads yet"
             body="When a visitor submits the chat form, they appear here as an enquiry to follow up."
           />
-        ) : (
-          <table>
-            <thead>
-              <tr>
-                <th className="lead-check-col">
-                  <input type="checkbox" disabled aria-label="Select all" />
-                </th>
-                <th>Patient</th>
-                <th>Contacts</th>
-                <th>Reason for visit</th>
-                <th>Source</th>
-                <th>Assigned</th>
-                <th>Progress</th>
-                <th>Stage</th>
-                <th>Follow-up</th>
-              </tr>
-            </thead>
-            <tbody>
-              {leads.map((lead) => {
-                const owner = staff.filter((s) => s.id === lead.assignedTo);
-                const bot = bots.find((b) => b.id === lead.chatbotId);
-                return (
-                  <tr key={lead.id}>
-                    <td className="lead-check-col">
-                      <input type="checkbox" disabled aria-label={`Select ${lead.name}`} />
-                    </td>
-                    <td>
-                      <Link href={`/app/leads/${lead.id}`} className="lead-name-cell">
-                        <LeadAvatar name={lead.name} />
-                        <span className="font-semibold">{lead.name}</span>
-                      </Link>
-                    </td>
-                    <td className="lead-contacts">
-                      <div>{lead.email}</div>
-                      <div>{lead.phone}</div>
-                    </td>
-                    <td className="max-w-xs truncate text-neutral-600" title={lead.inquiry}>
-                      {lead.inquiry}
-                    </td>
-                    <td className="text-neutral-600">{bot?.name ?? "Widget"}</td>
-                    <td>
-                      <StaffAvatars people={owner} />
-                    </td>
-                    <td>
-                      <PipelineBar status={lead.status} />
-                    </td>
-                    <td>
-                      <StatusBadge status={lead.status} />
-                    </td>
-                    <td className="whitespace-nowrap text-neutral-500">{formatLeadDateTime(lead.followUpAt)}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </div>
+        </div>
+      ) : (
+        <LeadListTable
+          leads={leads.map((lead) => ({
+            id: lead.id,
+            name: lead.name,
+            email: lead.email,
+            phone: lead.phone,
+            inquiry: lead.inquiry,
+            status: lead.status,
+            followUpAt: lead.followUpAt,
+            source: bots.find((b) => b.id === lead.chatbotId)?.name ?? "Widget",
+            owners: staff.filter((s) => s.id === lead.assignedTo).map((s) => ({ id: s.id, name: s.name })),
+          }))}
+        />
+      )}
 
       {all.length > PAGE_SIZE ? (
         <div className="lead-pager">

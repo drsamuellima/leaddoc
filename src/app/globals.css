@@ -536,6 +536,23 @@ label {
   box-shadow: none;
 }
 
+.btn.danger {
+  background: #ffe1d6;
+  color: #9a2f12;
+}
+
+.btn.danger:hover {
+  background: #ffd3c4;
+  box-shadow: none;
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  pointer-events: none;
+  transform: none;
+  box-shadow: none;
+}
+
 .card {
   background: var(--card);
   border: 1px solid #f0f0ea;
@@ -785,6 +802,14 @@ label {
 
 .lead-table-wrap {
   overflow-x: auto;
+}
+
+.lead-bulk-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
 }
 
 .lead-check-col {

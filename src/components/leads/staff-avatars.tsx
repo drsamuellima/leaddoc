@@ -1,7 +1,6 @@
 import { LeadAvatar } from "./lead-avatar";
-import type { Profile } from "@/lib/types";
 
-export function StaffAvatars({ people }: { people: Profile[] }) {
+export function StaffAvatars({ people }: { people: { id: string; name: string }[] }) {
   if (people.length === 0) {
     return <span className="lead-unassigned">Unassigned</span>;
   }

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { DeleteLeadButton } from "@/components/leads/delete-lead-button";
 import { LeadAvatar } from "@/components/leads/lead-avatar";
 import { StaffAvatars } from "@/components/leads/staff-avatars";
 import { StatusBadge } from "@/components/ui";
@@ -92,6 +93,7 @@ export default async function LeadDetailPage({
           <Link className="btn" href={`/app/conversations/${lead.conversationId}`}>
             Open chat
           </Link>
+          <DeleteLeadButton leadId={lead.id} name={lead.name} />
         </div>
       </header>
 

@@ -15,7 +15,7 @@ import { hashPassword, verifyPassword, widgetKey } from "./crypto";
 import { sendLeadEmail } from "./email";
 import { appUrl, hasStripe, stripeGet, stripeRequest } from "./integrations";
 import { mutateStore, readStore, slugify } from "./store";
-import { parseActionType, widgetFieldDefaults, type ChatbotActionType, type SubscriptionStatus } from "./types";
+import { parseActionType, widgetFieldDefaults, type ChatbotActionType, type StoreData, type SubscriptionStatus } from "./types";
 import { isLeadStatus, LEAD_STAGE_LABELS } from "./leads";
 
 function iso() {
@@ -421,6 +421,44 @@ export async function completeLeadTaskAction(formData: FormData) {
   });
   const suffix = tab && tab !== "activity" ? `?ok=task&tab=${encodeURIComponent(tab)}` : "?ok=task";
   redirect(`/app/leads/${leadId}${suffix}`);
+}
+
+function purgeLeads(data: StoreData, orgId: string, ids: string[]) {
+  const allowed = new Set(
+    data.leads.filter((l) => l.organizationId === orgId && ids.includes(l.id)).map((l) => l.id),
+  );
+  if (allowed.size === 0) return [];
+  const conversationIds = new Set(
+    data.leads.filter((l) => allowed.has(l.id)).map((l) => l.conversationId).filter(Boolean),
+  );
+  data.leads = data.leads.filter((l) => !allowed.has(l.id));
+  data.conversations = data.conversations.filter((c) => !conversationIds.has(c.id) && !allowed.has(c.leadId || ""));
+  data.messages = data.messages.filter((m) => !conversationIds.has(m.conversationId));
+  data.leadTasks = (data.leadTasks || []).filter((t) => !allowed.has(t.leadId));
+  data.leadEvents = (data.leadEvents || []).filter((e) => !allowed.has(e.leadId));
+  data.notifications = data.notifications.filter((n) => !allowed.has(n.leadId));
+  return [...allowed];
+}
+
+export async function deleteLeadsAction(formData: FormData) {
+  const { org, user } = await getClinicContext();
+  const ids = formData
+    .getAll("ids")
+    .map((value) => String(value || "").trim())
+    .filter(Boolean);
+  await mutateStore((data) => {
+    const removed = purgeLeads(data, org.id, ids);
+    if (removed.length === 0) return;
+    data.auditLogs.push({
+      id: randomUUID(),
+      actorId: user.id,
+      action: "delete_leads",
+      organizationId: org.id,
+      detail: `${user.email} deleted ${removed.length} lead(s)`,
+      createdAt: iso(),
+    });
+  });
+  redirect("/app/leads?ok=deleted");
 }
 
 export async function markNotificationsReadAction() {
