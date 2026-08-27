@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   addKnowledgeAction,
+  addKnowledgePackAction,
   addOptionAction,
   adminAddSupportNoteAction,
   adminChargeAction,
@@ -49,6 +50,7 @@ const handlers: Record<string, (formData: FormData) => Promise<void>> = {
   updateOption: updateOptionAction,
   deleteOption: deleteOptionAction,
   addKnowledge: addKnowledgeAction,
+  addKnowledgePack: addKnowledgePackAction,
   deleteKnowledge: deleteKnowledgeAction,
   saveBranding: saveBrandingAction,
   inviteStaff: inviteStaffAction,

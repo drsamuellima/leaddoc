@@ -15,7 +15,8 @@ import { hashPassword, verifyPassword, widgetKey } from "./crypto";
 import { sendLeadEmail } from "./email";
 import { appUrl, hasStripe, stripeGet, stripeRequest } from "./integrations";
 import { mutateStore, readStore, slugify } from "./store";
-import { parseActionType, widgetFieldDefaults, type ChatbotActionType, type StoreData, type SubscriptionStatus } from "./types";
+import { knowledgeKey, KNOWLEDGE_PACKS } from "./knowledge-examples";
+import { parseActionType, parseWidgetFont, parseWidgetStyle, widgetFieldDefaults, type ChatbotActionType, type StoreData, type SubscriptionStatus } from "./types";
 import { isLeadStatus, LEAD_STAGE_LABELS } from "./leads";
 import { applyPipelineToLead, findPipeline, parseGbpToPence, sortedStages } from "./pipelines";
 
@@ -192,6 +193,12 @@ export async function saveChatbotAction(formData: FormData) {
     bot.accentColor = String(formData.get("accentColor") || bot.accentColor || org.primaryColor);
     bot.panelColor = String(formData.get("panelColor") || bot.panelColor || "#ffffff");
     bot.buttonTextColor = String(formData.get("buttonTextColor") || bot.buttonTextColor || "#1a1a1a");
+    bot.widgetStyle = parseWidgetStyle(String(formData.get("widgetStyle") || bot.widgetStyle || "orbital"));
+    bot.fontFamily = parseWidgetFont(String(formData.get("fontFamily") || bot.fontFamily || "system"));
+    bot.surfaceColor = String(formData.get("surfaceColor") || bot.surfaceColor || "#f4f4f0");
+    bot.userBubbleColor = String(formData.get("userBubbleColor") || bot.userBubbleColor || bot.accentColor);
+    bot.assistantBubbleColor = String(formData.get("assistantBubbleColor") || bot.assistantBubbleColor || "#f3f4f6");
+    bot.launcherColor = String(formData.get("launcherColor") || bot.launcherColor || bot.accentColor);
     bot.avatarName = String(formData.get("avatarName") || "").trim();
     bot.avatarImageUrl = String(formData.get("avatarImageUrl") || "").trim();
     bot.phone = String(formData.get("phone") || "").trim();
@@ -284,15 +291,49 @@ export async function addKnowledgeAction(formData: FormData) {
   await mutateStore((data) => {
     const bot = data.chatbots.find((b) => b.id === chatbotId && b.organizationId === org.id);
     if (!bot) return;
-    data.knowledgeItems.push({
-      id: randomUUID(),
-      chatbotId,
-      title: String(formData.get("title") || "FAQ"),
-      question: String(formData.get("question") || ""),
-      answer: String(formData.get("answer") || ""),
-    });
+    const title = String(formData.get("title") || "FAQ").trim();
+    const question = String(formData.get("question") || "").trim();
+    const answer = String(formData.get("answer") || "").trim();
+    const exists = data.knowledgeItems.some(
+      (k) => k.chatbotId === chatbotId && knowledgeKey(k) === knowledgeKey({ title, question }),
+    );
+    if (!exists && question && answer) {
+      data.knowledgeItems.push({
+        id: randomUUID(),
+        chatbotId,
+        title: title || "FAQ",
+        question,
+        answer,
+      });
+    }
   });
-  redirect(`/app/chatbots/${chatbotId}`);
+  redirect(`/app/chatbots/${chatbotId}#knowledge`);
+}
+
+export async function addKnowledgePackAction(formData: FormData) {
+  const { org } = await getClinicContext();
+  const chatbotId = String(formData.get("chatbotId") || "");
+  const packId = String(formData.get("packId") || "");
+  const pack = KNOWLEDGE_PACKS.find((p) => p.id === packId);
+  await mutateStore((data) => {
+    const bot = data.chatbots.find((b) => b.id === chatbotId && b.organizationId === org.id);
+    if (!bot || !pack) return;
+    const existing = new Set(
+      data.knowledgeItems.filter((k) => k.chatbotId === chatbotId).map((k) => knowledgeKey(k)),
+    );
+    for (const item of pack.items) {
+      if (existing.has(knowledgeKey(item))) continue;
+      existing.add(knowledgeKey(item));
+      data.knowledgeItems.push({
+        id: randomUUID(),
+        chatbotId,
+        title: item.title,
+        question: item.question,
+        answer: item.answer,
+      });
+    }
+  });
+  redirect(`/app/chatbots/${chatbotId}#knowledge`);
 }
 
 export async function deleteKnowledgeAction(formData: FormData) {
@@ -304,7 +345,7 @@ export async function deleteKnowledgeAction(formData: FormData) {
     if (!bot) return;
     data.knowledgeItems = data.knowledgeItems.filter((k) => k.id !== knowledgeId);
   });
-  redirect(`/app/chatbots/${chatbotId}`);
+  redirect(`/app/chatbots/${chatbotId}#knowledge`);
 }
 
 export async function saveBrandingAction(formData: FormData) {

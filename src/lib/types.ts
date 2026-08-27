@@ -11,6 +11,10 @@ export type LeadStatus = "new" | "contacted" | "booked" | "closed";
 
 export type ChatbotActionType = "lead" | "book" | "call";
 
+export type WidgetStyle = "orbital" | "glass" | "sheet" | "messenger" | "dock" | "pulse";
+
+export type WidgetFont = "system" | "instrument" | "manrope" | "jakarta" | "outfit" | "sora" | "dmSans";
+
 export type Organization = {
   id: string;
   name: string;
@@ -59,6 +63,12 @@ export type Chatbot = {
   accentColor: string;
   panelColor: string;
   buttonTextColor: string;
+  widgetStyle: WidgetStyle;
+  fontFamily: WidgetFont;
+  surfaceColor: string;
+  userBubbleColor: string;
+  assistantBubbleColor: string;
+  launcherColor: string;
   avatarName: string;
   avatarImageUrl: string;
   phone: string;
@@ -237,6 +247,12 @@ export function widgetFieldDefaults(clinicName: string, primaryColor: string, av
     accentColor: primaryColor || "#0f766e",
     panelColor: "#ffffff",
     buttonTextColor: "#1a1a1a",
+    widgetStyle: "orbital" as const,
+    fontFamily: "system" as const,
+    surfaceColor: "#f4f4f0",
+    userBubbleColor: primaryColor || "#0f766e",
+    assistantBubbleColor: "#f3f4f6",
+    launcherColor: primaryColor || "#0f766e",
     avatarName,
     avatarImageUrl: "",
     phone: "",
@@ -247,4 +263,15 @@ export function widgetFieldDefaults(clinicName: string, primaryColor: string, av
 export function parseActionType(value: string): ChatbotActionType {
   if (value === "book" || value === "call" || value === "lead") return value;
   return "lead";
+}
+
+const WIDGET_STYLES: WidgetStyle[] = ["orbital", "glass", "sheet", "messenger", "dock", "pulse"];
+const WIDGET_FONTS: WidgetFont[] = ["system", "instrument", "manrope", "jakarta", "outfit", "sora", "dmSans"];
+
+export function parseWidgetStyle(value: string): WidgetStyle {
+  return WIDGET_STYLES.includes(value as WidgetStyle) ? (value as WidgetStyle) : "orbital";
+}
+
+export function parseWidgetFont(value: string): WidgetFont {
+  return WIDGET_FONTS.includes(value as WidgetFont) ? (value as WidgetFont) : "system";
 }

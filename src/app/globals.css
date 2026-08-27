@@ -1647,3 +1647,192 @@ label {
     animation: none;
   }
 }
+
+[data-widget-root] {
+  font-family: inherit;
+}
+
+[data-widget-root] input,
+[data-widget-root] textarea {
+  width: 100%;
+  border: 0;
+  border-radius: 12px;
+  padding: 0.62rem 0.8rem;
+  background: color-mix(in srgb, var(--dc-assistant, #f3f4f6) 88%, white);
+  color: var(--dc-text, #111);
+  outline: none;
+  font: inherit;
+}
+
+.dentchat-glass {
+  background: color-mix(in srgb, var(--dc-panel, #fff) 78%, transparent);
+  backdrop-filter: blur(18px) saturate(1.35);
+  -webkit-backdrop-filter: blur(18px) saturate(1.35);
+  box-shadow: 0 24px 60px rgb(15 23 42 / 0.18);
+}
+
+@keyframes dentchat-pulse-ring {
+  0% {
+    transform: scale(1);
+    opacity: 0.45;
+  }
+  100% {
+    transform: scale(1.55);
+    opacity: 0;
+  }
+}
+
+.dentchat-pulse-ring {
+  animation: dentchat-pulse-ring 1.7s ease-out infinite;
+}
+
+.chatbot-studio-page .page-head {
+  margin-bottom: 8px;
+}
+
+.chatbot-studio-page .page-head h1 {
+  font-size: 1.55rem;
+}
+
+.chatbot-studio {
+  display: grid;
+  gap: 1rem;
+}
+
+@media (min-width: 1100px) {
+  .chatbot-studio {
+    grid-template-columns: minmax(0, 1fr) 380px;
+    align-items: start;
+  }
+}
+
+.chatbot-studio-preview {
+  position: sticky;
+  top: 8px;
+}
+
+.studio-block {
+  background: var(--card);
+  border: 1px solid #eeebe3;
+  border-radius: 1.05rem;
+  padding: 0.75rem 0.85rem;
+}
+
+.studio-block h2 {
+  margin: 0 0 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+body:not(:has([data-widget-root])) .chatbot-studio input,
+body:not(:has([data-widget-root])) .chatbot-studio textarea,
+body:not(:has([data-widget-root])) .chatbot-studio select {
+  padding: 0.4rem 0.55rem;
+  border-radius: 10px;
+  font-size: 0.8rem;
+}
+
+.chatbot-studio label {
+  font-size: 0.66rem;
+  margin-bottom: 0.18rem;
+}
+
+.studio-styles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.studio-style {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  padding: 0.4rem;
+  border: 0;
+  border-radius: 12px;
+  background: #f6f6f1;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+  box-shadow: inset 0 0 0 1px transparent;
+}
+
+.studio-style[data-on="true"] {
+  background: #fff;
+  box-shadow: inset 0 0 0 1.5px #111;
+}
+
+.studio-style strong {
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.studio-style span {
+  font-size: 0.62rem;
+  color: var(--muted);
+  line-height: 1.25;
+}
+
+.studio-thumb {
+  height: 42px;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+}
+
+.studio-thumb i {
+  position: absolute;
+  display: block;
+  border-radius: 5px;
+}
+
+.studio-colors {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+
+.studio-color input[type="color"] {
+  height: 32px;
+  padding: 2px;
+  cursor: pointer;
+}
+
+.studio-examples {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.studio-example {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.35rem 0.5rem;
+  align-items: start;
+  padding: 0.45rem 0.5rem;
+  border-radius: 10px;
+  background: #f7f7f2;
+}
+
+.studio-example p {
+  margin: 0.15rem 0 0;
+  font-size: 0.68rem;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.studio-pack-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+}
+
+.btn.tiny {
+  padding: 0.28rem 0.6rem;
+  font-size: 0.72rem;
+}
+

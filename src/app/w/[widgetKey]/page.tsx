@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { readStore } from "@/lib/store";
-import { loadWidget, widgetAllowed, widgetTheme } from "@/lib/widget";
+import { applyPreviewAppearance, loadWidget, widgetAllowed, widgetTheme } from "@/lib/widget";
 import { ChatWidget } from "./chat-widget";
 
 export default async function WidgetPage({
@@ -8,11 +8,22 @@ export default async function WidgetPage({
   searchParams,
 }: {
   params: Promise<{ widgetKey: string }>;
-  searchParams: Promise<{ preview?: string }>;
+  searchParams: Promise<{
+    preview?: string;
+    style?: string;
+    font?: string;
+    accent?: string;
+    panel?: string;
+    buttonText?: string;
+    surface?: string;
+    userBubble?: string;
+    assistantBubble?: string;
+    launcher?: string;
+  }>;
 }) {
   const { widgetKey } = await params;
-  const { preview } = await searchParams;
-  const isPreview = preview === "1";
+  const search = await searchParams;
+  const isPreview = search.preview === "1";
   const loaded = await loadWidget(widgetKey, { allowInactive: isPreview });
   if (!loaded) notFound();
   const { org, bot } = loaded;
@@ -20,7 +31,7 @@ export default async function WidgetPage({
   const options = store.chatbotOptions
     .filter((o) => o.chatbotId === bot.id)
     .sort((a, b) => a.sortOrder - b.sortOrder);
-  const theme = widgetTheme(org, bot);
+  const theme = applyPreviewAppearance(widgetTheme(org, bot), search, isPreview);
 
   if (!isPreview && !widgetAllowed(org)) {
     return (
@@ -34,9 +45,15 @@ export default async function WidgetPage({
     <ChatWidget
       widgetKey={widgetKey}
       clinicName={org.name}
+      widgetStyle={theme.widgetStyle}
+      fontFamily={theme.fontFamily}
       accent={theme.accent}
       panel={theme.panel}
       buttonText={theme.buttonText}
+      surface={theme.surface}
+      userBubble={theme.userBubble}
+      assistantBubble={theme.assistantBubble}
+      launcher={theme.launcher}
       avatarName={theme.avatarName}
       avatarImageUrl={theme.avatarImageUrl}
       greetings={theme.greetings}

@@ -3,6 +3,8 @@ import path from "path";
 import { hashPassword } from "./crypto";
 import {
   parseActionType,
+  parseWidgetFont,
+  parseWidgetStyle,
   widgetFieldDefaults,
   type Chatbot,
   type ChatbotOption,
@@ -685,6 +687,8 @@ function normalizeStore(data: StoreData): { data: StoreData; changed: boolean } 
       ["accentColor", defaults.accentColor],
       ["panelColor", defaults.panelColor],
       ["buttonTextColor", defaults.buttonTextColor],
+      ["surfaceColor", defaults.surfaceColor],
+      ["assistantBubbleColor", defaults.assistantBubbleColor],
       ["avatarName", ""],
       ["avatarImageUrl", ""],
       ["phone", ""],
@@ -695,6 +699,24 @@ function normalizeStore(data: StoreData): { data: StoreData; changed: boolean } 
         bot[key] = fallback;
         changed = true;
       }
+    }
+    if (typeof bot.userBubbleColor !== "string") {
+      bot.userBubbleColor = bot.accentColor || defaults.userBubbleColor;
+      changed = true;
+    }
+    if (typeof bot.launcherColor !== "string") {
+      bot.launcherColor = bot.accentColor || defaults.launcherColor;
+      changed = true;
+    }
+    const style = parseWidgetStyle(String(bot.widgetStyle || "orbital"));
+    const font = parseWidgetFont(String(bot.fontFamily || "system"));
+    if (bot.widgetStyle !== style) {
+      bot.widgetStyle = style;
+      changed = true;
+    }
+    if (bot.fontFamily !== font) {
+      bot.fontFamily = font;
+      changed = true;
     }
   }
 
