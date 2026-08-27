@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { LeadStatus } from "@/lib/types";
+import { LEAD_STAGE_LABELS, isLeadStatus } from "@/lib/leads";
 
 export function PageHeader(props: {
   kicker?: string;
@@ -22,9 +23,9 @@ export function PageHeader(props: {
 
 export function StatusBadge({ status }: { status: LeadStatus | string }) {
   const map: Record<string, string> = {
-    new: "pill hot",
-    contacted: "pill warn",
-    booked: "pill good",
+    new: "pill stage-new",
+    contacted: "pill good",
+    booked: "pill warn",
     closed: "pill muted",
     active: "pill good",
     trialing: "pill warn",
@@ -32,7 +33,8 @@ export function StatusBadge({ status }: { status: LeadStatus | string }) {
     past_due: "pill hot",
     canceled: "pill muted",
   };
-  return <span className={map[status] || "pill muted"}>{status.replace("_", " ")}</span>;
+  const label = isLeadStatus(status) ? LEAD_STAGE_LABELS[status] : status.replace("_", " ");
+  return <span className={map[status] || "pill muted"}>{label}</span>;
 }
 
 export function EmptyState({ title, body }: { title: string; body: string }) {

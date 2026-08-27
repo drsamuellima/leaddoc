@@ -15,7 +15,8 @@ import { hashPassword, verifyPassword, widgetKey } from "./crypto";
 import { sendLeadEmail } from "./email";
 import { appUrl, hasStripe, stripeGet, stripeRequest } from "./integrations";
 import { mutateStore, readStore, slugify } from "./store";
-import { parseActionType, widgetFieldDefaults, type ChatbotActionType, type LeadStatus, type SubscriptionStatus } from "./types";
+import { parseActionType, widgetFieldDefaults, type ChatbotActionType, type SubscriptionStatus } from "./types";
+import { isLeadStatus, LEAD_STAGE_LABELS } from "./leads";
 
 function iso() {
   return new Date().toISOString();
@@ -342,17 +343,84 @@ export async function inviteStaffAction(formData: FormData) {
 }
 
 export async function updateLeadAction(formData: FormData) {
-  const { org } = await getClinicContext();
+  const { org, user } = await getClinicContext();
   const id = String(formData.get("id") || "");
+  const tab = String(formData.get("tab") || "activity");
   await mutateStore((data) => {
     const lead = data.leads.find((l) => l.id === id && l.organizationId === org.id);
     if (!lead) return;
-    lead.status = String(formData.get("status") || lead.status) as LeadStatus;
+    if (!Array.isArray(data.leadEvents)) data.leadEvents = [];
+    const prevStatus = lead.status;
+    const prevAssigned = lead.assignedTo;
+    const nextStatus = String(formData.get("status") || lead.status);
+    lead.status = isLeadStatus(nextStatus) ? nextStatus : lead.status;
     lead.assignedTo = String(formData.get("assignedTo") || "") || null;
     lead.followUpAt = String(formData.get("followUpAt") || "") || null;
     lead.notes = String(formData.get("notes") || "");
+    if (prevStatus !== lead.status) {
+      data.leadEvents.push({
+        id: randomUUID(),
+        leadId: lead.id,
+        body: `${user.name} moved this enquiry to ${LEAD_STAGE_LABELS[lead.status]}.`,
+        createdAt: iso(),
+      });
+    }
+    if (prevAssigned !== lead.assignedTo) {
+      const assignee = data.profiles.find((p) => p.id === lead.assignedTo);
+      data.leadEvents.push({
+        id: randomUUID(),
+        leadId: lead.id,
+        body: lead.assignedTo
+          ? `${user.name} assigned this enquiry to ${assignee?.name || "a teammate"}.`
+          : `${user.name} removed the assigned clinician.`,
+        createdAt: iso(),
+      });
+    }
   });
-  redirect(`/app/leads/${id}?ok=saved`);
+  const suffix = tab && tab !== "activity" ? `?ok=saved&tab=${encodeURIComponent(tab)}` : "?ok=saved";
+  redirect(`/app/leads/${id}${suffix}`);
+}
+
+export async function createLeadTaskAction(formData: FormData) {
+  const { org, user } = await getClinicContext();
+  const leadId = String(formData.get("leadId") || "");
+  const tab = String(formData.get("tab") || "followups");
+  const title = String(formData.get("title") || "").trim();
+  await mutateStore((data) => {
+    if (!title) return;
+    const lead = data.leads.find((l) => l.id === leadId && l.organizationId === org.id);
+    if (!lead) return;
+    if (!Array.isArray(data.leadTasks)) data.leadTasks = [];
+    data.leadTasks.push({
+      id: randomUUID(),
+      leadId: lead.id,
+      title,
+      body: String(formData.get("body") || "").trim(),
+      dueAt: String(formData.get("dueAt") || "") || null,
+      important: String(formData.get("important") || "") === "1",
+      completedAt: null,
+      createdBy: user.id,
+      createdAt: iso(),
+    });
+  });
+  const suffix = tab && tab !== "activity" ? `?ok=task&tab=${encodeURIComponent(tab)}` : "?ok=task";
+  redirect(`/app/leads/${leadId}${suffix}`);
+}
+
+export async function completeLeadTaskAction(formData: FormData) {
+  const { org } = await getClinicContext();
+  const id = String(formData.get("id") || "");
+  const leadId = String(formData.get("leadId") || "");
+  const tab = String(formData.get("tab") || "followups");
+  await mutateStore((data) => {
+    const lead = data.leads.find((l) => l.id === leadId && l.organizationId === org.id);
+    if (!lead) return;
+    const task = (data.leadTasks || []).find((t) => t.id === id && t.leadId === lead.id);
+    if (!task || task.completedAt) return;
+    task.completedAt = iso();
+  });
+  const suffix = tab && tab !== "activity" ? `?ok=task&tab=${encodeURIComponent(tab)}` : "?ok=task";
+  redirect(`/app/leads/${leadId}${suffix}`);
 }
 
 export async function markNotificationsReadAction() {

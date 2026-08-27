@@ -100,6 +100,25 @@ export type Lead = {
   createdAt: string;
 };
 
+export type LeadTask = {
+  id: string;
+  leadId: string;
+  title: string;
+  body: string;
+  dueAt: string | null;
+  important: boolean;
+  completedAt: string | null;
+  createdBy: string;
+  createdAt: string;
+};
+
+export type LeadEvent = {
+  id: string;
+  leadId: string;
+  body: string;
+  createdAt: string;
+};
+
 export type Conversation = {
   id: string;
   organizationId: string;
@@ -152,6 +171,8 @@ export type StoreData = {
   chatbotOptions: ChatbotOption[];
   knowledgeItems: KnowledgeItem[];
   leads: Lead[];
+  leadTasks: LeadTask[];
+  leadEvents: LeadEvent[];
   conversations: Conversation[];
   messages: Message[];
   notifications: AppNotification[];

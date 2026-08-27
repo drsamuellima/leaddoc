@@ -23,6 +23,8 @@ import {
   signupAction,
   startCheckoutAction,
   updateLeadAction,
+  createLeadTaskAction,
+  completeLeadTaskAction,
   updateOptionAction,
 } from "@/lib/actions";
 
@@ -40,6 +42,8 @@ const handlers: Record<string, (formData: FormData) => Promise<void>> = {
   saveBranding: saveBrandingAction,
   inviteStaff: inviteStaffAction,
   updateLead: updateLeadAction,
+  createLeadTask: createLeadTaskAction,
+  completeLeadTask: completeLeadTaskAction,
   markNotificationsRead: () => markNotificationsReadAction(),
   adminCreateClinic: adminCreateClinicAction,
   impersonate: impersonateAction,

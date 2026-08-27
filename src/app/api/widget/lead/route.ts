@@ -70,6 +70,14 @@ export async function POST(request: Request) {
       readAt: null,
       createdAt: at,
     });
+    if (!Array.isArray(data.leadTasks)) data.leadTasks = [];
+    if (!Array.isArray(data.leadEvents)) data.leadEvents = [];
+    data.leadEvents.push({
+      id: randomUUID(),
+      leadId,
+      body: "Enquiry captured from the website widget.",
+      createdAt: at,
+    });
     return { conversationId, leadId, reply };
   });
 

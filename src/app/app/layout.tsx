@@ -23,7 +23,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       nav={nav}
       userName={user.name}
       searchAction="/app/leads"
-      searchPlaceholder="Search leads, names, emails…"
+      searchPlaceholder="Search patients, names, emails…"
       unread={unread}
       impersonating={impersonating ? { orgName: org.name, email: user.email } : undefined}
     >

@@ -1,7 +1,19 @@
 import { mkdir, readFile, writeFile } from "fs/promises";
 import path from "path";
 import { hashPassword } from "./crypto";
-import { parseActionType, widgetFieldDefaults, type Chatbot, type ChatbotOption, type Organization, type StoreData } from "./types";
+import {
+  parseActionType,
+  widgetFieldDefaults,
+  type Chatbot,
+  type ChatbotOption,
+  type Conversation,
+  type Lead,
+  type LeadEvent,
+  type LeadTask,
+  type Message,
+  type Organization,
+  type StoreData,
+} from "./types";
 
 const filePath = path.join(process.cwd(), ".data", "store.json");
 export const DEMO_WIDGET_KEY = "bright-smile-demo";
@@ -12,6 +24,344 @@ function now() {
   return new Date().toISOString();
 }
 
+function daysAgo(days: number, hours = 9, minutes = 0) {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  d.setHours(hours, minutes, 0, 0);
+  return d.toISOString();
+}
+
+type ClinicDemoCrm = {
+  leads: Lead[];
+  conversations: Conversation[];
+  messages: Message[];
+  leadTasks: LeadTask[];
+  leadEvents: LeadEvent[];
+};
+
+function clinicDemoCrm(orgId: string, botId: string, ownerId: string, staffId: string): ClinicDemoCrm {
+  const rows: {
+    id: string;
+    name: string;
+    email: string;
+    phone: string;
+    inquiry: string;
+    status: Lead["status"];
+    assignedTo: string | null;
+    followUpAt: string | null;
+    notes: string;
+    createdAt: string;
+    reply: string;
+  }[] = [
+    {
+      id: "lead_priya",
+      name: "Priya Nair",
+      email: "priya.nair@example.com",
+      phone: "07700 900231",
+      inquiry: "I'd like to book an Invisalign consultation.",
+      status: "contacted",
+      assignedTo: ownerId,
+      followUpAt: daysAgo(-2, 11, 0),
+      notes: "Prefers evenings after 6pm. Asked about monthly payment plans.",
+      createdAt: daysAgo(6, 10, 12),
+      reply: "We can arrange a private Invisalign consult. A clinician will call you to talk through scans and pricing.",
+    },
+    {
+      id: "lead_tom",
+      name: "Tom Hughes",
+      email: "tom.hughes@example.com",
+      phone: "07700 900442",
+      inquiry: "I need an emergency dental appointment — cracked a molar last night.",
+      status: "booked",
+      assignedTo: staffId,
+      followUpAt: daysAgo(-1, 8, 30),
+      notes: "Emergency slot booked for tomorrow morning.",
+      createdAt: daysAgo(1, 21, 4),
+      reply: "Sorry you're in pain. Please call the practice if swelling increases. We'll hold an emergency slot and confirm shortly.",
+    },
+    {
+      id: "lead_eleanor",
+      name: "Eleanor Pena",
+      email: "eleanor.pena@example.com",
+      phone: "07700 900118",
+      inquiry: "I'm interested in teeth whitening before a wedding.",
+      status: "contacted",
+      assignedTo: staffId,
+      followUpAt: daysAgo(-5, 14, 0),
+      notes: "Wedding in six weeks. Sent whitening aftercare leaflet.",
+      createdAt: daysAgo(9, 15, 40),
+      reply: "We offer in-chair and take-home whitening. We'll check your enamel first at a short consult.",
+    },
+    {
+      id: "lead_jenny",
+      name: "Jenny Wilson",
+      email: "jenny.wilson@example.com",
+      phone: "07700 900773",
+      inquiry: "I'd like to ask about replacing missing teeth.",
+      status: "new",
+      assignedTo: null,
+      followUpAt: null,
+      notes: "",
+      createdAt: daysAgo(0, 8, 20),
+      reply: "We can talk through bridges and implants. Leave this with the team and we'll be in touch to book an assessment.",
+    },
+    {
+      id: "lead_ronald",
+      name: "Ronald Richards",
+      email: "ronald.richards@example.com",
+      phone: "07700 900556",
+      inquiry: "I'd like a dental checkup and cleaning.",
+      status: "booked",
+      assignedTo: ownerId,
+      followUpAt: daysAgo(-3, 9, 0),
+      notes: "New patient exam + scale and polish booked.",
+      createdAt: daysAgo(12, 9, 5),
+      reply: "Of course — we have private check-ups Monday to Saturday. The team will confirm a time on this number.",
+    },
+    {
+      id: "lead_maya",
+      name: "Maya Okonkwo",
+      email: "maya.okonkwo@example.com",
+      phone: "07700 900664",
+      inquiry: "I'm interested in facial aesthetics.",
+      status: "closed",
+      assignedTo: ownerId,
+      followUpAt: null,
+      notes: "Booked elsewhere. Happy to return for dentistry.",
+      createdAt: daysAgo(20, 13, 10),
+      reply: "Our facial aesthetics clinics run on Thursdays. I can take your details for a nurse-led consult.",
+    },
+    {
+      id: "lead_oliver",
+      name: "Oliver Grant",
+      email: "oliver.grant@example.com",
+      phone: "07700 900801",
+      inquiry: "I'm interested in straightening my teeth.",
+      status: "new",
+      assignedTo: staffId,
+      followUpAt: daysAgo(-1, 16, 0),
+      notes: "Compare Invisalign vs fixed braces.",
+      createdAt: daysAgo(2, 18, 45),
+      reply: "We offer Invisalign and fixed options. A short scan appointment is the usual next step.",
+    },
+    {
+      id: "lead_sophie",
+      name: "Sophie Walsh",
+      email: "sophie.walsh@example.com",
+      phone: "07700 900219",
+      inquiry: "Do you accept new private patients for a family checkup?",
+      status: "contacted",
+      assignedTo: staffId,
+      followUpAt: daysAgo(-4, 10, 0),
+      notes: "Two children, ages 7 and 11. Asked about Saturday mornings.",
+      createdAt: daysAgo(4, 11, 22),
+      reply: "Yes — we are taking new private patients. Saturday mornings are popular for families; we'll confirm availability.",
+    },
+    {
+      id: "lead_daniel",
+      name: "Daniel Kim",
+      email: "daniel.kim@example.com",
+      phone: "07700 900390",
+      inquiry: "I'd like to book a consultation.",
+      status: "booked",
+      assignedTo: ownerId,
+      followUpAt: daysAgo(-7, 15, 30),
+      notes: "New patient consult in the diary.",
+      createdAt: daysAgo(8, 16, 2),
+      reply: "We can book a new patient consultation. Someone from reception will confirm the time with you.",
+    },
+  ];
+
+  const leads: Lead[] = [];
+  const conversations: Conversation[] = [];
+  const messages: Message[] = [];
+  const leadEvents: LeadEvent[] = [];
+
+  for (const row of rows) {
+    const conversationId = `conv_${row.id.slice(5)}`;
+    leads.push({
+      id: row.id,
+      organizationId: orgId,
+      chatbotId: botId,
+      conversationId,
+      name: row.name,
+      email: row.email,
+      phone: row.phone,
+      inquiry: row.inquiry,
+      status: row.status,
+      assignedTo: row.assignedTo,
+      followUpAt: row.followUpAt,
+      notes: row.notes,
+      createdAt: row.createdAt,
+    });
+    conversations.push({
+      id: conversationId,
+      organizationId: orgId,
+      chatbotId: botId,
+      leadId: row.id,
+      createdAt: row.createdAt,
+    });
+    messages.push(
+      {
+        id: `msg_${row.id}_u`,
+        conversationId,
+        role: "user",
+        content: row.inquiry,
+        createdAt: row.createdAt,
+      },
+      {
+        id: `msg_${row.id}_a`,
+        conversationId,
+        role: "assistant",
+        content: row.reply,
+        createdAt: daysAgo(
+          Math.max(0, Math.round((Date.now() - new Date(row.createdAt).getTime()) / 86400000)),
+          new Date(row.createdAt).getHours(),
+          new Date(row.createdAt).getMinutes() + 1,
+        ),
+      },
+    );
+    leadEvents.push({
+      id: `evt_${row.id}_new`,
+      leadId: row.id,
+      body: "Enquiry captured from the website widget.",
+      createdAt: row.createdAt,
+    });
+    if (row.status !== "new") {
+      leadEvents.push({
+        id: `evt_${row.id}_stage`,
+        leadId: row.id,
+        body:
+          row.status === "contacted"
+            ? "Reception marked this enquiry as contacted."
+            : row.status === "booked"
+              ? "Appointment booked in the practice diary."
+              : "Enquiry closed.",
+        createdAt: daysAgo(Math.max(0, Math.round((Date.now() - new Date(row.createdAt).getTime()) / 86400000) - 1), 12, 0),
+      });
+    }
+  }
+
+  const leadTasks: LeadTask[] = [
+    {
+      id: "task_jamie_call",
+      leadId: "lead_demo",
+      title: "Call to confirm check-up",
+      body: "Offer a weekday morning or Saturday slot. Confirm they are a new private patient.",
+      dueAt: daysAgo(-1, 10, 0),
+      important: true,
+      completedAt: null,
+      createdBy: ownerId,
+      createdAt: daysAgo(0, 9, 5),
+    },
+    {
+      id: "task_ronald_forms",
+      leadId: "lead_ronald",
+      title: "Send medical history form",
+      body: "Email the new-patient form before the exam so the dentist can review medications.",
+      dueAt: daysAgo(-2, 17, 0),
+      important: false,
+      completedAt: null,
+      createdBy: staffId,
+      createdAt: daysAgo(11, 10, 0),
+    },
+    {
+      id: "task_ronald_insurance",
+      leadId: "lead_ronald",
+      title: "Verify dental insurance",
+      body: "Patient mentioned Denplan. Check remaining cover for a scale and polish.",
+      dueAt: daysAgo(-1, 12, 0),
+      important: true,
+      completedAt: null,
+      createdBy: ownerId,
+      createdAt: daysAgo(10, 14, 20),
+    },
+    {
+      id: "task_ronald_done",
+      leadId: "lead_ronald",
+      title: "Share pre-appointment instructions",
+      body: "Arrive 10 minutes early. Bring photo ID and a list of current medications.",
+      dueAt: daysAgo(3, 9, 0),
+      important: false,
+      completedAt: daysAgo(3, 9, 40),
+      createdBy: staffId,
+      createdAt: daysAgo(11, 11, 0),
+    },
+    {
+      id: "task_priya_scan",
+      leadId: "lead_priya",
+      title: "Book Invisalign scan",
+      body: "30-minute iTero slot with Dr Chen. Mention evening availability.",
+      dueAt: daysAgo(-2, 11, 0),
+      important: false,
+      completedAt: null,
+      createdBy: ownerId,
+      createdAt: daysAgo(5, 16, 0),
+    },
+    {
+      id: "task_tom_prep",
+      leadId: "lead_tom",
+      title: "Prepare emergency bay",
+      body: "Cracked molar. Have peri-apical tray ready and warn the dentist of possible extraction.",
+      dueAt: daysAgo(-1, 8, 0),
+      important: true,
+      completedAt: null,
+      createdBy: staffId,
+      createdAt: daysAgo(1, 21, 20),
+    },
+    {
+      id: "task_maya_done",
+      leadId: "lead_maya",
+      title: "Log outcome",
+      body: "Patient went elsewhere for aesthetics. Keep the file closed unless they enquire again.",
+      dueAt: daysAgo(18, 10, 0),
+      important: false,
+      completedAt: daysAgo(18, 10, 15),
+      createdBy: ownerId,
+      createdAt: daysAgo(19, 9, 0),
+    },
+  ];
+
+  return { leads, conversations, messages, leadTasks, leadEvents };
+}
+
+function mergeClinicDemoCrm(data: StoreData) {
+  const org = data.organizations.find((o) => o.id === "org_demo");
+  const bot = data.chatbots.find((b) => b.id === "bot_demo");
+  const owner = data.profiles.find((p) => p.id === "user_clinic");
+  const staff = data.profiles.find((p) => p.id === "user_staff");
+  if (!org || !bot || !owner || !staff) return false;
+
+  const pack = clinicDemoCrm(org.id, bot.id, owner.id, staff.id);
+  let changed = false;
+
+  const pushIfMissing = <T extends { id: string }>(list: T[], item: T) => {
+    if (!list.some((row) => row.id === item.id)) {
+      list.push(item);
+      changed = true;
+    }
+  };
+
+  for (const lead of pack.leads) pushIfMissing(data.leads, lead);
+  for (const conv of pack.conversations) pushIfMissing(data.conversations, conv);
+  for (const msg of pack.messages) pushIfMissing(data.messages, msg);
+  for (const task of pack.leadTasks) pushIfMissing(data.leadTasks, task);
+  for (const event of pack.leadEvents) pushIfMissing(data.leadEvents, event);
+
+  if (data.leads.some((l) => l.id === "lead_demo") && !data.leadEvents.some((e) => e.id === "evt_lead_demo_new")) {
+    const jamie = data.leads.find((l) => l.id === "lead_demo");
+    data.leadEvents.push({
+      id: "evt_lead_demo_new",
+      leadId: "lead_demo",
+      body: "Enquiry captured from the website widget.",
+      createdAt: jamie?.createdAt || now(),
+    });
+    changed = true;
+  }
+
+  return changed;
+}
+
 function seed(): StoreData {
   const orgId = "org_demo";
   const ownerId = "user_clinic";
@@ -20,6 +370,7 @@ function seed(): StoreData {
   const convId = "conv_demo";
   const leadId = "lead_demo";
   const passwordHash = hashPassword("password");
+  const pack = clinicDemoCrm(orgId, botId, ownerId, "user_staff");
 
   return {
     organizations: [
@@ -135,6 +486,7 @@ function seed(): StoreData {
         leadId,
         createdAt: now(),
       },
+      ...pack.conversations,
     ],
     leads: [
       {
@@ -148,10 +500,21 @@ function seed(): StoreData {
         inquiry: "I'd like to book a dental check-up.",
         status: "new",
         assignedTo: ownerId,
-        followUpAt: null,
+        followUpAt: daysAgo(-1, 10, 0),
         notes: "Came in via website widget.",
         createdAt: now(),
       },
+      ...pack.leads,
+    ],
+    leadTasks: pack.leadTasks,
+    leadEvents: [
+      {
+        id: "evt_lead_demo_new",
+        leadId,
+        body: "Enquiry captured from the website widget.",
+        createdAt: now(),
+      },
+      ...pack.leadEvents,
     ],
     messages: [
       {
@@ -168,6 +531,7 @@ function seed(): StoreData {
         content: "Of course — we have private check-ups Monday to Saturday. The team will call you on 07700 900123 to confirm a time.",
         createdAt: now(),
       },
+      ...pack.messages,
     ],
     notifications: [
       {
@@ -253,6 +617,16 @@ function normalizeStore(data: StoreData): { data: StoreData; changed: boolean } 
       changed = true;
     }
   }
+
+  if (!Array.isArray(data.leadTasks)) {
+    data.leadTasks = [];
+    changed = true;
+  }
+  if (!Array.isArray(data.leadEvents)) {
+    data.leadEvents = [];
+    changed = true;
+  }
+  if (mergeClinicDemoCrm(data)) changed = true;
 
   return { data, changed };
 }
