@@ -2,6 +2,10 @@
 
 SaaS for dental practices: branded AI chat widgets, lead CRM, monthly billing, and a platform admin that can manage every clinic.
 
+## Docs
+
+What each page, API, and feature does (plain English): **[docs/README.md](docs/README.md)**. Update those files in the same change as any behaviour edit, then run `npm run docs:check`.
+
 ## Run locally
 
 ```bash

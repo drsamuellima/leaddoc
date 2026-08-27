@@ -1,0 +1,49 @@
+# Public chat widget
+
+The embeddable chat clinics put on their own websites. Visitors never log in. They are identified only by a widget key.
+
+How access, preview, and billing interact: [architecture.md](../architecture.md). Studio UI: [clinic-app.md](clinic-app.md#appchatbotsid). HTTP: [apis.md](../apis.md).
+
+## /w/[widgetKey]
+
+**File:** `src/app/w/[widgetKey]/page.tsx`  
+**Client UI:** `chat-widget.tsx`, skins in `widget-skins.tsx`, fonts in `widget-fonts.ts`  
+**Layout:** `layout.tsx` (transparent page, widget font class)  
+**Who:** anyone with a valid widget key (clinic website iframe, or studio preview)
+
+The chat UI itself. `loadWidget` finds the chatbot and its organisation. If the bot is missing, the page 404s.
+
+**Live (not preview):** the widget is hidden behind “this chat is temporarily unavailable” unless the clinic may serve chat (`active` / `trialing` subscription, or admin widget exception). Inactive bots are not loaded.
+
+**Visitor flow:**
+
+1. Closed launcher in the corner (or already open in preview).
+2. Opened panel greets the visitor (one or more greetings) and shows treatment buttons.
+3. Buttons are **lead** (start a chat about that treatment), **book** (open the booking URL), or **call** (tel: the practice phone). Phone and booking URL fall back from bot → organisation.
+4. Before chatting, the visitor must submit **name, email, phone, and enquiry**. That posts to `/api/widget/lead` and creates the CRM lead plus first AI reply.
+5. Further messages post to `/api/widget/chat`.
+
+**Skins** (every skin still does lead, book, call, and chat): orbital, glass, sheet, messenger, dock, pulse.
+
+**Preview** (`?preview=1`, used by the studio): inactive bots are allowed; the panel starts open; query params can overlay colours, font, and skin without saving. Preview must not be treated as a real visitor session for production traffic.
+
+**Reads/writes:** reads chatbot, options, org branding. Writes happen via the widget APIs (lead, conversation, messages, notification, email).
+
+## /widget.js
+
+**File:** `src/app/widget.js/route.ts`  
+**Who:** any website that includes the snippet (CORS `*`)
+
+The loader script clinics paste on their site:
+
+```html
+<script src="https://your-origin/widget.js" data-widget-key="dc_..." async></script>
+```
+
+It reads `data-widget-key`, creates a fixed-position iframe pointing at `/w/{key}`, and listens for `postMessage` from the iframe (`source: "dentchat"`, types `open` / `close`) so the iframe can grow from a small launcher to a tall panel.
+
+The script is generated with the public origin (`NEXT_PUBLIC_APP_URL` or the request origin). Cached for 60 seconds.
+
+**Reads/writes:** none on the store. GET only.
+
+**Related:** [lead](../apis.md#apiwidgetlead) and [chat](../apis.md#apiwidgetchat) APIs.

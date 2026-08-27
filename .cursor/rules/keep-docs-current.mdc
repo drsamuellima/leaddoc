@@ -1,0 +1,21 @@
+---
+description: Keep LeadDoc plain-English docs in the same change as code
+alwaysApply: true
+---
+
+# Keep docs current
+
+Read `docs/README.md` before changing product behaviour.
+
+If you add, remove, rename, or change a page, API, form handler, or user-visible feature, update the matching file under `docs/` in the **same change**. Write plain English; do not dump code.
+
+| If you touch | Update |
+| --- | --- |
+| `src/app/page.tsx`, `src/app/login/**`, `src/app/signup/**` | `docs/pages/public.md` |
+| `src/app/app/**` | `docs/pages/clinic-app.md` |
+| `src/app/admin/**` | `docs/pages/admin.md` |
+| `src/app/w/**`, `src/app/widget.js/**`, `src/lib/widget*.ts` | `docs/pages/widget.md` |
+| `src/app/api/**`, `src/lib/actions.ts` | `docs/apis.md` |
+| Auth, store, Stripe, embed flow, roles | `docs/architecture.md` |
+
+Every `page.tsx` / `route.ts` under `src/app` needs an `## /your/path` heading in `docs/`. After adding or removing a route, run `npm run docs:check`.
