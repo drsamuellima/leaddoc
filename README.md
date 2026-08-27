@@ -44,7 +44,17 @@ The running app uses the JSON store. SQL for Postgres + RLS is in [`supabase/sch
 
 ## Widget
 
-From a chatbot page, copy:
+Clinic staff design the public chat on **Chatbots → a bot** (`/app/chatbots/[id]`). That studio is a dense two-column page: controls on the left, a live preview on the right.
+
+What you can set there:
+
+- **Look** — six skins (orbital, glass, sheet, messenger, dock, pulse). Every skin still does greetings, lead, book, call, and chat. Picking a skin applies a modern colour palette; you can still mix any colours and fonts with any skin.
+- **Colour and type** — accent, panel, ink, surface, visitor/bot bubbles, launcher, plus a font (Geist, Instrument Sans, Manrope, Plus Jakarta, Outfit, Sora, DM Sans). Unsaved choices update the preview immediately; **Save chatbot** writes them.
+- **Knowledge** — dental FAQ examples you can edit, then **Edit & add**. After a FAQ is on the bot, **Save edits** or **Remove**. Packs import a group you can tweak afterwards. Custom FAQs sit in their own list.
+- **Treatments** — buttons for lead (form then AI chat), book (booking URL), or call (practice phone).
+- **Embed** — copy the snippet onto the practice website.
+
+Full page write-up: [docs/pages/clinic-app.md](docs/pages/clinic-app.md#appchatbotsid). Widget behaviour: [docs/pages/widget.md](docs/pages/widget.md).
 
 ```html
 <script src="http://localhost:3000/widget.js" data-widget-key="dc_..." async></script>

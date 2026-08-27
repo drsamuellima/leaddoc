@@ -57,9 +57,9 @@ Main records (types in [`src/lib/types.ts`](../src/lib/types.ts)):
 
 - **organizations** — a practice: branding, phone, booking URL, Stripe ids, subscription status.
 - **profiles** — people who can log in.
-- **chatbots** — one embeddable widget per bot, with appearance, greetings, and a widget key.
+- **chatbots** — one embeddable widget per bot: greetings, widget key, skin, font, colour tokens (accent, panel, ink, surface, bubbles, launcher), avatar, phone, booking URL.
 - **chatbotOptions** — treatment buttons on the widget (lead / book / call).
-- **knowledgeItems** — FAQ snippets the AI can use.
+- **knowledgeItems** — FAQ snippets the AI can use. Clinics edit example text, add it, then edit or remove it later.
 - **leads** — captured visitors, with status, assignee, pipeline stage, value.
 - **pipelines** and **pipeline stages** — treatment journeys (e.g. Invisalign: New enquiry → Consult booked).
 - **conversations** and **messages** — the chat transcript.

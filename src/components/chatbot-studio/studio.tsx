@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AvatarCropField } from "@/components/avatar-crop-field";
 import { StatusBadge } from "@/components/ui";
 import { KNOWLEDGE_PACKS, knowledgeKey } from "@/lib/knowledge-examples";
@@ -8,6 +8,7 @@ import type { Chatbot, ChatbotOption, KnowledgeItem, Organization, WidgetFont, W
 import {
   appearanceToQuery,
   COLOR_FIELDS,
+  parseHexColor,
   WIDGET_FONT_META,
   WIDGET_STYLE_META,
   type AppearanceTokens,
@@ -29,9 +30,21 @@ const tokenToField: Record<string, string> = {
   launcher: "launcherColor",
 };
 
-function StyleThumb({ id, accent, panel }: { id: WidgetStyle; accent: string; panel: string }) {
+function StyleThumb({
+  id,
+  accent,
+  panel,
+  surface,
+  userBubble,
+}: {
+  id: WidgetStyle;
+  accent: string;
+  panel: string;
+  surface: string;
+  userBubble: string;
+}) {
   return (
-    <div className="studio-thumb" data-thumb={id} style={{ background: `linear-gradient(160deg, ${panel}, ${accent}22)` }}>
+    <div className="studio-thumb" data-thumb={id} style={{ background: `linear-gradient(145deg, ${surface} 0%, ${panel} 55%, ${accent}33 100%)` }}>
       {id === "orbital" || id === "pulse" ? (
         <>
           <i style={{ left: 6, top: 8, width: 22, height: 8, background: panel }} />
@@ -56,7 +69,7 @@ function StyleThumb({ id, accent, panel }: { id: WidgetStyle; accent: string; pa
           <i style={{ inset: 0, background: `${accent}18` }} />
           <i style={{ left: 6, top: 6, right: 6, height: 8, background: panel }} />
           <i style={{ left: 6, top: 18, width: 20, height: 8, background: panel }} />
-          <i style={{ right: 6, bottom: 6, width: 18, height: 8, background: accent }} />
+          <i style={{ right: 6, bottom: 6, width: 18, height: 8, background: userBubble }} />
         </>
       ) : null}
       {id === "dock" ? (
@@ -64,6 +77,84 @@ function StyleThumb({ id, accent, panel }: { id: WidgetStyle; accent: string; pa
           <i style={{ right: 4, top: 4, bottom: 4, width: 22, background: panel, borderRadius: 6 }} />
           <i style={{ right: 8, top: 8, width: 8, height: 8, borderRadius: 99, background: accent }} />
         </>
+      ) : null}
+    </div>
+  );
+}
+
+function ColorField(props: { label: string; hint: string; value: string; onChange: (hex: string) => void }) {
+  const [hex, setHex] = useState(props.value);
+  useEffect(() => setHex(props.value), [props.value]);
+
+  function commit(raw: string) {
+    const next = parseHexColor(raw, props.value);
+    setHex(next);
+    props.onChange(next);
+  }
+
+  return (
+    <div className="studio-color">
+      <label>{props.label}</label>
+      <div className="studio-color-row">
+        <label className="studio-swatch" style={{ background: props.value }}>
+          <input
+            type="color"
+            value={/^#[0-9a-fA-F]{6}$/.test(props.value) ? props.value : "#000000"}
+            onChange={(e) => commit(e.target.value)}
+            aria-label={props.label}
+          />
+        </label>
+        <input
+          type="text"
+          value={hex}
+          spellCheck={false}
+          autoComplete="off"
+          onChange={(e) => {
+            const raw = e.target.value;
+            setHex(raw);
+            if (/^#[0-9a-fA-F]{6}$/.test(raw)) props.onChange(raw.toLowerCase());
+          }}
+          onBlur={() => commit(hex)}
+        />
+      </div>
+      <p className="hint">{props.hint}</p>
+    </div>
+  );
+}
+
+function KnowledgeEditor(props: {
+  chatbotId: string;
+  item?: KnowledgeItem;
+  title: string;
+  question: string;
+  answer: string;
+  submitLabel: string;
+}) {
+  const updating = Boolean(props.item);
+  return (
+    <div className="studio-knowledge">
+      <form
+        action={updating ? "/api/form/updateKnowledge" : "/api/form/addKnowledge"}
+        method="post"
+        className="studio-knowledge-fields"
+      >
+        <input type="hidden" name="chatbotId" value={props.chatbotId} />
+        {props.item ? <input type="hidden" name="knowledgeId" value={props.item.id} /> : null}
+        <input name="title" defaultValue={props.item?.title ?? props.title} required placeholder="Title" />
+        <input name="question" defaultValue={props.item?.question ?? props.question} required placeholder="Question" />
+        <textarea name="answer" rows={2} defaultValue={props.item?.answer ?? props.answer} required placeholder="Answer" />
+        <button className="btn tiny" type="submit">
+          {props.submitLabel}
+        </button>
+      </form>
+      {props.item ? (
+        <form action="/api/form/deleteKnowledge" method="post">
+          <input type="hidden" name="chatbotId" value={props.chatbotId} />
+          <input type="hidden" name="knowledgeId" value={props.item.id} />
+          <button className="btn secondary tiny" type="submit">
+            Remove
+          </button>
+        </form>
       ) : null}
     </div>
   );
@@ -81,7 +172,11 @@ export function ChatbotStudio(props: {
   saved?: boolean;
 }) {
   const [tokens, setTokens] = useState<AppearanceTokens>(props.initial);
-  const existingKeys = useMemo(() => new Set(props.faqs.map((f) => knowledgeKey(f))), [props.faqs]);
+  const catalogKeys = useMemo(
+    () => new Set(KNOWLEDGE_PACKS.flatMap((pack) => pack.items.map((item) => knowledgeKey(item)))),
+    [],
+  );
+  const customFaqs = props.faqs.filter((faq) => !catalogKeys.has(knowledgeKey(faq)));
   const previewSrc = `${props.previewBase}&${appearanceToQuery(tokens)}`;
 
   function patch(partial: Partial<AppearanceTokens>) {
@@ -147,7 +242,20 @@ export function ChatbotStudio(props: {
                   data-on={tokens.widgetStyle === style.id}
                   onClick={() => pickStyle(style.id)}
                 >
-                  <StyleThumb id={style.id} accent={style.suggested.accent} panel={style.suggested.panel} />
+                  <StyleThumb
+                    id={style.id}
+                    accent={style.suggested.accent}
+                    panel={style.suggested.panel}
+                    surface={style.suggested.surface}
+                    userBubble={style.suggested.userBubble}
+                  />
+                  <div className="studio-dots" aria-hidden>
+                    {[style.suggested.accent, style.suggested.userBubble, style.suggested.panel, style.suggested.surface].map(
+                      (dot, i) => (
+                        <i key={i} style={{ background: dot }} />
+                      ),
+                    )}
+                  </div>
                   <strong>{style.name}</strong>
                   <span>
                     {style.blurb} {style.options}.
@@ -161,15 +269,13 @@ export function ChatbotStudio(props: {
             <h2>Colour & type — applies to every skin</h2>
             <div className="studio-colors">
               {COLOR_FIELDS.map((field) => (
-                <div key={field.key}>
-                  <label>{field.name}</label>
-                  <input
-                    type="color"
-                    value={tokens[field.key]}
-                    onChange={(e) => patch({ [field.key]: e.target.value })}
-                    className="h-8 w-full"
-                  />
-                </div>
+                <ColorField
+                  key={field.key}
+                  label={field.name}
+                  hint={field.hint}
+                  value={tokens[field.key]}
+                  onChange={(hex) => patch({ [field.key]: hex } as Partial<AppearanceTokens>)}
+                />
               ))}
             </div>
             <div className="mt-2">
@@ -294,7 +400,10 @@ export function ChatbotStudio(props: {
         </div>
 
         <div className="studio-block" id="knowledge">
-          <h2>Knowledge — choose examples or write your own</h2>
+          <h2>Knowledge — edit examples, then add; edit again anytime</h2>
+          <p className="hint !mt-0 mb-2">
+            Change the text, then Edit & add. Saved FAQs stay editable. Packs drop in a group you can tweak after.
+          </p>
           <div className="studio-pack-row">
             {KNOWLEDGE_PACKS.map((pack) => (
               <form key={pack.id} action="/api/form/addKnowledgePack" method="post">
@@ -313,47 +422,38 @@ export function ChatbotStudio(props: {
               </div>
               <div className="studio-examples">
                 {pack.items.map((item) => {
-                  const added = existingKeys.has(knowledgeKey(item));
+                  const saved = props.faqs.find((faq) => knowledgeKey(faq) === knowledgeKey(item));
                   return (
                     <div key={item.question} className="studio-example">
-                      <div>
-                        <div className="text-[12px] font-semibold">{item.title}</div>
-                        <p>
-                          <em>{item.question}</em> — {item.answer}
-                        </p>
-                      </div>
-                      {added ? (
-                        <span className="text-[11px] font-semibold text-lime-800">Added</span>
-                      ) : (
-                        <form action="/api/form/addKnowledge" method="post">
-                          <input type="hidden" name="chatbotId" value={props.bot.id} />
-                          <input type="hidden" name="title" value={item.title} />
-                          <input type="hidden" name="question" value={item.question} />
-                          <input type="hidden" name="answer" value={item.answer} />
-                          <button className="btn tiny" type="submit">
-                            Add
-                          </button>
-                        </form>
-                      )}
+                      <KnowledgeEditor
+                        chatbotId={props.bot.id}
+                        item={saved}
+                        title={item.title}
+                        question={item.question}
+                        answer={item.answer}
+                        submitLabel={saved ? "Save edits" : "Edit & add"}
+                      />
                     </div>
                   );
                 })}
               </div>
             </div>
           ))}
-          <ul className="mt-2 space-y-2">
-            {props.faqs.map((faq) => (
-              <li key={faq.id} className="rounded-xl bg-[#f7f7f2] p-2.5 text-[12px]">
-                <div className="font-semibold">{faq.title}</div>
-                <div className="text-neutral-500">{faq.question}</div>
-                <div className="mt-0.5">{faq.answer}</div>
-                <form action="/api/form/deleteKnowledge" method="post" className="mt-1">
-                  <input type="hidden" name="chatbotId" value={props.bot.id} />
-                  <input type="hidden" name="knowledgeId" value={faq.id} />
-                  <button className="btn secondary tiny" type="submit">
-                    Remove
-                  </button>
-                </form>
+          <div className="mb-1 mt-3 text-[11px] font-semibold tracking-wide text-neutral-500 uppercase">Custom FAQs</div>
+          {customFaqs.length === 0 ? (
+            <p className="hint !mt-0">Catalog items you add are edited in the lists above. Write anything else here.</p>
+          ) : null}
+          <ul className="space-y-2">
+            {customFaqs.map((faq) => (
+              <li key={faq.id} className="studio-example">
+                <KnowledgeEditor
+                  chatbotId={props.bot.id}
+                  item={faq}
+                  title={faq.title}
+                  question={faq.question}
+                  answer={faq.answer}
+                  submitLabel="Save edits"
+                />
               </li>
             ))}
           </ul>

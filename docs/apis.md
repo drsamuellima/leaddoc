@@ -58,11 +58,15 @@ Clinic. Removes a treatment button.
 
 ### addKnowledge
 
-Clinic. Adds one FAQ item (title, question, answer) used by the AI.
+Clinic. Adds one FAQ item (title, question, answer) used by the AI. Clinics can change the example text first, then submit.
 
 ### addKnowledgePack
 
-Clinic. Imports a pre-built FAQ pack from `src/lib/knowledge-examples.ts` (practice hours, treatments, and similar).
+Clinic. Imports a pre-built FAQ pack from `src/lib/knowledge-examples.ts` (practice hours, treatments, and similar). Items can be edited afterwards.
+
+### updateKnowledge
+
+Clinic. Changes the title, question, and answer of an existing FAQ.
 
 ### deleteKnowledge
 

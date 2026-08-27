@@ -59,7 +59,7 @@ Every heading below must stay as a markdown `##` heading in the linked file (the
 | --- | --- |
 | `/app` | [pages/clinic-app.md](pages/clinic-app.md) |
 | `/app/chatbots` | [pages/clinic-app.md](pages/clinic-app.md) |
-| `/app/chatbots/[id]` | [pages/clinic-app.md](pages/clinic-app.md) |
+| `/app/chatbots/[id]` | [pages/clinic-app.md](pages/clinic-app.md) — chatbot studio: skins, palettes, knowledge edit & add |
 | `/app/leads` | [pages/clinic-app.md](pages/clinic-app.md) |
 | `/app/leads/[id]` | [pages/clinic-app.md](pages/clinic-app.md) |
 | `/app/pipelines` | [pages/clinic-app.md](pages/clinic-app.md) |

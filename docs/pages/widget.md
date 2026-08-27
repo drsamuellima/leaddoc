@@ -23,7 +23,7 @@ The chat UI itself. `loadWidget` finds the chatbot and its organisation. If the 
 4. Before chatting, the visitor must submit **name, email, phone, and enquiry**. That posts to `/api/widget/lead` and creates the CRM lead plus first AI reply.
 5. Further messages post to `/api/widget/chat`.
 
-**Skins** (every skin still does lead, book, call, and chat): orbital, glass, sheet, messenger, dock, pulse.
+**Skins** (every skin still does lead, book, call, and chat): orbital, glass, sheet, messenger, dock, pulse. Each skin ships a modern suggested colour palette (accent, panel, ink, surface, bubbles, launcher). Clinics can mix any palette with any skin.
 
 **Preview** (`?preview=1`, used by the studio): inactive bots are allowed; the panel starts open; query params can overlay colours, font, and skin without saving. Preview must not be treated as a real visitor session for production traffic.
 

@@ -336,6 +336,25 @@ export async function addKnowledgePackAction(formData: FormData) {
   redirect(`/app/chatbots/${chatbotId}#knowledge`);
 }
 
+export async function updateKnowledgeAction(formData: FormData) {
+  const { org } = await getClinicContext();
+  const chatbotId = String(formData.get("chatbotId") || "");
+  const knowledgeId = String(formData.get("knowledgeId") || "");
+  const title = String(formData.get("title") || "FAQ").trim();
+  const question = String(formData.get("question") || "").trim();
+  const answer = String(formData.get("answer") || "").trim();
+  await mutateStore((data) => {
+    const bot = data.chatbots.find((b) => b.id === chatbotId && b.organizationId === org.id);
+    if (!bot || !question || !answer) return;
+    const item = data.knowledgeItems.find((k) => k.id === knowledgeId && k.chatbotId === chatbotId);
+    if (!item) return;
+    item.title = title || "FAQ";
+    item.question = question;
+    item.answer = answer;
+  });
+  redirect(`/app/chatbots/${chatbotId}#knowledge`);
+}
+
 export async function deleteKnowledgeAction(formData: FormData) {
   const { org } = await getClinicContext();
   const chatbotId = String(formData.get("chatbotId") || "");

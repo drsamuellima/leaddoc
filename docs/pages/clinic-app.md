@@ -30,18 +30,30 @@ Lists this practice’s chatbots as cards (name, greeting, widget key, active/in
 
 ## /app/chatbots/[id]
 
-**File:** `src/app/app/chatbots/[id]/page.tsx`  
+**File:** `src/app/app/chatbots/[id]/page.tsx` (UI: `src/components/chatbot-studio/studio.tsx`)  
 **Who:** clinic owner, clinic staff, impersonating admin (must own this bot)
 
-The chatbot studio. This is where a practice designs the public widget: skins, colours, fonts, avatar photo, greetings, treatment buttons (lead / book / call), FAQ knowledge (including one-click packs), system prompt, and the embed snippet.
+The chatbot studio. Dense two-column layout: editors on the left, sticky live preview on the right. This is where a practice designs the public widget.
 
-A live preview iframe loads `/w/{widgetKey}?preview=1` so appearance can be tried before save. Saving posts to `saveChatbot` and related form handlers for options and knowledge. Avatar JPEG upload goes to `POST /api/uploads`.
+**Look.** Six skins — orbital, glass, sheet, messenger, dock, pulse. They share the same actions (greetings, lead, book, call, chat) and only change chrome. Each skin has a modern suggested palette (accent, panel, ink, surface, visitor bubble, bot bubble, launcher) shown as colour dots. Choosing a skin applies that palette; colour and font fields stay editable so any combination is valid.
 
-Unknown ids return 404.
+**Colour and type.** Round swatches plus hex fields. Fonts load in the widget iframe (Geist, Instrument Sans, Manrope, Plus Jakarta, Outfit, Sora, DM Sans). Unsaved tokens are sent to the preview as query params. **Save chatbot** persists skin, font, colours, name, prompt, avatar, greetings, phone, booking URL, and the live flag.
+
+**Identity and voice.** Name, live toggle, avatar name and crop, system prompt, greeting lines (one line = one bubble).
+
+**Connect.** Clinic phone (Call buttons) and booking URL (Book buttons). Blank uses Settings.
+
+**Actions.** Treatment buttons: lead (enquiry form then AI chat), book (open URL), call (dial). Same buttons on every skin; only the layout changes.
+
+**Knowledge.** Example FAQs are grouped (practice, patients, treatments, fees). Each example is an editable title, question, and answer. **Edit & add** saves the (possibly changed) text. After it is on the bot, the same card becomes **Save edits** plus **Remove**. Packs import a whole group. FAQs that no longer match a catalog example (or were written from scratch) appear under Custom FAQs, also editable. The AI uses these items when it replies.
+
+**Embed.** Snippet and widget key for WordPress or any site footer.
+
+The preview iframe is `/w/{widgetKey}?preview=1` (inactive bots still preview). Avatar JPEG upload goes to `POST /api/uploads`. Unknown ids return 404.
 
 **Reads/writes:** `chatbots`, `chatbotOptions`, `knowledgeItems`; upload files under `.data/uploads/`.
 
-**Related:** [widget](widget.md), [saveChatbot](../apis.md#savechatbot)
+**Related:** [widget](widget.md), [saveChatbot](../apis.md#savechatbot), [updateKnowledge](../apis.md#updateknowledge)
 
 ## /app/leads
 
