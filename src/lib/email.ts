@@ -14,7 +14,7 @@ export async function sendLeadEmail(to: string, lead: { name: string; email: str
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: process.env.LEAD_FROM_EMAIL || "DentChat <noreply@localhost>",
+      from: process.env.LEAD_FROM_EMAIL || "LeadDoc <noreply@localhost>",
       to: [to],
       subject: `New lead: ${lead.name}`,
       text,

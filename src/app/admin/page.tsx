@@ -19,7 +19,7 @@ export default async function AdminHome({
       <PageHeader
         kicker="Platform"
         title="Clinics"
-        description="Every practice on DentChat. Open a hub or jump in as the clinic."
+        description="Every practice on LeadDoc. Open a hub or jump in as the clinic."
         action={
           <Link href="/admin/clinics/new" className="btn">
             Add clinic

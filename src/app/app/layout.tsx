@@ -18,7 +18,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <DashboardShell
       home="/app"
-      brand="DentChat"
+      brand="LeadDoc"
       subtitle={org.name}
       nav={nav}
       userName={user.name}

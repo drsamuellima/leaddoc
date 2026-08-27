@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import { BrandLogo } from "@/components/brand-logo";
 
 export type DashNavItem = {
   href: string;
@@ -114,7 +115,7 @@ export function DashboardShell(props: {
     <div className="dash">
       <aside className="dash-sidebar" style={{ background: "var(--sidebar)" }}>
         <div className="dash-brand">
-          <div className="dash-mark">D</div>
+          <BrandLogo size={34} withWordmark={false} />
           <div>
             <div className="dash-brand-name">{props.brand}</div>
             <div className="dash-brand-sub">{props.subtitle}</div>

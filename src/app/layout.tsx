@@ -13,8 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "DentChat — AI chat for dental practices",
-  description: "Create branded clinic chatbots, embed them on any website, and capture every enquiry as a lead.",
+  title: "LeadDoc — AI receptionist for dental clinics",
+  description:
+    "Innovative AI chat for dental practices. Embed a branded LeadDoc receptionist, capture leads after hours, and grow the diary.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

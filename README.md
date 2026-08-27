@@ -1,4 +1,4 @@
-# DentChat
+# LeadDoc
 
 SaaS for dental practices: branded AI chat widgets, lead CRM, monthly billing, and a platform admin that can manage every clinic.
 

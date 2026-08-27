@@ -413,7 +413,7 @@ export function ChatWidget(props: {
                 className="rounded-full px-3 py-1.5 text-xs font-semibold shadow-md"
                 style={{ background: panel, color: accent }}
               >
-                ⚡ By DentChat
+                ⚡ By LeadDoc
               </div>
             </div>
           </div>
