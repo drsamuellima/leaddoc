@@ -41,7 +41,7 @@ export async function POST(request: Request) {
     const password = String(formData.get("password") || "");
     const user = await authenticateLogin(email, password);
     if (!user) {
-      return jsonError("invalid", "Invalid email or password. Use the exact ADMIN_EMAIL and ADMIN_PASSWORD from Vercel.");
+      return jsonError("invalid", "Invalid email or password.");
     }
     const dest = user.role === "super_admin" ? "/admin" : "/app";
     const res = NextResponse.json({ ok: true, redirect: dest });

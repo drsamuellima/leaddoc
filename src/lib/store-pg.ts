@@ -408,8 +408,8 @@ function applyBootstrap(data: StoreData) {
     if (plan && !plan.stripePriceId) plan.stripePriceId = priceId;
   }
 
-  const email = (process.env.ADMIN_EMAIL || "").trim().toLowerCase();
-  const password = process.env.ADMIN_PASSWORD || "";
+  const email = (process.env.ADMIN_EMAIL || "").trim().replace(/^['"]|['"]$/g, "").toLowerCase();
+  const password = (process.env.ADMIN_PASSWORD || "").trim().replace(/^['"]|['"]$/g, "");
   if (email && password && !data.profiles.some((p) => p.email.toLowerCase() === email)) {
     data.profiles.push({
       id: randomUUID(),
@@ -673,8 +673,8 @@ async function ensureBootstrap() {
     }
   }
 
-  const email = (process.env.ADMIN_EMAIL || "").trim().toLowerCase();
-  const password = process.env.ADMIN_PASSWORD || "";
+  const email = (process.env.ADMIN_EMAIL || "").trim().replace(/^['"]|['"]$/g, "").toLowerCase();
+  const password = (process.env.ADMIN_PASSWORD || "").trim().replace(/^['"]|['"]$/g, "");
   if (email && password) {
     const existing = await sql`select id from profiles where lower(email) = ${email} limit 1`;
     if (!existing.length) {
@@ -687,6 +687,16 @@ async function ensureBootstrap() {
       `;
     }
   }
+}
+
+export async function getPgProfileById(id: string) {
+  const rows = await getSql()`select * from profiles where id = ${id}::uuid limit 1`;
+  return rows[0] ? mapProfile(rows[0] as Record<string, unknown>) : null;
+}
+
+export async function getPgOrganizationById(id: string) {
+  const rows = await getSql()`select * from organizations where id = ${id}::uuid limit 1`;
+  return rows[0] ? mapOrganization(rows[0] as Record<string, unknown>) : null;
 }
 
 export async function readPgStore(): Promise<StoreData> {

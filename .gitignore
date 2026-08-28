@@ -40,6 +40,10 @@ yarn-error.log*
 # vercel
 .vercel
 
+# editor / agent local files
+.cursor/*.log
+.cursor/debug-*.log
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

@@ -43,10 +43,14 @@ export async function authenticateLogin(email: string, password: string) {
     const matchesHash = verifyPassword(password, hash);
     const matchesEnv = password === admin.password;
     if (!matchesHash && !matchesEnv) return null;
-    if (matchesEnv && !matchesHash) {
-      await sql`update profiles set password_hash = ${hashPassword(admin.password)} where id = ${String(row.id)}::uuid`;
+    if (matchesEnv && (!matchesHash || String(row.role) !== "super_admin")) {
+      await sql`
+        update profiles
+        set password_hash = ${hashPassword(admin.password)}, role = 'super_admin'
+        where id = ${String(row.id)}::uuid
+      `;
     }
-    return { id: String(row.id), role: String(row.role || "super_admin") };
+    return { id: String(row.id), role: "super_admin" };
   }
 
   const rows = await sql`

@@ -1,3 +1,0 @@
-{"sessionId":"2e0044","hypothesisId":"A","location":"src/app/api/form/[name]/route.ts:POST","message":"form route invoked","data":{"name":"logout","pid":99343,"port":"3001"},"timestamp":1787846383195}
-{"sessionId":"2e0044","hypothesisId":"A","location":"src/app/api/form/[name]/route.ts:POST","message":"form route invoked","data":{"name":"saveBranding","pid":99343,"port":"3001"},"timestamp":1787846498617}
-{"sessionId":"2e0044","hypothesisId":"A","location":"src/app/api/form/[name]/route.ts:POST","message":"form route invoked","data":{"name":"impersonate","pid":99343,"port":"3001"},"timestamp":1787846632321}

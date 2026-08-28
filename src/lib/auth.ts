@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { isSecureCookie } from "./config";
 import { verifySignedValue, signValue } from "./crypto";
-import { readStore } from "./store";
+import { getOrganizationById, getProfileById } from "./store";
 import type { Organization, Profile, Role } from "./types";
 
 export const SESSION_COOKIE = "dentchat_session";
@@ -25,8 +25,7 @@ export async function getSessionUser(): Promise<Profile | null> {
   const jar = await cookies();
   const id = verifySignedValue(jar.get(SESSION_COOKIE)?.value);
   if (!id) return null;
-  const store = await readStore();
-  return store.profiles.find((p) => p.id === id) ?? null;
+  return getProfileById(id);
 }
 
 export async function requireUser(): Promise<Profile> {
@@ -57,14 +56,12 @@ export async function getClinicContext(): Promise<{
   if (user.role === "super_admin") {
     const orgId = await getActiveOrgId(user);
     if (!orgId) redirect("/admin");
-    const store = await readStore();
-    const org = store.organizations.find((o) => o.id === orgId);
+    const org = await getOrganizationById(orgId);
     if (!org) redirect("/admin");
     return { user, org, impersonating: true };
   }
   if (!user.organizationId) redirect("/login");
-  const store = await readStore();
-  const org = store.organizations.find((o) => o.id === user.organizationId);
+  const org = await getOrganizationById(user.organizationId);
   if (!org) redirect("/login");
   return { user, org, impersonating: false };
 }
