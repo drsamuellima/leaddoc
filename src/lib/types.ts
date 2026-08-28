@@ -104,6 +104,19 @@ export type SetupFaqDraft = {
   title: string;
   question: string;
   answer: string;
+  source?: "site" | "suggested";
+};
+
+export type SetupConfirmField = "name" | "phone" | "booking" | "treatments";
+
+export type SetupInterviewMessage = {
+  role: "user" | "assistant";
+  content: string;
+  confirm?: {
+    field: SetupConfirmField;
+    value: string;
+    status: "pending" | "accepted" | "rejected";
+  };
 };
 
 export type SetupTreatmentDraft = {
@@ -142,14 +155,16 @@ export type ChatbotSetup = {
   scanStatus: SetupScanStatus;
   scanError: string;
   pendingExtract: SetupExtract | null;
-  interview: { role: "user" | "assistant"; content: string }[];
+  interview: SetupInterviewMessage[];
+  confirmed: Partial<Record<SetupConfirmField, boolean>>;
+  awaitingField?: SetupConfirmField;
   checklist: SetupChecklist;
 };
 
 export const SETUP_STEPS: { id: SetupStep; title: string; blurb: string }[] = [
   { id: "website", title: "Website", blurb: "Paste your practice site. We’ll read the homepage and a few key pages." },
   { id: "knowledge", title: "Review knowledge", blurb: "Check what we found. Edit anything before it goes into the chat." },
-  { id: "interview", title: "Finish with AI", blurb: "A few short questions to fill the gaps." },
+  { id: "interview", title: "Finish setup", blurb: "A few short questions to fill the gaps." },
   { id: "booking", title: "Booking", blurb: "Add your Dentally or booking link, and the practice phone." },
   { id: "live", title: "Go live", blurb: "Turn the chat on and copy the snippet." },
 ];
@@ -269,6 +284,13 @@ export type AuditLog = {
   createdAt: string;
 };
 
+export type PasswordResetToken = {
+  id: string;
+  email: string;
+  tokenHash: string;
+  expiresAt: string;
+};
+
 export type StoreData = {
   organizations: Organization[];
   profiles: Profile[];
@@ -287,6 +309,7 @@ export type StoreData = {
   notifications: AppNotification[];
   supportNotes: SupportNote[];
   auditLogs: AuditLog[];
+  passwordResetTokens: PasswordResetToken[];
   clinicDemoCrmSeeded?: boolean;
   clinicPipelinesSeeded?: boolean;
 };

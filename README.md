@@ -12,52 +12,55 @@ What each page, API, and feature does (plain English): **[docs/README.md](docs/R
 export PATH="$HOME/.local/node/bin:$PATH"
 cd /Users/user/Documents/Learning
 npm install
+cp .env.example .env.local
+# keep USE_JSON_STORE=1 for the file-backed demo
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
 
-Demo logins (password for both: `password`):
+With `USE_JSON_STORE=1`, data lives in `.data/store.json` (created on first run) and the demo clinic logins are `clinic@dentchat.local` / `admin@dentchat.local` (password `password`).
 
-- Clinic: `clinic@dentchat.local`
-- Platform admin: `admin@dentchat.local`
+## Go live (Vercel)
 
-Local data lives in `.data/store.json` (created on first run).
+Do not deploy the JSON store. On Vercel:
+
+1. Create a Supabase project. Run [`supabase/schema.sql`](supabase/schema.sql) in the SQL editor. Create a public Storage bucket named `avatars`.
+2. Use the **transaction pooler** connection string as `DATABASE_URL` (`prepare` is off in the client).
+3. Create a Stripe product with a monthly GBP Price. Put the Price id in `STRIPE_PRICE_ID` and/or Admin → Plans. Add a webhook to `https://YOUR_DOMAIN/api/stripe/webhook` for `checkout.session.completed` and `customer.subscription.*`.
+4. Verify a Resend sending domain. Set `LEAD_FROM_EMAIL` to an address on that domain.
+5. Set the env vars below on the Vercel project. **Do not** set `USE_JSON_STORE`.
+6. Point `NEXT_PUBLIC_APP_URL` at `https://YOUR_DOMAIN`.
+
+First boot creates the monthly plan and a super-admin from `ADMIN_EMAIL` / `ADMIN_PASSWORD` if that email is not already in `profiles`.
 
 ## Environment
 
-Copy `.env.example` to `.env.local`. All keys are optional for demo mode.
-
 | Variable | Purpose |
 | --- | --- |
-| `NEXT_PUBLIC_APP_URL` | Origin used in widget snippets |
-| `OPENAI_API_KEY` | AI replies (FAQ keyword fallback if unset) |
-| `STRIPE_SECRET_KEY` | Checkout, admin customer/subscription, charge card on file |
-| `STRIPE_WEBHOOK_SECRET` | `/api/stripe/webhook` |
-| `RESEND_API_KEY` | Email on new lead (logs to console if unset) |
+| `USE_JSON_STORE` | `1` for local file store only. Unset on Vercel. |
+| `DATABASE_URL` | Supabase Postgres (transaction pooler). Required when JSON store is off. |
+| `SESSION_SECRET` | Signs session cookies. Required in production. |
+| `NEXT_PUBLIC_APP_URL` | Public origin for snippets, checkout, and emails |
+| `NEXT_PUBLIC_SUPABASE_URL` | Storage uploads |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-only Storage uploads |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | Bootstrap platform admin on an empty database |
+| `GEMINI_API_KEY` | Website scan, setup interview, live widget replies |
+| `GEMINI_MODEL` | Gemini model id (default `gemini-3.6-flash`) |
+| `STRIPE_SECRET_KEY` | Checkout, portal, admin billing |
+| `STRIPE_WEBHOOK_SECRET` | Verifies `/api/stripe/webhook` |
+| `STRIPE_PRICE_ID` | Seeded onto the active plan if the plan has no price id yet |
+| `RESEND_API_KEY` | Lead, invite, reset, and past-due emails |
+| `LEAD_FROM_EMAIL` | From address (must be a verified domain in production) |
 
-Without Stripe, **Subscribe** and admin **Create on Stripe / Charge** activate or simulate locally.
-
-## Supabase (production)
-
-The running app uses the JSON store. SQL for Postgres + RLS is in [`supabase/schema.sql`](supabase/schema.sql). Apply it in the Supabase SQL editor when you switch the data layer to Supabase Auth/Postgres.
+Without `USE_JSON_STORE`, missing Stripe or Gemini is an error, not a silent demo success.
 
 ## Widget
 
-Clinic staff start on **Chatbots** (`/app/chatbots`). **Set up with AI** creates a draft and opens `/app/chatbots/[id]/setup`: paste the practice website, scan a few pages, approve FAQs, answer a short AI interview, add a booking link, then go live. After that, **Chatbots → a bot** (`/app/chatbots/[id]`) is the dense studio: controls on the left, a live preview on the right.
-
-What you can set there:
-
-- **Look** — six skins (orbital, glass, sheet, messenger, dock, pulse). Every skin still does greetings, lead, book, call, and chat. Picking a skin applies a modern colour palette; you can still mix any colours and fonts with any skin.
-- **Colour and type** — accent, panel, ink, surface, visitor/bot bubbles, launcher, plus a font (Geist, Instrument Sans, Manrope, Plus Jakarta, Outfit, Sora, DM Sans). Unsaved choices update the preview immediately; **Save chatbot** writes them.
-- **Knowledge** — dental FAQ examples you can edit, then **Edit & add**. After a FAQ is on the bot, **Save edits** or **Remove**. Packs import a group you can tweak afterwards. Custom FAQs sit in their own list.
-- **Treatments** — buttons for lead (form then AI chat), book (booking URL), or call (practice phone).
-- **Embed** — copy the snippet onto the practice website.
-
-Full page write-up: [docs/pages/clinic-app.md](docs/pages/clinic-app.md#appchatbotsidsetup) (wizard) and [studio](docs/pages/clinic-app.md#appchatbotsid). Widget behaviour: [docs/pages/widget.md](docs/pages/widget.md).
+Clinic staff start on **Chatbots** (`/app/chatbots`). Signup opens `/app/chatbots/[id]/setup`: paste the practice website, scan a few pages, approve FAQs, answer a short AI interview, add a booking link, then go live. After that, **Chatbots → a bot** (`/app/chatbots/[id]`) is the studio.
 
 ```html
-<script src="http://localhost:3000/widget.js" data-widget-key="dc_..." async></script>
+<script src="https://YOUR_DOMAIN/widget.js" data-widget-key="dc_..." async></script>
 ```
 
 Visitors must submit name, email, phone, and enquiry before chatting. That creates a lead, stores the transcript, notifies the clinic in-app, and emails the clinic owner.

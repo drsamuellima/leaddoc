@@ -62,13 +62,20 @@ export default async function SettingsPage({
           <h2 className="font-semibold">Billing</h2>
           <p className="text-sm text-neutral-500">
             Status: <span className="font-medium capitalize text-black">{org.subscriptionStatus}</span>
-            {hasStripe() ? "" : " · Stripe keys not set, subscribe activates locally"}
+            {hasStripe() ? "" : " · Stripe keys not set"}
           </p>
           <form action="/api/form/checkout" method="post">
             <button className="btn" type="submit">
               Subscribe monthly
             </button>
           </form>
+          {hasStripe() && org.stripeCustomerId ? (
+            <form action="/api/form/billingPortal" method="post">
+              <button className="btn secondary" type="submit">
+                Manage billing
+              </button>
+            </form>
+          ) : null}
         </div>
 
         <div className="card space-y-3">
@@ -86,7 +93,7 @@ export default async function SettingsPage({
           <form action="/api/form/inviteStaff" method="post" className="grid gap-2 md:grid-cols-2">
             <input name="name" placeholder="Name" required />
             <input name="email" type="email" placeholder="Email" required />
-            <input name="password" placeholder="Temp password" defaultValue="password" />
+            <input name="password" placeholder="Temporary password (optional)" />
             <button className="btn" type="submit">
               Add staff
             </button>

@@ -9,17 +9,19 @@ import {
   getClinicContext,
   requireAdmin,
   requireUser,
+  setImpersonate,
   setSession,
 } from "./auth";
-import { hashPassword, verifyPassword, widgetKey } from "./crypto";
-import { sendLeadEmail } from "./email";
+import { generatePassword, hashPassword, hashToken, randomToken, verifyPassword, widgetKey } from "./crypto";
+import { sendInviteEmail, sendPasswordResetEmail } from "./email";
+import { allowDemoFallbacks } from "./config";
 import { appUrl, hasStripe, stripeGet, stripeRequest } from "./integrations";
 import { mutateStore, readStore, slugify } from "./store";
 import { knowledgeKey, KNOWLEDGE_PACKS } from "./knowledge-examples";
 import { parseActionType, parseWidgetFont, parseWidgetStyle, widgetFieldDefaults, type ChatbotActionType, type StoreData, type SubscriptionStatus } from "./types";
 import { completedSetup, emptySetup } from "./chatbot-setup";
 import { isLeadStatus, LEAD_STAGE_LABELS } from "./leads";
-import { applyPipelineToLead, findPipeline, parseGbpToPence, sortedStages } from "./pipelines";
+import { applyPipelineToLead, findPipeline, generalPipeline, parseGbpToPence, sortedStages } from "./pipelines";
 
 function iso() {
   return new Date().toISOString();
@@ -134,17 +136,18 @@ export async function signupAction(formData: FormData) {
       ...widgetFieldDefaults(clinicName, "#0f766e"),
       systemPrompt: `You are a helpful receptionist for ${clinicName}, a dental practice.`,
       widgetKey: widgetKey(),
-      active: true,
+      active: false,
       createdAt: iso(),
-      setupComplete: true,
-      setup: completedSetup({ phone: "", bookingUrl: "" }),
+      setupComplete: false,
+      setup: emptySetup(),
     });
     data.chatbotOptions.push(...defaultTreatments(botId));
-    return { userId };
+    data.pipelines.push(generalPipeline(orgId, iso()));
+    return { userId, botId };
   });
   if ("error" in result) redirect("/signup?error=exists");
   await setSession(result.userId);
-  redirect("/app");
+  redirect(`/app/chatbots/${result.botId}/setup`);
 }
 
 export async function logoutAction() {
@@ -158,6 +161,7 @@ export async function startCheckoutAction() {
   const plan = store.plans.find((p) => p.active);
   if (!plan) redirect("/app/settings?error=noplan");
   if (!hasStripe()) {
+    if (!allowDemoFallbacks()) redirect("/app/settings?error=nostripe");
     await mutateStore((data) => {
       const o = data.organizations.find((x) => x.id === org.id);
       if (o) o.subscriptionStatus = "active";
@@ -182,6 +186,58 @@ export async function startCheckoutAction() {
   params.set("metadata[organization_id]", org.id);
   const session = await stripeRequest("checkout/sessions", params);
   redirect(session.url);
+}
+
+export async function startBillingPortalAction() {
+  const { org } = await getClinicContext();
+  if (!hasStripe() || !org.stripeCustomerId) {
+    redirect("/app/settings?error=nobilling");
+  }
+  const params = new URLSearchParams();
+  params.set("customer", org.stripeCustomerId);
+  params.set("return_url", `${appUrl()}/app/settings`);
+  const session = await stripeRequest("billing_portal/sessions", params);
+  redirect(session.url);
+}
+
+export async function requestPasswordResetAction(formData: FormData) {
+  const email = String(formData.get("email") || "").trim().toLowerCase();
+  const token = randomToken();
+  const shouldSend = await mutateStore((data) => {
+    if (!Array.isArray(data.passwordResetTokens)) data.passwordResetTokens = [];
+    data.passwordResetTokens = data.passwordResetTokens.filter((t) => t.email !== email);
+    const user = data.profiles.find((p) => p.email.toLowerCase() === email);
+    if (!user) return false;
+    data.passwordResetTokens.push({
+      id: randomUUID(),
+      email,
+      tokenHash: hashToken(token),
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    });
+    return true;
+  });
+  if (shouldSend) await sendPasswordResetEmail(email, token);
+  redirect("/forgot-password?ok=sent");
+}
+
+export async function resetPasswordAction(formData: FormData) {
+  const token = String(formData.get("token") || "");
+  const password = String(formData.get("password") || "");
+  if (!token || password.length < 8) redirect("/reset-password?error=invalid");
+  const tokenHash = hashToken(token);
+  const ok = await mutateStore((data) => {
+    if (!Array.isArray(data.passwordResetTokens)) data.passwordResetTokens = [];
+    const now = Date.now();
+    const row = data.passwordResetTokens.find((t) => t.tokenHash === tokenHash && new Date(t.expiresAt).getTime() > now);
+    if (!row) return false;
+    const user = data.profiles.find((p) => p.email.toLowerCase() === row.email);
+    if (!user) return false;
+    user.passwordHash = hashPassword(password);
+    data.passwordResetTokens = data.passwordResetTokens.filter((t) => t.email !== row.email);
+    return true;
+  });
+  if (!ok) redirect("/reset-password?error=expired");
+  redirect("/login?ok=reset");
 }
 
 export async function saveChatbotAction(formData: FormData) {
@@ -213,6 +269,12 @@ export async function saveChatbotAction(formData: FormData) {
   redirect(`/app/chatbots/${id}?ok=saved`);
 }
 
+function removeChatbotRecords(data: StoreData, chatbotId: string) {
+  data.chatbots = data.chatbots.filter((b) => b.id !== chatbotId);
+  data.chatbotOptions = data.chatbotOptions.filter((o) => o.chatbotId !== chatbotId);
+  data.knowledgeItems = data.knowledgeItems.filter((k) => k.chatbotId !== chatbotId);
+}
+
 export async function createChatbotAction(_formData: FormData) {
   const { org } = await getClinicContext();
   const id = await mutateStore((data) => {
@@ -233,6 +295,17 @@ export async function createChatbotAction(_formData: FormData) {
     return botId;
   });
   redirect(`/app/chatbots/${id}/setup`);
+}
+
+export async function deleteChatbotAction(formData: FormData) {
+  const { org } = await getClinicContext();
+  const id = String(formData.get("id") || "");
+  await mutateStore((data) => {
+    const bot = data.chatbots.find((b) => b.id === id && b.organizationId === org.id);
+    if (!bot) return;
+    removeChatbotRecords(data, id);
+  });
+  redirect("/app/chatbots?ok=deleted");
 }
 
 export async function addOptionAction(formData: FormData) {
@@ -391,9 +464,10 @@ export async function inviteStaffAction(formData: FormData) {
   if (user.role === "clinic_staff") redirect("/app/settings?error=forbidden");
   const name = String(formData.get("name") || "").trim();
   const email = String(formData.get("email") || "").trim().toLowerCase();
-  const password = String(formData.get("password") || "password");
-  await mutateStore((data) => {
-    if (data.profiles.some((p) => p.email.toLowerCase() === email)) return;
+  if (!name || !email) redirect("/app/settings?error=invalid");
+  const password = String(formData.get("password") || "").trim() || generatePassword();
+  const created = await mutateStore((data) => {
+    if (data.profiles.some((p) => p.email.toLowerCase() === email)) return false;
     data.profiles.push({
       id: randomUUID(),
       organizationId: org.id,
@@ -403,8 +477,10 @@ export async function inviteStaffAction(formData: FormData) {
       passwordHash: hashPassword(password),
       createdAt: iso(),
     });
+    return true;
   });
-  redirect("/app/settings?ok=staff");
+  if (created) await sendInviteEmail(email, { name, clinicName: org.name, password });
+  redirect(created ? "/app/settings?ok=staff" : "/app/settings?error=exists");
 }
 
 export async function updateLeadAction(formData: FormData) {
@@ -751,7 +827,10 @@ export async function adminCreateClinicAction(formData: FormData) {
   const clinicName = String(formData.get("clinicName") || "").trim();
   const ownerName = String(formData.get("ownerName") || "").trim();
   const email = String(formData.get("email") || "").trim().toLowerCase();
-  const password = String(formData.get("password") || "password");
+  const password = String(formData.get("password") || "");
+  if (!clinicName || !ownerName || !email || password.length < 8) {
+    redirect("/admin/clinics/new?error=invalid");
+  }
   const orgId = await mutateStore((data) => {
     const id = randomUUID();
     const userId = randomUUID();
@@ -786,12 +865,7 @@ export async function adminCreateClinicAction(formData: FormData) {
 export async function impersonateAction(formData: FormData) {
   const admin = await requireAdmin();
   const organizationId = String(formData.get("organizationId") || "");
-  const jar = await cookies();
-  jar.set(IMPERSONATE_COOKIE, organizationId, {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-  });
+  await setImpersonate(organizationId);
   await mutateStore((data) => {
     data.auditLogs.push({
       id: randomUUID(),
@@ -859,6 +933,7 @@ export async function adminCreateStripeSubAction(formData: FormData) {
   if (!org || !owner || !plan) redirect(`/admin/clinics/${organizationId}/billing?error=missing`);
 
   if (!hasStripe()) {
+    if (!allowDemoFallbacks()) redirect(`/admin/clinics/${organizationId}/billing?error=nostripe`);
     await mutateStore((data) => {
       const o = data.organizations.find((x) => x.id === organizationId);
       if (o) {
@@ -918,6 +993,7 @@ export async function adminChargeAction(formData: FormData) {
   if (!org) redirect("/admin");
 
   if (!hasStripe()) {
+    if (!allowDemoFallbacks()) redirect(`/admin/clinics/${organizationId}/billing?error=nostripe`);
     await mutateStore((data) => {
       data.auditLogs.push({
         id: randomUUID(),
@@ -1013,12 +1089,7 @@ export async function adminCreateChatbotAction(formData: FormData) {
   await requireAdmin();
   const organizationId = String(formData.get("organizationId") || "");
   const name = String(formData.get("name") || "Chatbot");
-  const jar = await cookies();
-  jar.set(IMPERSONATE_COOKIE, organizationId, {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-  });
+  await setImpersonate(organizationId);
   const id = await mutateStore((data) => {
     const botId = randomUUID();
     const org = data.organizations.find((o) => o.id === organizationId);
@@ -1038,6 +1109,18 @@ export async function adminCreateChatbotAction(formData: FormData) {
     return botId;
   });
   redirect(`/app/chatbots/${id}?from=admin`);
+}
+
+export async function adminDeleteChatbotAction(formData: FormData) {
+  await requireAdmin();
+  const organizationId = String(formData.get("organizationId") || "");
+  const id = String(formData.get("id") || "");
+  await mutateStore((data) => {
+    const bot = data.chatbots.find((b) => b.id === id && b.organizationId === organizationId);
+    if (!bot) return;
+    removeChatbotRecords(data, id);
+  });
+  redirect(`/admin/clinics/${organizationId}/chatbots?ok=deleted`);
 }
 
 export { requireUser };

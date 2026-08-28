@@ -22,9 +22,9 @@ The practice overview. It shows how many leads the clinic has captured, a 14-day
 **File:** `src/app/app/chatbots/page.tsx`  
 **Who:** clinic owner, clinic staff, impersonating admin
 
-Lists this practice’s chatbots as cards (name, greeting, widget key, active/inactive). **Set up with AI** creates a draft bot (`POST /api/form/createChatbot`) and opens the beginner wizard. Incomplete drafts show **Continue setup**. Finished bots open the studio.
+Lists this practice’s chatbots as cards (name, greeting, widget key, active/inactive). **Set up with AI** creates a draft bot (`POST /api/form/createChatbot`) and opens the beginner wizard. Incomplete drafts show **Continue setup**. Finished bots open the studio. **Delete** on a card (after confirm) removes the bot, its FAQs, and treatment buttons. Patient leads stay. The embed snippet for that widget key stops working.
 
-**Reads/writes:** reads `chatbots`; create writes an inactive draft chatbot with a generated widget key and `setupComplete: false`.
+**Reads/writes:** reads `chatbots`; create writes an inactive draft; delete removes the bot (`POST /api/form/deleteChatbot`).
 
 **Related:** [/app/chatbots/[id]/setup](#appchatbotsidsetup), [/app/chatbots/[id]](#appchatbotsid)
 
@@ -33,19 +33,19 @@ Lists this practice’s chatbots as cards (name, greeting, widget key, active/in
 **File:** `src/app/app/chatbots/[id]/setup/page.tsx` (UI: `src/components/chatbot-setup/wizard.tsx`)  
 **Who:** clinic owner, clinic staff, impersonating admin (must own this bot)
 
-AI-guided setup for a new chatbot. Progress bar plus a checklist (website scanned, knowledge approved, name, phone, booking link, greetings, treatment buttons, system prompt). Cards: Website → Review knowledge → Finish with AI → Booking → Go live. Completed cards can be reopened; later cards stay locked until the previous work is done (knowledge is required before interview, booking, and go live). Every field, scan, approval, and chat turn auto-saves (`PATCH /api/chatbots/[id]/setup`). There is no Save button.
+AI-guided setup for a new chatbot. Glass cards, numbered step rail, progress, and a checklist (website scanned, knowledge approved, name, phone, booking link, greetings, treatment buttons, system prompt). Cards: Website → Review knowledge → Finish setup → Booking → Go live. Every step uses the same layout: summary, a content block, and a dark action bar. Completed cards can be reopened; later cards stay locked until the previous work is done (knowledge is required before interview, booking, and go live). Every field, scan, approval, and chat turn auto-saves (`PATCH /api/chatbots/[id]/setup`). There is no Save button.
 
-**Website.** Paste an `http`/`https` URL and **Scan**. The server fetches the homepage and a few same-site pages (About, Contact, Treatments, Hours, and similar). Localhost and private IPs are blocked. OpenAI (when configured) returns a structured draft; otherwise heuristics plus the dental FAQ catalog. Results sit as pending extract until approval.
+**Website.** Paste an `http`/`https` URL and **Scan**. The server fetches the homepage and a few same-site pages (About, Contact, Treatments, Hours, and similar). Localhost and private IPs are blocked. Gemini (when `GEMINI_API_KEY` is in `.env.local`) returns a structured draft. If the key is missing, the page shows a warning and we fall back to heuristics plus the dental FAQ catalog. If the key is set but Gemini fails, the scan returns that error instead of pretending it worked.
 
-**Review knowledge.** Editable FAQ list plus name, phone, and booking if we found them. **Approve knowledge** writes FAQs onto the bot and fills those fields.
+**Review knowledge.** Organised into Practice, Services, From the website, and Suggested extras. A summary shows how many practice fields, services, and answers were found, plus pills for name, phone, and booking. After a scan, Gemini fills name, phone, and booking from the pages when they are clearly there; otherwise those stay blank. Services are the treatments the site actually lists — not a generic catalogue — and become widget buttons (Chat, Book, or Call). The homepage is not used as a booking link. Site answers and suggested extras are edited separately. **Approve knowledge** writes FAQs and service buttons onto the bot.
 
-**Finish with AI.** A short interview that only asks what the checklist still lacks. Each reply is parsed and patched onto the bot (`POST /api/chatbots/[id]/setup-chat`).
+**Finish setup.** If name, phone, booking, or services were already approved, the chat shows each value and asks for a green tick or red cross — it does not ask you to type them again. A cross clears that field and asks for the right value. After confirms, it only asks follow-ups that are still missing (welcome line, NHS/hours, and similar). When that chat is finished, Booking opens on its own after a short pause. Turns save through `POST /api/chatbots/[id]/setup-chat`.
 
 **Booking.** Dedicated form for a Dentally (or other) booking URL and the practice phone.
 
 **Go live.** Activates the widget, marks setup complete, copies the embed snippet, and opens the studio.
 
-Unknown ids return 404. Incomplete bots that open `/app/chatbots/[id]` are sent here.
+Unknown ids return 404. Incomplete bots that open `/app/chatbots/[id]` are sent here. **Delete draft** removes the bot the same way as the list page.
 
 **Reads/writes:** `chatbots`, `chatbotOptions`, `knowledgeItems`.
 
@@ -56,7 +56,7 @@ Unknown ids return 404. Incomplete bots that open `/app/chatbots/[id]` are sent 
 **File:** `src/app/app/chatbots/[id]/page.tsx` (UI: `src/components/chatbot-studio/studio.tsx`)  
 **Who:** clinic owner, clinic staff, impersonating admin (must own this bot)
 
-The chatbot studio. Dense two-column layout: editors on the left, sticky live preview on the right. This is where a practice designs the public widget after the AI setup wizard (or when opening a finished bot). Drafts that are not yet complete redirect to [setup](#appchatbotsidsetup).
+The chatbot studio. Two-column layout: editors on the left with a sticky save bar, live preview in a framed card on the right. Glass panels, numbered sections, and the same motion language as the setup wizard. This is where a practice designs the public widget after the AI setup wizard (or when opening a finished bot). Drafts that are not yet complete redirect to [setup](#appchatbotsidsetup).
 
 **Look.** Six skins — orbital, glass, sheet, messenger, dock, pulse. They share the same actions (greetings, lead, book, call, chat) and only change chrome. Each skin has a modern suggested palette (accent, panel, ink, surface, visitor bubble, bot bubble, launcher) shown as colour dots. Choosing a skin applies that palette; colour and font fields stay editable so any combination is valid.
 
@@ -72,9 +72,11 @@ The chatbot studio. Dense two-column layout: editors on the left, sticky live pr
 
 **Embed.** Snippet and widget key for WordPress or any site footer.
 
+**Delete.** Confirms, then removes the bot, FAQs, and treatment buttons (`deleteChatbot`). Leads stay. Returns to the chatbot list.
+
 The preview iframe is `/w/{widgetKey}?preview=1` (inactive bots still preview). Avatar JPEG upload goes to `POST /api/uploads`. Unknown ids return 404.
 
-**Reads/writes:** `chatbots`, `chatbotOptions`, `knowledgeItems`; upload files under `.data/uploads/`.
+**Reads/writes:** `chatbots`, `chatbotOptions`, `knowledgeItems`; avatar JPEGs go to Storage (or `.data/uploads/` in local JSON demo).
 
 **Related:** [widget](widget.md), [saveChatbot](../apis.md#savechatbot), [updateKnowledge](../apis.md#updateknowledge)
 
@@ -163,7 +165,7 @@ Read-only transcript of one chat. If a lead is attached, there is a link to that
 Practice settings in three blocks:
 
 - **Branding** — practice name, primary colour, logo URL, welcome photo URL, phone (used by Call on the widget), Dentally/booking URL (used by Book unless a treatment overrides it). Saved with `saveBranding`.
-- **Billing** — current subscription status and a **Subscribe monthly** button (`checkout`). Without Stripe keys this activates locally.
-- **Team** — list of people on this clinic; add staff with name, email, and a temporary password (`inviteStaff`). Owners (and admins) can invite; clinic staff cannot.
+- **Billing** — current subscription status, **Subscribe monthly** (`checkout`), and **Manage billing** (`billingPortal`) when a Stripe customer already exists.
+- **Team** — list of people on this clinic; add staff with name, email, and an optional temporary password (`inviteStaff`). A password is generated and emailed if left blank. Owners (and admins) can invite; clinic staff cannot.
 
 **Reads/writes:** `organizations`, `profiles`; checkout may talk to Stripe.

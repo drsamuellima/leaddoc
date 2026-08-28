@@ -8,7 +8,11 @@ import {
 } from "@/lib/chatbot-setup";
 import { mutateStore } from "@/lib/store";
 import { loadOwnedBot, setupPayload } from "@/lib/setup-state";
-import type { SetupExtract, SetupFaqDraft } from "@/lib/types";
+import { nextFactToConfirm } from "@/lib/setup-interview";
+import type { SetupExtract, SetupFaqDraft, SetupTreatmentDraft } from "@/lib/types";
+import { parseActionType } from "@/lib/types";
+
+export const maxDuration = 60;
 
 function asFaqs(value: unknown): SetupFaqDraft[] | null {
   if (!Array.isArray(value)) return null;
@@ -16,7 +20,24 @@ function asFaqs(value: unknown): SetupFaqDraft[] | null {
     title: String((row as { title?: string }).title || "FAQ"),
     question: String((row as { question?: string }).question || ""),
     answer: String((row as { answer?: string }).answer || ""),
+    source: (row as { source?: string }).source === "suggested" ? ("suggested" as const) : ("site" as const),
   }));
+}
+
+function asTreatments(value: unknown): SetupTreatmentDraft[] | null {
+  if (!Array.isArray(value)) return null;
+  return value
+    .map((row) => ({
+      label: String((row as { label?: string }).label || "").trim(),
+      actionType: parseActionType(String((row as { actionType?: string }).actionType || "lead")),
+      starterMessage: String((row as { starterMessage?: string }).starterMessage || "").trim(),
+      url: String((row as { url?: string }).url || "").trim(),
+    }))
+    .filter((row) => row.label)
+    .map((row) => ({
+      ...row,
+      starterMessage: row.starterMessage || `I'd like to ask about ${row.label}.`,
+    }));
 }
 
 export async function PATCH(request: Request, ctx: { params: Promise<{ id: string }> }) {
@@ -32,7 +53,19 @@ export async function PATCH(request: Request, ctx: { params: Promise<{ id: strin
     if (!bot) return null;
     bot.setup = ensureSetup(bot);
 
-    if (typeof body.step === "string") bot.setup.step = parseSetupStep(body.step);
+    if (typeof body.step === "string") {
+      bot.setup.step = parseSetupStep(body.step);
+      if (bot.setup.step === "interview") {
+        const options = data.chatbotOptions.filter((o) => o.chatbotId === bot.id);
+        const needsConfirm = nextFactToConfirm(bot, options);
+        const hasConfirmUi = bot.setup.interview.some((msg) => Boolean(msg.confirm));
+        if (needsConfirm && !hasConfirmUi) {
+          bot.setup.interview = [];
+          bot.setup.confirmed = {};
+          bot.setup.awaitingField = undefined;
+        }
+      }
+    }
     if (typeof body.websiteUrl === "string") bot.setup.websiteUrl = body.websiteUrl.trim();
     if (typeof body.name === "string" && body.name.trim()) bot.name = body.name.trim();
     if (typeof body.phone === "string") bot.phone = body.phone.trim();
@@ -51,6 +84,10 @@ export async function PATCH(request: Request, ctx: { params: Promise<{ id: strin
     if (pendingFaqs && bot.setup.pendingExtract) {
       bot.setup.pendingExtract.faqs = pendingFaqs;
     }
+    const pendingTreatments = asTreatments(body.pendingTreatments);
+    if (pendingTreatments && bot.setup.pendingExtract) {
+      bot.setup.pendingExtract.treatments = pendingTreatments;
+    }
 
     if (body.approveKnowledge === true && bot.setup.pendingExtract) {
       const extract = bot.setup.pendingExtract as SetupExtract;
@@ -65,6 +102,9 @@ export async function PATCH(request: Request, ctx: { params: Promise<{ id: strin
       }
       bot.setup.checklist.knowledge = true;
       bot.setup.step = "interview";
+      bot.setup.interview = [];
+      bot.setup.confirmed = {};
+      bot.setup.awaitingField = undefined;
     }
 
     if (body.goLive === true) {

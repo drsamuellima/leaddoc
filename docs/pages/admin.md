@@ -24,9 +24,9 @@ Directory of every practice. Search by name (`?q=`). Each row shows subscription
 **File:** `src/app/admin/clinics/new/page.tsx`  
 **Who:** platform admin
 
-Manually create a practice: owner name, email, temporary password. Posts to `adminCreateClinic`. This is the admin equivalent of public signup.
+Manually create a practice: owner name, email, temporary password (required, 8+ characters). Posts to `adminCreateClinic`. This is the admin equivalent of public signup.
 
-**Writes:** organisation, owner profile, default chatbot and pipelines.
+**Writes:** organisation and owner profile.
 
 **Related:** [adminCreateClinic](../apis.md#admincreateclinic)
 
@@ -57,7 +57,7 @@ Stripe and exceptions for one clinic:
 - Charge the card on file (`adminCharge`).
 - Toggle **allow widget without subscription** (`adminToggleWidgetException`) so the embed works even if the clinic is not paying.
 
-Without Stripe keys, create/charge simulate locally. Status is stored on the organisation.
+Without Stripe keys this is an error on a live database. Local JSON demo can still simulate create/charge. Status is stored on the organisation.
 
 **Reads/writes:** `organizations`, `plans`; may call Stripe.
 
@@ -66,7 +66,7 @@ Without Stripe keys, create/charge simulate locally. Status is stored on the org
 **File:** `src/app/admin/clinics/[id]/chatbots/page.tsx`  
 **Who:** platform admin
 
-Read-oriented list of that clinic’s chatbots. Admin can create a bot for the clinic (`adminCreateChatbot`) and jump into the clinic studio via impersonation to edit appearance.
+Read-oriented list of that clinic’s chatbots. Admin can create a bot for the clinic (`adminCreateChatbot`), delete one (`adminDeleteChatbot`), and jump into the clinic studio via impersonation to edit appearance.
 
 **Reads/writes:** `chatbots` for that organisation.
 

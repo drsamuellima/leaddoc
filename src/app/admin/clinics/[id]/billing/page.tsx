@@ -25,7 +25,7 @@ export default async function AdminBillingPage({
       <PageHeader
         kicker="Billing"
         title="Stripe & exceptions"
-        description={`Status ${org.subscriptionStatus}. Stripe: ${hasStripe() ? "configured" : "demo mode"}.`}
+        description={`Status ${org.subscriptionStatus}. Stripe: ${hasStripe() ? "configured" : "not configured"}.`}
         action={<StatusBadge status={org.subscriptionStatus} />}
       />
       {ok ? <p className="mb-4 text-sm font-medium text-lime-800">OK: {ok}</p> : null}

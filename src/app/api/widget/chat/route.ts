@@ -1,10 +1,17 @@
 import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
-import { replyAsClinic } from "@/lib/openai";
+import { clientIp } from "@/lib/config";
+import { replyAsClinic } from "@/lib/gemini";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import { mutateStore, readStore } from "@/lib/store";
 import { loadWidget, widgetAllowed } from "@/lib/widget";
 
+export const maxDuration = 60;
+
 export async function POST(request: Request) {
+  if (!rateLimit(`widget-chat:${clientIp(request)}`, 30, 60 * 1000)) {
+    return NextResponse.json(rateLimitResponse(), { status: 429 });
+  }
   const body = await request.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   const widgetKey = String(body.widgetKey || "");
@@ -29,12 +36,18 @@ export async function POST(request: Request) {
     .map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
   const knowledge = store.knowledgeItems.filter((k) => k.chatbotId === loaded.bot.id);
 
-  const reply = await replyAsClinic({
-    systemPrompt: loaded.bot.systemPrompt,
-    knowledge,
-    history,
-    userMessage: content,
-  });
+  let reply: string;
+  try {
+    reply = await replyAsClinic({
+      systemPrompt: loaded.bot.systemPrompt,
+      knowledge,
+      history,
+      userMessage: content,
+    });
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : "AI reply failed";
+    return NextResponse.json({ error: detail }, { status: 502 });
+  }
 
   await mutateStore((data) => {
     data.messages.push({

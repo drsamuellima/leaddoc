@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AvatarCropField } from "@/components/avatar-crop-field";
+import { DeleteChatbotButton } from "@/components/chatbot-studio/delete-chatbot-button";
 import { StatusBadge } from "@/components/ui";
 import { KNOWLEDGE_PACKS, knowledgeKey } from "@/lib/knowledge-examples";
 import type { Chatbot, ChatbotOption, KnowledgeItem, Organization, WidgetFont, WidgetStyle } from "@/lib/types";
@@ -191,10 +192,24 @@ export function ChatbotStudio(props: {
 
   return (
     <div className="chatbot-studio">
-      <div className="space-y-3">
-        {props.saved ? <p className="text-xs font-medium text-lime-800">Saved. Preview uses live tokens until you reload after save.</p> : null}
+      <div className="studio-ambient" aria-hidden="true">
+        <span />
+        <span />
+        <span />
+      </div>
+      <div className="studio-editor">
+        {props.saved ? <p className="studio-flash">Saved. Preview uses live tokens until you reload after save.</p> : null}
 
-        <form action="/api/form/saveChatbot" method="post" className="space-y-3">
+        <form action="/api/form/saveChatbot" method="post" className="studio-form" id="studio-save-form">
+          <div className="studio-savebar">
+            <div>
+              <strong>Studio</strong>
+              <span>Preview updates as you change skins and colour. Save to keep it.</span>
+            </div>
+            <button className="btn" type="submit">
+              Save chatbot
+            </button>
+          </div>
           <input type="hidden" name="id" value={props.bot.id} />
           <input type="hidden" name="widgetStyle" value={tokens.widgetStyle} />
           <input type="hidden" name="fontFamily" value={tokens.fontFamily} />
@@ -203,8 +218,11 @@ export function ChatbotStudio(props: {
           ))}
 
           <div className="studio-block">
-            <div className="mb-2 flex items-center justify-between gap-2">
-              <h2 className="!mb-0">Identity</h2>
+            <div className="studio-block-top">
+              <div>
+                <p className="studio-kicker">01</p>
+                <h2>Identity</h2>
+              </div>
               <StatusBadge status={props.bot.active ? "active" : "inactive"} />
             </div>
             <div className="grid grid-cols-2 gap-2">
@@ -232,7 +250,9 @@ export function ChatbotStudio(props: {
           </div>
 
           <div className="studio-block">
-            <h2>Look — interchangeable skins, same actions</h2>
+            <p className="studio-kicker">02</p>
+            <h2>Look</h2>
+            <p className="studio-lead">Interchangeable skins. Same lead, book, call, and chat actions.</p>
             <div className="studio-styles">
               {WIDGET_STYLE_META.map((style) => (
                 <button
@@ -266,7 +286,9 @@ export function ChatbotStudio(props: {
           </div>
 
           <div className="studio-block">
-            <h2>Colour & type — applies to every skin</h2>
+            <p className="studio-kicker">03</p>
+            <h2>Colour & type</h2>
+            <p className="studio-lead">Applies to every skin. Fonts load in the widget iframe.</p>
             <div className="studio-colors">
               {COLOR_FIELDS.map((field) => (
                 <ColorField
@@ -297,12 +319,14 @@ export function ChatbotStudio(props: {
           </div>
 
           <div className="studio-block">
+            <p className="studio-kicker">04</p>
             <h2>Voice</h2>
-            <p className="hint !mt-0 mb-1">Each line is its own greeting bubble.</p>
+            <p className="studio-lead">Each line is its own greeting bubble.</p>
             <textarea name="greetingsText" rows={4} defaultValue={props.greetingsText} />
           </div>
 
           <div className="studio-block">
+            <p className="studio-kicker">05</p>
             <h2>Connect</h2>
             <div className="grid grid-cols-2 gap-2">
               <div>
@@ -321,19 +345,18 @@ export function ChatbotStudio(props: {
             <p className="hint">Blank uses Settings. Every skin’s Book / Call buttons use these.</p>
           </div>
 
-          <button className="btn" type="submit">
+          <button className="btn studio-save-inline" type="submit">
             Save chatbot
           </button>
         </form>
 
         <div className="studio-block">
-          <h2>Actions — same on every skin</h2>
-          <p className="hint !mt-0 mb-2">
-            Lead opens the form then AI chat. Book opens the URL. Call dials the clinic. Skins only change the layout.
-          </p>
+          <p className="studio-kicker">06</p>
+          <h2>Actions</h2>
+          <p className="studio-lead">Lead opens the form then AI chat. Book opens the URL. Call dials the clinic.</p>
           <ul className="space-y-2">
             {props.options.map((opt) => (
-              <li key={opt.id} className="rounded-xl bg-[#f7f7f2] p-2.5">
+              <li key={opt.id} className="studio-action">
                 <form action="/api/form/updateOption" method="post" className="grid grid-cols-2 gap-1.5">
                   <input type="hidden" name="chatbotId" value={props.bot.id} />
                   <input type="hidden" name="optionId" value={opt.id} />
@@ -371,7 +394,7 @@ export function ChatbotStudio(props: {
               </li>
             ))}
           </ul>
-          <form action="/api/form/addOption" method="post" className="mt-2 grid grid-cols-2 gap-1.5 rounded-xl border border-dashed border-neutral-200 p-2.5">
+          <form action="/api/form/addOption" method="post" className="studio-action studio-action-new">
             <input type="hidden" name="chatbotId" value={props.bot.id} />
             <div>
               <label>New label</label>
@@ -400,10 +423,9 @@ export function ChatbotStudio(props: {
         </div>
 
         <div className="studio-block" id="knowledge">
-          <h2>Knowledge — edit examples, then add; edit again anytime</h2>
-          <p className="hint !mt-0 mb-2">
-            Change the text, then Edit & add. Saved FAQs stay editable. Packs drop in a group you can tweak after.
-          </p>
+          <p className="studio-kicker">07</p>
+          <h2>Knowledge</h2>
+          <p className="studio-lead">Change the text, then Edit & add. Saved FAQs stay editable. Packs drop in a group you can tweak after.</p>
           <div className="studio-pack-row">
             {KNOWLEDGE_PACKS.map((pack) => (
               <form key={pack.id} action="/api/form/addKnowledgePack" method="post">
@@ -469,21 +491,36 @@ export function ChatbotStudio(props: {
         </div>
 
         <div className="studio-block">
+          <p className="studio-kicker">08</p>
           <h2>Embed</h2>
           <p className="hint !mt-0 mb-1">Paste into WordPress (Custom HTML) or any site footer.</p>
           <textarea readOnly rows={2} value={props.snippet} />
           <p className="hint">Key: {props.bot.widgetKey}</p>
         </div>
+
+        <div className="studio-block studio-danger">
+          <p className="studio-kicker">09</p>
+          <h2>Delete</h2>
+          <p className="studio-lead">Removes this widget. Patient leads stay in the CRM. The embed snippet will stop working.</p>
+          <DeleteChatbotButton id={props.bot.id} name={props.bot.name} className="btn danger" />
+        </div>
       </div>
 
-      <aside className="chatbot-studio-preview studio-block">
-        <h2>Live preview</h2>
-        {!props.bot.active ? (
-          <p className="mb-2 text-[12px] text-amber-800">Paused. Preview still works; turn Live on to show on your site.</p>
-        ) : null}
-        <p className="hint !mt-0 mb-2">Style, colours, and font update here immediately. Save to persist.</p>
-        <div className="overflow-hidden rounded-[20px]" style={{ height: 640, background: tokens.surface }}>
-          <iframe key={previewSrc} src={previewSrc} title="Widget preview" className="h-full w-full border-0 bg-transparent" />
+      <aside className="chatbot-studio-preview">
+        <div className="studio-preview-card">
+          <header className="studio-preview-head">
+            <span className="studio-live-dot" />
+            <div>
+              <h2>Live preview</h2>
+              <p>Style, colours, and font update here immediately.</p>
+            </div>
+          </header>
+          {!props.bot.active ? (
+            <p className="studio-preview-note">Paused. Preview still works; turn Live on to show on your site.</p>
+          ) : null}
+          <div className="studio-preview-stage" style={{ background: tokens.surface }}>
+            <iframe key={previewSrc} src={previewSrc} title="Widget preview" className="h-full w-full border-0 bg-transparent" />
+          </div>
         </div>
       </aside>
     </div>

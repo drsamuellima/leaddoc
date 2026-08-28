@@ -22,7 +22,7 @@ export function MarketingHome() {
     <div className="mkt">
       <header className="mkt-nav">
         <Link href="/" className="no-underline">
-          <BrandLogo size={34} withMark={false} />
+          <BrandLogo size={34} withWordmark={false} />
         </Link>
         <nav className="mkt-nav-links max-md:hidden">
           <a href="#product">Product</a>
@@ -112,15 +112,15 @@ export function MarketingHome() {
         <p className="mkt-kicker">Preview</p>
         <h2 className="mt-3 max-w-2xl">Same chat your patients will see.</h2>
         <p className="mkt-muted mt-3 max-w-xl">
-          This is the live LeadDoc widget on a clinic page. Sequential greetings, treatment grid, lead form, then AI —
-          the way a good receptionist actually talks.
+          This is a static preview of the LeadDoc widget: sequential greetings, treatment grid, then a lead form. Your
+          live clinic uses the same skins after you finish setup.
         </p>
         <div className="mkt-actions">
           <Link href="/signup" className="btn lime">
             Put this on my site
           </Link>
           <Link href="/login" className="btn ghost">
-            Open the demo clinic
+            Log in
           </Link>
         </div>
         <div className="mkt-browser mt-8">
@@ -136,7 +136,9 @@ export function MarketingHome() {
             <p className="mt-2 max-w-sm text-sm text-neutral-600">
               Hygiene, Invisalign, whitening and emergencies. Use the chat — Linda is on it.
             </p>
-            <iframe title="LeadDoc live preview" src="/w/bright-smile-demo?preview=1" />
+            <div className="mt-6">
+              <HeroChat />
+            </div>
           </div>
         </div>
       </section>
@@ -169,7 +171,7 @@ export function MarketingHome() {
             Create your clinic
           </Link>
           <Link href="/login" className="btn ghost">
-            Demo logins
+            Log in
           </Link>
         </div>
       </section>
@@ -177,6 +179,10 @@ export function MarketingHome() {
       <footer className="mkt-footer">
         <BrandLogo size={28} />
         <span>AI software for dental clinics. © {new Date().getFullYear()}</span>
+        <span className="flex gap-3 text-sm">
+          <Link href="/privacy">Privacy</Link>
+          <Link href="/terms">Terms</Link>
+        </span>
       </footer>
     </div>
   );

@@ -1,11 +1,19 @@
 import { notFound } from "next/navigation";
 import { BackLink, EmptyState, PageHeader, StatusBadge } from "@/components/ui";
+import { DeleteChatbotButton } from "@/components/chatbot-studio/delete-chatbot-button";
 import { requireAdmin } from "@/lib/auth";
 import { readStore } from "@/lib/store";
 
-export default async function AdminChatbotsPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function AdminChatbotsPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ ok?: string }>;
+}) {
   await requireAdmin();
   const { id } = await params;
+  const { ok } = await searchParams;
   const store = await readStore();
   const org = store.organizations.find((o) => o.id === id);
   if (!org) notFound();
@@ -28,6 +36,7 @@ export default async function AdminChatbotsPage({ params }: { params: Promise<{ 
           </form>
         }
       />
+      {ok === "deleted" ? <p className="lead-flash">Chatbot deleted.</p> : null}
       <div className="card p-2 page-enter">
         {bots.length === 0 ? (
           <EmptyState title="No chatbots" body="Add one for this clinic." />
@@ -41,12 +50,15 @@ export default async function AdminChatbotsPage({ params }: { params: Promise<{ 
                 </div>
                 <div className="text-xs text-neutral-400">{bot.widgetKey}</div>
               </div>
-              <form action="/api/form/impersonate" method="post">
-                <input type="hidden" name="organizationId" value={id} />
-                <button className="btn secondary" type="submit">
-                  Edit in clinic UI
-                </button>
-              </form>
+              <div className="flex flex-wrap items-center gap-2">
+                <form action="/api/form/impersonate" method="post">
+                  <input type="hidden" name="organizationId" value={id} />
+                  <button className="btn secondary" type="submit">
+                    Edit in clinic UI
+                  </button>
+                </form>
+                <DeleteChatbotButton id={bot.id} name={bot.name} organizationId={id} />
+              </div>
             </div>
           ))
         )}

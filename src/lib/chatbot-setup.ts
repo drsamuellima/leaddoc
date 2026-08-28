@@ -46,6 +46,7 @@ export function emptySetup(): ChatbotSetup {
     scanError: "",
     pendingExtract: null,
     interview: [],
+    confirmed: {},
     checklist: emptyChecklist(),
   };
 }
@@ -58,6 +59,7 @@ export function completedSetup(bot: Pick<Chatbot, "phone" | "bookingUrl">): Chat
     scanError: "",
     pendingExtract: null,
     interview: [],
+    confirmed: { name: true, phone: Boolean((bot.phone || "").trim()), booking: Boolean((bot.bookingUrl || "").trim()), treatments: true },
     checklist: {
       website: true,
       knowledge: true,
@@ -78,6 +80,7 @@ export function ensureSetup(bot: Chatbot): ChatbotSetup {
       ...bot.setup,
       checklist: { ...emptyChecklist(), ...(bot.setup.checklist || {}) },
       interview: Array.isArray(bot.setup.interview) ? bot.setup.interview : [],
+      confirmed: { ...(bot.setup.confirmed || {}) },
     };
   }
   return emptySetup();

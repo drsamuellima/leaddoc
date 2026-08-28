@@ -1,5 +1,6 @@
--- DentChat schema for Supabase (run in SQL editor).
--- Local demo uses .data/store.json instead of these tables.
+-- LeadDoc schema for Supabase Postgres.
+-- Apply in the SQL editor. The app connects with DATABASE_URL (server-only)
+-- and does not use Supabase Auth.
 
 create extension if not exists "pgcrypto";
 
@@ -11,24 +12,25 @@ create table public.organizations (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   slug text unique not null,
-  logo_url text default '',
-  primary_color text default '#0f766e',
-  welcome_image_url text default '',
-  phone text default '', -- clinic phone for widget Call actions (tel:)
-  booking_url text default '', -- Dentally or other booking URL; widget Book actions open this in a new tab
-  stripe_customer_id text default '',
-  stripe_subscription_id text default '',
+  logo_url text not null default '',
+  primary_color text not null default '#0f766e',
+  welcome_image_url text not null default '',
+  phone text not null default '',
+  booking_url text not null default '',
+  stripe_customer_id text not null default '',
+  stripe_subscription_id text not null default '',
   subscription_status public.subscription_status not null default 'inactive',
   allow_widget_without_sub boolean not null default false,
   created_at timestamptz not null default now()
 );
 
 create table public.profiles (
-  id uuid primary key references auth.users(id) on delete cascade,
+  id uuid primary key default gen_random_uuid(),
   organization_id uuid references public.organizations(id) on delete set null,
   role public.user_role not null default 'clinic_owner',
   name text not null default '',
-  email text not null,
+  email text not null unique,
+  password_hash text not null,
   created_at timestamptz not null default now()
 );
 
@@ -37,7 +39,7 @@ create table public.plans (
   name text not null,
   amount_pence integer not null,
   interval text not null default 'month',
-  stripe_price_id text default '',
+  stripe_price_id text not null default '',
   active boolean not null default true
 );
 
@@ -45,18 +47,26 @@ create table public.chatbots (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
   name text not null,
-  greeting text not null default '', -- first greeting; prefer greetings jsonb
-  greetings jsonb not null default '[]'::jsonb, -- 1–N visitor greeting bubbles
+  greeting text not null default '',
+  greetings jsonb not null default '[]'::jsonb,
   system_prompt text not null default '',
   widget_key text unique not null,
-  active boolean not null default true,
-  accent_color text default '', -- close ring, reset icon, branding, avatar ring
-  panel_color text default '#ffffff', -- bubbles, action card, chrome
-  button_text_color text default '#1a1a1a',
-  avatar_name text default '',
-  avatar_image_url text default '',
-  phone text default '', -- optional override of organization.phone
-  booking_url text default '', -- optional override of organization.booking_url
+  active boolean not null default false,
+  accent_color text not null default '',
+  panel_color text not null default '#ffffff',
+  button_text_color text not null default '#1a1a1a',
+  widget_style text not null default 'orbital',
+  font_family text not null default 'system',
+  surface_color text not null default '#f4f4f0',
+  user_bubble_color text not null default '',
+  assistant_bubble_color text not null default '#f3f4f6',
+  launcher_color text not null default '',
+  avatar_name text not null default '',
+  avatar_image_url text not null default '',
+  phone text not null default '',
+  booking_url text not null default '',
+  setup_complete boolean not null default false,
+  setup jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now()
 );
 
@@ -64,10 +74,10 @@ create table public.chatbot_options (
   id uuid primary key default gen_random_uuid(),
   chatbot_id uuid not null references public.chatbots(id) on delete cascade,
   label text not null,
-  starter_message text not null default '', -- enquiry text when action_type = lead
+  starter_message text not null default '',
   sort_order integer not null default 0,
   action_type text not null default 'lead' check (action_type in ('lead', 'book', 'call')),
-  url text default '' -- optional per-button booking URL; otherwise chatbot/org booking_url
+  url text not null default ''
 );
 
 create table public.knowledge_items (
@@ -76,6 +86,14 @@ create table public.knowledge_items (
   title text not null,
   question text not null,
   answer text not null
+);
+
+create table public.pipelines (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  name text not null,
+  stages jsonb not null default '[]'::jsonb,
+  created_at timestamptz not null default now()
 );
 
 create table public.conversations (
@@ -99,6 +117,10 @@ create table public.leads (
   assigned_to uuid references public.profiles(id) on delete set null,
   follow_up_at timestamptz,
   notes text not null default '',
+  treatment text not null default '',
+  pipeline_id uuid references public.pipelines(id) on delete set null,
+  stage_id text,
+  amount_pence integer,
   created_at timestamptz not null default now()
 );
 
@@ -121,7 +143,44 @@ create table public.notifications (
   created_at timestamptz not null default now()
 );
 
-create table public.admin_support_notes (
+create table public.lead_tasks (
+  id uuid primary key default gen_random_uuid(),
+  lead_id uuid not null references public.leads(id) on delete cascade,
+  title text not null,
+  body text not null default '',
+  due_at timestamptz,
+  important boolean not null default false,
+  completed_at timestamptz,
+  created_by uuid references public.profiles(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+create table public.lead_events (
+  id uuid primary key default gen_random_uuid(),
+  lead_id uuid not null references public.leads(id) on delete cascade,
+  body text not null,
+  created_at timestamptz not null default now()
+);
+
+create table public.lead_notes (
+  id uuid primary key default gen_random_uuid(),
+  lead_id uuid not null references public.leads(id) on delete cascade,
+  body text not null,
+  author_id uuid not null references public.profiles(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+
+create table public.lead_recalls (
+  id uuid primary key default gen_random_uuid(),
+  lead_id uuid not null references public.leads(id) on delete cascade,
+  due_at timestamptz not null,
+  reason text not null default '',
+  completed_at timestamptz,
+  created_by uuid references public.profiles(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+create table public.support_notes (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
   author_id uuid references public.profiles(id) on delete set null,
@@ -138,79 +197,46 @@ create table public.audit_logs (
   created_at timestamptz not null default now()
 );
 
+create table public.password_reset_tokens (
+  id uuid primary key default gen_random_uuid(),
+  email text not null,
+  token_hash text not null,
+  expires_at timestamptz not null
+);
+
+create index profiles_org_idx on public.profiles (organization_id);
+create index chatbots_org_idx on public.chatbots (organization_id);
+create index chatbots_widget_key_idx on public.chatbots (widget_key);
+create index leads_org_idx on public.leads (organization_id);
+create index conversations_org_idx on public.conversations (organization_id);
+create index messages_conversation_idx on public.messages (conversation_id);
+create index password_reset_email_idx on public.password_reset_tokens (email);
+
 alter table public.organizations enable row level security;
 alter table public.profiles enable row level security;
 alter table public.plans enable row level security;
 alter table public.chatbots enable row level security;
 alter table public.chatbot_options enable row level security;
 alter table public.knowledge_items enable row level security;
+alter table public.pipelines enable row level security;
 alter table public.conversations enable row level security;
 alter table public.leads enable row level security;
 alter table public.messages enable row level security;
 alter table public.notifications enable row level security;
-alter table public.admin_support_notes enable row level security;
+alter table public.lead_tasks enable row level security;
+alter table public.lead_events enable row level security;
+alter table public.lead_notes enable row level security;
+alter table public.lead_recalls enable row level security;
+alter table public.support_notes enable row level security;
 alter table public.audit_logs enable row level security;
+alter table public.password_reset_tokens enable row level security;
 
-create or replace function public.is_super_admin()
-returns boolean language sql stable as $$
-  select exists (
-    select 1 from public.profiles p
-    where p.id = auth.uid() and p.role = 'super_admin'
-  );
-$$;
+-- The Next.js server uses DATABASE_URL (table owner / bypasses RLS).
+-- Anon and authenticated keys must not read clinic data.
+revoke all on all tables in schema public from anon, authenticated;
+revoke all on all sequences in schema public from anon, authenticated;
 
-create or replace function public.my_org_id()
-returns uuid language sql stable as $$
-  select organization_id from public.profiles where id = auth.uid();
-$$;
-
--- Clinic users: own org. Super admins: all rows.
-create policy org_select on public.organizations for select using (id = public.my_org_id() or public.is_super_admin());
-create policy org_update on public.organizations for update using (id = public.my_org_id() or public.is_super_admin());
-create policy org_all_admin on public.organizations for all using (public.is_super_admin());
-
-create policy profiles_select on public.profiles for select using (
-  organization_id = public.my_org_id() or id = auth.uid() or public.is_super_admin()
-);
-create policy profiles_admin on public.profiles for all using (public.is_super_admin());
-
-create policy chatbots_tenant on public.chatbots for all using (
-  organization_id = public.my_org_id() or public.is_super_admin()
-);
-create policy options_tenant on public.chatbot_options for all using (
-  exists (select 1 from public.chatbots c where c.id = chatbot_id and (c.organization_id = public.my_org_id() or public.is_super_admin()))
-);
-create policy kb_tenant on public.knowledge_items for all using (
-  exists (select 1 from public.chatbots c where c.id = chatbot_id and (c.organization_id = public.my_org_id() or public.is_super_admin()))
-);
-create policy conv_tenant on public.conversations for all using (
-  organization_id = public.my_org_id() or public.is_super_admin()
-);
-create policy leads_tenant on public.leads for all using (
-  organization_id = public.my_org_id() or public.is_super_admin()
-);
-create policy msg_tenant on public.messages for all using (
-  exists (select 1 from public.conversations c where c.id = conversation_id and (c.organization_id = public.my_org_id() or public.is_super_admin()))
-);
-create policy notif_tenant on public.notifications for all using (
-  organization_id = public.my_org_id() or public.is_super_admin()
-);
-create policy notes_admin on public.admin_support_notes for all using (public.is_super_admin());
-create policy audit_admin on public.audit_logs for all using (public.is_super_admin());
-create policy plans_read on public.plans for select using (true);
-create policy plans_admin on public.plans for all using (public.is_super_admin());
-
--- Upgrade notes for an existing DentChat database:
--- alter table public.organizations add column if not exists phone text default '';
--- alter table public.organizations add column if not exists booking_url text default '';
--- alter table public.chatbots add column if not exists greetings jsonb not null default '[]'::jsonb;
--- alter table public.chatbots add column if not exists accent_color text default '';
--- alter table public.chatbots add column if not exists panel_color text default '#ffffff';
--- alter table public.chatbots add column if not exists button_text_color text default '#1a1a1a';
--- alter table public.chatbots add column if not exists avatar_name text default '';
--- alter table public.chatbots add column if not exists avatar_image_url text default '';
--- alter table public.chatbots add column if not exists phone text default '';
--- alter table public.chatbots add column if not exists booking_url text default '';
--- alter table public.chatbot_options add column if not exists action_type text not null default 'lead';
--- alter table public.chatbot_options add column if not exists url text default '';
-
+-- Public avatar bucket (run in a Supabase project; skip on plain Postgres).
+-- insert into storage.buckets (id, name, public)
+-- values ('avatars', 'avatars', true)
+-- on conflict (id) do nothing;

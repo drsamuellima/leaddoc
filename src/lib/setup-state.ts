@@ -1,6 +1,7 @@
 import type { Chatbot, StoreData } from "./types";
 import { checklistScore, deriveChecklist, ensureSetup } from "./chatbot-setup";
 import { getClinicContext } from "./auth";
+import { hasGemini } from "./integrations";
 import { readStore } from "./store";
 
 export function setupPayload(data: StoreData, bot: Chatbot) {
@@ -14,6 +15,7 @@ export function setupPayload(data: StoreData, bot: Chatbot) {
     faqs,
     checklist: bot.setup.checklist,
     score: checklistScore(bot.setup.checklist),
+    aiEnabled: hasGemini(),
   };
 }
 

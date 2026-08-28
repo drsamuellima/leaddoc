@@ -52,8 +52,12 @@ export function hasStripe() {
   return Boolean(process.env.STRIPE_SECRET_KEY);
 }
 
-export function hasOpenAI() {
-  return Boolean(process.env.OPENAI_API_KEY);
+export function geminiApiKey() {
+  return (process.env.GEMINI_API_KEY || "").trim();
+}
+
+export function hasGemini() {
+  return Boolean(geminiApiKey());
 }
 
 export function hasResend() {

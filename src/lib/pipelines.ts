@@ -1,4 +1,5 @@
-import type { Lead, LeadStatus, PipelineStage, TreatmentPipeline } from "./types";
+import { randomUUID } from "crypto";
+import type { Lead, LeadStatus, PipelineStage, StoreData, TreatmentPipeline } from "./types";
 
 export function sortedStages(pipeline: TreatmentPipeline | null | undefined): PipelineStage[] {
   return [...(pipeline?.stages || [])].sort((a, b) => a.sortOrder - b.sortOrder);
@@ -73,17 +74,35 @@ export function applyPipelineToLead(lead: Lead, pipeline: TreatmentPipeline, sta
 
 export function generalPipeline(orgId: string, createdAt: string): TreatmentPipeline {
   return {
-    id: `pipe_general_${orgId}`,
+    id: randomUUID(),
     organizationId: orgId,
     name: "General enquiry",
     createdAt,
     stages: [
-      { id: `st_${orgId}_new`, name: "New enquiry", sortOrder: 0 },
-      { id: `st_${orgId}_contacted`, name: "Contacted", sortOrder: 1 },
-      { id: `st_${orgId}_booked`, name: "Appointment booked", sortOrder: 2 },
-      { id: `st_${orgId}_closed`, name: "Closed", sortOrder: 3 },
+      { id: randomUUID(), name: "New enquiry", sortOrder: 0 },
+      { id: randomUUID(), name: "Contacted", sortOrder: 1 },
+      { id: randomUUID(), name: "Appointment booked", sortOrder: 2 },
+      { id: randomUUID(), name: "Closed", sortOrder: 3 },
     ],
   };
+}
+
+export function ensureOrgPipelines(data: StoreData) {
+  let changed = false;
+  if (!Array.isArray(data.pipelines)) {
+    data.pipelines = [];
+    changed = true;
+  }
+  for (const org of data.organizations) {
+    if (data.pipelines.some((p) => p.organizationId === org.id)) continue;
+    data.pipelines.push(generalPipeline(org.id, createdAtNow()));
+    changed = true;
+  }
+  return changed;
+}
+
+function createdAtNow() {
+  return new Date().toISOString();
 }
 
 export function demoPipelines(orgId: string, createdAt: string): TreatmentPipeline[] {

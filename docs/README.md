@@ -2,7 +2,7 @@
 
 Plain-English description of **what the product does**, page by page and API by API. Read this before changing behaviour. Keep it in the same change as the code.
 
-How to run the app, env vars, and demo logins: [README.md](../README.md) at the repo root.
+How to run the app, env vars, and local JSON demo: [README.md](../README.md) at the repo root.
 
 How the pieces fit together: [architecture.md](architecture.md).
 
@@ -31,7 +31,7 @@ That script fails if a `page.tsx` or `route.ts` under `src/app` has no heading i
 
 | If you touch | Update |
 | --- | --- |
-| `src/app/page.tsx`, `src/app/login/**`, `src/app/signup/**` | [pages/public.md](pages/public.md) |
+| `src/app/page.tsx`, `src/app/login/**`, `src/app/signup/**`, `src/app/forgot-password/**`, `src/app/reset-password/**`, `src/app/privacy/**`, `src/app/terms/**` | [pages/public.md](pages/public.md) |
 | `src/app/app/**` | [pages/clinic-app.md](pages/clinic-app.md) |
 | `src/app/admin/**` | [pages/admin.md](pages/admin.md) |
 | `src/app/w/**`, `src/app/widget.js/**`, `src/lib/widget*.ts` | [pages/widget.md](pages/widget.md) |
@@ -52,6 +52,10 @@ Every heading below must stay as a markdown `##` heading in the linked file (the
 | `/` | [pages/public.md](pages/public.md) |
 | `/login` | [pages/public.md](pages/public.md) |
 | `/signup` | [pages/public.md](pages/public.md) |
+| `/forgot-password` | [pages/public.md](pages/public.md) |
+| `/reset-password` | [pages/public.md](pages/public.md) |
+| `/privacy` | [pages/public.md](pages/public.md) |
+| `/terms` | [pages/public.md](pages/public.md) |
 
 ### Clinic app
 

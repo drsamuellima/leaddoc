@@ -5,9 +5,9 @@ import { LoginForm } from "./login-form";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; ok?: string }>;
 }) {
-  const { error } = await searchParams;
+  const { error, ok } = await searchParams;
   return (
     <div className="auth-shell">
       <div className="w-full max-w-md">
@@ -15,12 +15,7 @@ export default async function LoginPage({
           <BrandLogo size={38} />
           <div className="mt-2 text-sm text-neutral-500">Clinic &amp; admin sign in</div>
         </div>
-        <LoginForm error={error} />
-        <p className="mt-5 text-sm text-neutral-500">
-          Demo clinic: clinic@dentchat.local / password
-          <br />
-          Platform admin: admin@dentchat.local / password
-        </p>
+        <LoginForm error={error} ok={ok} />
         <p className="mt-3 text-sm">
           New practice?{" "}
           <Link href="/signup" className="font-semibold underline">

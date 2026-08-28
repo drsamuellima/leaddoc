@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { clientIp } from "@/lib/config";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import {
   addKnowledgeAction,
   addKnowledgePackAction,
@@ -12,6 +14,8 @@ import {
   adminSavePlanAction,
   adminToggleWidgetExceptionAction,
   createChatbotAction,
+  deleteChatbotAction,
+  adminDeleteChatbotAction,
   deleteKnowledgeAction,
   deleteOptionAction,
   updateKnowledgeAction,
@@ -23,7 +27,10 @@ import {
   saveBrandingAction,
   saveChatbotAction,
   signupAction,
+  startBillingPortalAction,
   startCheckoutAction,
+  requestPasswordResetAction,
+  resetPasswordAction,
   updateLeadAction,
   createLeadTaskAction,
   completeLeadTaskAction,
@@ -45,8 +52,12 @@ const handlers: Record<string, (formData: FormData) => Promise<void>> = {
   signup: signupAction,
   logout: () => logoutAction(),
   checkout: () => startCheckoutAction(),
+  billingPortal: () => startBillingPortalAction(),
+  requestPasswordReset: requestPasswordResetAction,
+  resetPassword: resetPasswordAction,
   saveChatbot: saveChatbotAction,
   createChatbot: createChatbotAction,
+  deleteChatbot: deleteChatbotAction,
   addOption: addOptionAction,
   updateOption: updateOptionAction,
   deleteOption: deleteOptionAction,
@@ -81,10 +92,17 @@ const handlers: Record<string, (formData: FormData) => Promise<void>> = {
   adminAddSupportNote: adminAddSupportNoteAction,
   adminToggleWidgetException: adminToggleWidgetExceptionAction,
   adminCreateChatbot: adminCreateChatbotAction,
+  adminDeleteChatbot: adminDeleteChatbotAction,
 };
 
 export async function POST(request: Request, ctx: { params: Promise<{ name: string }> }) {
   const { name } = await ctx.params;
+  if (
+    (name === "signup" || name === "requestPasswordReset" || name === "resetPassword") &&
+    !rateLimit(`form:${name}:${clientIp(request)}`, 8, 15 * 60 * 1000)
+  ) {
+    return NextResponse.json(rateLimitResponse(), { status: 429 });
+  }
   const formData = await request.formData();
   const handler = handlers[name];
   if (!handler) {

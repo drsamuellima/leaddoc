@@ -1,13 +1,13 @@
-import { allKnowledgeExamples } from "./knowledge-examples";
-import { hasOpenAI } from "./integrations";
+import { hasGemini } from "./integrations";
+import { completeChat, parseModelJson } from "./gemini";
 import { emptyExtract } from "./chatbot-setup";
 import type { SetupExtract, SetupFaqDraft, SetupTreatmentDraft } from "./types";
 import { parseActionType } from "./types";
 
 const FETCH_MS = 8000;
-const MAX_BYTES = 400_000;
-const MAX_EXTRA_PAGES = 6;
-const MAX_TEXT = 12_000;
+const MAX_BYTES = 800_000;
+const MAX_EXTRA_PAGES = 10;
+const MAX_TEXT = 20_000;
 const KEY_RE = /about|contact|treatment|service|hour|price|team|book|location|faq|staff|dentist|visit|new.?patient/i;
 
 function isPrivateIPv4(hostname: string) {
@@ -93,7 +93,8 @@ async function fetchPage(url: string, redirects = 0): Promise<{ url: string; htm
 }
 
 function collectLinks(home: URL, html: string) {
-  const found = new Map<string, string>();
+  const keyword = new Map<string, string>();
+  const other = new Map<string, string>();
   const re = /<a\s[^>]*href=["']([^"'#]+)["'][^>]*>([\s\S]*?)<\/a>/gi;
   let match: RegExpExecArray | null;
   while ((match = re.exec(html))) {
@@ -101,24 +102,62 @@ function collectLinks(home: URL, html: string) {
       const href = new URL(match[1], home);
       if (href.host !== home.host) continue;
       if (href.protocol !== "http:" && href.protocol !== "https:") continue;
+      if (/\.(pdf|jpe?g|png|gif|webp|svg|css|js|zip)(\?|$)/i.test(href.pathname)) continue;
+      if (/wp-admin|wp-login|cart|checkout|account\/login/i.test(href.pathname)) continue;
+      const homeKey = home.origin + home.pathname.replace(/\/$/, "");
+      const key = href.origin + href.pathname.replace(/\/$/, "");
+      if (key === homeKey) continue;
       const label = stripHtml(match[2]);
       const hay = `${href.pathname} ${label}`.toLowerCase();
-      if (!KEY_RE.test(hay)) continue;
-      const key = href.origin + href.pathname.replace(/\/$/, "");
-      if (!found.has(key)) found.set(key, href.toString());
+      if (KEY_RE.test(hay)) {
+        if (!keyword.has(key)) keyword.set(key, href.toString());
+      } else if (!other.has(key) && !href.pathname.startsWith("/cdn")) {
+        other.set(key, href.toString());
+      }
     } catch {
       /* skip */
     }
   }
-  return [...found.values()].slice(0, MAX_EXTRA_PAGES);
+  return [...keyword.values(), ...other.values()].slice(0, MAX_EXTRA_PAGES);
 }
 
-function catalogFaqs(): SetupFaqDraft[] {
-  return allKnowledgeExamples().map((item) => ({
-    title: item.title,
-    question: item.question,
-    answer: item.answer,
-  }));
+function siteFaqsFromText(name: string, phone: string, bookingUrl: string, text: string): SetupFaqDraft[] {
+  const faqs: SetupFaqDraft[] = [];
+  const hours = text.match(/(opening hours|we are open)[^.]{0,80}\d[^.]{0,40}/i);
+  if (hours?.[0]) {
+    faqs.push({
+      title: "Hours",
+      question: "What are your opening hours?",
+      answer: hours[0].replace(/\s+/g, " ").trim(),
+      source: "site",
+    });
+  }
+  if (phone) {
+    faqs.push({
+      title: "Phone",
+      question: "What is the practice phone number?",
+      answer: `You can call us on ${phone}.`,
+      source: "site",
+    });
+  }
+  if (bookingUrl) {
+    faqs.push({
+      title: "Booking",
+      question: "How do I book an appointment?",
+      answer: `Book online at ${bookingUrl} or call the practice.`,
+      source: "site",
+    });
+  }
+  const about = text.slice(0, 400).replace(/\s+/g, " ").trim();
+  if (name && about.length > 40) {
+    faqs.push({
+      title: "About",
+      question: `Tell me about ${name}`,
+      answer: about,
+      source: "site",
+    });
+  }
+  return faqs;
 }
 
 function pickPhone(html: string, text: string) {
@@ -128,13 +167,17 @@ function pickPhone(html: string, text: string) {
   return uk?.[0]?.replace(/\s+/g, " ").trim() || "";
 }
 
+function looksLikeBookingUrl(href: string) {
+  return /dentally|book-now|booknow|booking\.|\/book(?:ing)?(?:\/|$)|appoint/i.test(href);
+}
+
 function pickBooking(home: URL, html: string) {
   const re = /<a\s[^>]*href=["']([^"']+)["']/gi;
   let match: RegExpExecArray | null;
   while ((match = re.exec(html))) {
     try {
       const href = new URL(match[1], home).toString();
-      if (/dentally|booking|book-now|booknow|appoint/i.test(href)) return href;
+      if (looksLikeBookingUrl(href) && !isPracticeHomepage(home, href)) return href;
     } catch {
       /* skip */
     }
@@ -145,37 +188,141 @@ function pickBooking(home: URL, html: string) {
 function pickName(html: string) {
   const og = html.match(/property=["']og:site_name["'][^>]*content=["']([^"']+)["']/i)
     || html.match(/content=["']([^"']+)["'][^>]*property=["']og:site_name["']/i);
-  if (og?.[1]) return og[1].trim();
+  if (og?.[1]) return cleanPracticeName(og[1]);
   const title = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-  return title?.[1] ? stripHtml(title[1]).split("|")[0].split("-")[0].trim() : "";
+  return title?.[1] ? cleanPracticeName(stripHtml(title[1]).split("|")[0].split("-")[0]) : "";
 }
 
-function heuristicTreatments(text: string): SetupTreatmentDraft[] {
-  const labels = ["Invisalign", "Teeth whitening", "Implants", "Hygiene", "Emergency", "Check-up"];
-  return labels
-    .filter((label) => text.toLowerCase().includes(label.toLowerCase().split(" ")[0].toLowerCase()))
-    .slice(0, 6)
-    .map((label) => ({
-      label,
-      actionType: label === "Emergency" ? parseActionType("call") : parseActionType("lead"),
-      starterMessage: `I'd like to ask about ${label.toLowerCase()}.`,
-      url: "",
-    }));
+function isPracticeHomepage(home: URL, raw: string) {
+  try {
+    const url = new URL(raw);
+    if (url.host !== home.host) return false;
+    const path = url.pathname.replace(/\/$/, "") || "/";
+    const homePath = home.pathname.replace(/\/$/, "") || "/";
+    return path === "/" || path === homePath;
+  } catch {
+    return false;
+  }
+}
+
+function cleanPracticeName(value: string) {
+  const name = value.replace(/\s+/g, " ").trim();
+  if (!name) return "";
+  if (/^(home|welcome|index|untitled|website)$/i.test(name)) return "";
+  if (/^https?:\/\//i.test(name)) return "";
+  return name.slice(0, 80);
+}
+
+function cleanPhone(value: string) {
+  const phone = value.replace(/\s+/g, " ").trim();
+  if (!phone) return "";
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length < 10 || digits.length > 15) return "";
+  return phone.slice(0, 40);
+}
+
+function cleanBookingUrl(home: URL, value: string) {
+  const raw = value.trim();
+  if (!raw) return "";
+  try {
+    const url = new URL(raw, home);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return "";
+    const href = url.toString();
+    if (isPracticeHomepage(home, href) && !looksLikeBookingUrl(href)) return "";
+    return href;
+  } catch {
+    return "";
+  }
+}
+
+function contactFromSite(home: URL, name: string, phone: string, bookingUrl: string) {
+  return {
+    name: cleanPracticeName(name),
+    phone: cleanPhone(phone),
+    bookingUrl: cleanBookingUrl(home, bookingUrl),
+  };
+}
+
+const SKIP_SERVICE = /^(home|contact|about|book now|book online|login|read more|learn more|click here|view all|see all|more|menu|privacy|cookies|facebook|instagram|twitter|linkedin)$/i;
+
+function slugToLabel(pathname: string) {
+  const last = pathname.split("/").filter(Boolean).pop() || "";
+  return last.replace(/[-_]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()).trim();
+}
+
+function addServiceLabel(labels: string[], seen: Set<string>, raw: string) {
+  const label = stripHtml(raw).replace(/\s+/g, " ").trim();
+  if (label.length < 3 || label.length > 50) return;
+  if (SKIP_SERVICE.test(label)) return;
+  const key = label.toLowerCase();
+  if (seen.has(key)) return;
+  seen.add(key);
+  labels.push(label);
+}
+
+function toTreatmentDrafts(labels: string[]): SetupTreatmentDraft[] {
+  return labels.slice(0, 16).map((label) => ({
+    label,
+    actionType: /emergency/i.test(label) ? parseActionType("call") : parseActionType("lead"),
+    starterMessage: `I'd like to ask about ${label}.`,
+    url: "",
+  }));
+}
+
+function heuristicTreatments(pages: { url: string; html: string }[]): SetupTreatmentDraft[] {
+  const seen = new Set<string>();
+  const labels: string[] = [];
+  for (const page of pages) {
+    let pageUrl: URL;
+    try {
+      pageUrl = new URL(page.url);
+    } catch {
+      continue;
+    }
+    const onServicePage = /treatment|service|what-we-do/i.test(pageUrl.pathname);
+    const linkRe = /<a\s[^>]*href=["']([^"'#]+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+    let match: RegExpExecArray | null;
+    while ((match = linkRe.exec(page.html))) {
+      try {
+        const href = new URL(match[1], pageUrl);
+        if (href.host !== pageUrl.host) continue;
+        if (!/treatment|service/i.test(href.pathname)) continue;
+        const here = pageUrl.pathname.replace(/\/$/, "");
+        const there = href.pathname.replace(/\/$/, "");
+        if (there === here) continue;
+        const text = stripHtml(match[2]);
+        addServiceLabel(labels, seen, text.length >= 3 && !SKIP_SERVICE.test(text) ? text : slugToLabel(href.pathname));
+      } catch {
+        /* skip */
+      }
+    }
+    if (onServicePage) {
+      const headingRe = /<h[23][^>]*>([\s\S]*?)<\/h[23]>/gi;
+      let heading: RegExpExecArray | null;
+      while ((heading = headingRe.exec(page.html))) {
+        addServiceLabel(labels, seen, heading[1]);
+      }
+    }
+  }
+  return toTreatmentDrafts(labels);
 }
 
 function heuristicExtract(home: URL, pages: { url: string; html: string }[]): SetupExtract {
   const html = pages.map((p) => p.html).join("\n");
   const text = pages.map((p) => stripHtml(p.html)).join("\n");
-  const name = pickName(pages[0]?.html || "");
-  const phone = pickPhone(html, text);
-  const bookingUrl = pickBooking(home, html);
+  const contact = contactFromSite(home, pickName(pages[0]?.html || ""), pickPhone(html, text), pickBooking(home, html));
+  const { name, phone, bookingUrl } = contact;
   const hoursHit = /monday|opening hours|we are open/i.test(text);
-  const faqs = catalogFaqs();
-  if (hoursHit) {
+  const faqs = siteFaqsFromText(name, phone, bookingUrl, text);
+  if (hoursHit && !faqs.some((f) => /hours/i.test(f.title))) {
     const hours = text.match(/.{0,40}(monday|opening hours).{0,80}/i);
     if (hours?.[0]) {
-      const idx = faqs.findIndex((f) => /hours/i.test(f.title));
-      if (idx >= 0) faqs[idx] = { ...faqs[idx], answer: hours[0].replace(/\s+/g, " ").trim() };
+      faqs.unshift({
+        title: "Hours",
+        question: "What are your opening hours?",
+        answer: hours[0].replace(/\s+/g, " ").trim(),
+        source: "site",
+      });
     }
   }
   return {
@@ -188,7 +335,7 @@ function heuristicExtract(home: URL, pages: { url: string; html: string }[]): Se
       ? `You are a helpful receptionist for ${name}, a UK dental practice. Answer from the approved FAQs. Never diagnose. Offer to book or take a callback.`
       : "",
     faqs,
-    treatments: heuristicTreatments(text),
+    treatments: heuristicTreatments(pages),
     pages: pages.map((p) => p.url),
   };
 }
@@ -198,36 +345,108 @@ function asString(value: unknown) {
 }
 
 function asFaqs(value: unknown): SetupFaqDraft[] {
-  if (!Array.isArray(value)) return [];
-  return value
-    .map((row) => ({
-      title: asString((row as { title?: unknown }).title) || "FAQ",
-      question: asString((row as { question?: unknown }).question),
-      answer: asString((row as { answer?: unknown }).answer),
-    }))
+  let rows: unknown[] = [];
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value) as unknown;
+      return asFaqs(parsed);
+    } catch {
+      return [];
+    }
+  }
+  if (Array.isArray(value)) rows = value;
+  else if (value && typeof value === "object") {
+    const obj = value as Record<string, unknown>;
+    const nested = obj.items || obj.faqs || obj.list;
+    if (Array.isArray(nested)) rows = nested;
+    else rows = Object.values(obj).filter((item) => item && typeof item === "object");
+  }
+  return rows
+    .map((row) => {
+      const item = row as Record<string, unknown>;
+      return {
+        title: asString(item.title || item.topic || item.name) || "FAQ",
+        question: asString(item.question || item.Question || item.q || item.prompt),
+        answer: asString(item.answer || item.Answer || item.a || item.response || item.text),
+        source: asString(item.source).toLowerCase() === "suggested" ? ("suggested" as const) : ("site" as const),
+      };
+    })
     .filter((row) => row.question && row.answer)
-    .slice(0, 24);
+    .slice(0, 40);
+}
+
+function pickFaqList(parsed: Record<string, unknown>): unknown {
+  for (const key of ["faqs", "FAQs", "faq", "knowledge", "knowledgeItems", "items", "suggestedFaqs"]) {
+    const value = parsed[key];
+    if (Array.isArray(value) && value.length) return value;
+    if (typeof value === "string" && value.includes("[")) return value;
+  }
+  for (const value of Object.values(parsed)) {
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      const nested = pickFaqList(value as Record<string, unknown>);
+      if (nested) return nested;
+    }
+  }
+  return parsed.faqs;
+}
+
+function pickTreatmentList(parsed: Record<string, unknown>): unknown {
+  for (const key of ["treatments", "services", "treatmentList", "serviceList", "procedures"]) {
+    const value = parsed[key];
+    if (Array.isArray(value) && value.length) return value;
+    if (typeof value === "string" && value.trim()) return value;
+  }
+  return parsed.treatments;
 }
 
 function asTreatments(value: unknown): SetupTreatmentDraft[] {
-  if (!Array.isArray(value)) return [];
-  return value
-    .map((row) => ({
-      label: asString((row as { label?: unknown }).label),
-      actionType: parseActionType(asString((row as { actionType?: unknown }).actionType) || "lead"),
-      starterMessage: asString((row as { starterMessage?: unknown }).starterMessage),
-      url: asString((row as { url?: unknown }).url),
-    }))
+  let rows: unknown[] = [];
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (trimmed.startsWith("[") || trimmed.startsWith("{")) {
+      try {
+        return asTreatments(JSON.parse(trimmed));
+      } catch {
+        /* split below */
+      }
+    }
+    rows = trimmed.split(/[,;\n]/).map((part) => part.trim()).filter(Boolean);
+  } else if (Array.isArray(value)) rows = value;
+  else if (value && typeof value === "object") {
+    const obj = value as Record<string, unknown>;
+    const nested = obj.items || obj.treatments || obj.services || obj.list;
+    if (Array.isArray(nested)) rows = nested;
+  }
+  return rows
+    .map((row) => {
+      if (typeof row === "string") {
+        const label = row.trim();
+        return {
+          label,
+          actionType: parseActionType(/emergency/i.test(label) ? "call" : "lead"),
+          starterMessage: label ? `I'd like to ask about ${label}.` : "",
+          url: "",
+        };
+      }
+      const item = row as Record<string, unknown>;
+      const label = asString(item.label || item.name || item.title || item.service || item.treatment);
+      return {
+        label,
+        actionType: parseActionType(asString(item.actionType) || (/emergency/i.test(label) ? "call" : "lead")),
+        starterMessage: asString(item.starterMessage) || (label ? `I'd like to ask about ${label}.` : ""),
+        url: asString(item.url),
+      };
+    })
     .filter((row) => row.label)
-    .slice(0, 10)
-    .map((row) => ({ ...row, starterMessage: row.starterMessage || `I'd like to ask about ${row.label}.` }));
+    .slice(0, 16);
 }
 
-function mergeExtract(base: SetupExtract, overlay: Partial<SetupExtract>): SetupExtract {
+function mergeExtract(home: URL, base: SetupExtract, overlay: Partial<SetupExtract>): SetupExtract {
+  const aiContact = contactFromSite(home, overlay.name || "", overlay.phone || "", overlay.bookingUrl || "");
   return {
-    name: overlay.name?.trim() || base.name,
-    phone: overlay.phone?.trim() || base.phone,
-    bookingUrl: overlay.bookingUrl?.trim() || base.bookingUrl,
+    name: aiContact.name,
+    phone: aiContact.phone,
+    bookingUrl: aiContact.bookingUrl,
     avatarName: overlay.avatarName?.trim() || base.avatarName,
     greetings: overlay.greetings?.length ? overlay.greetings.map((g) => g.trim()).filter(Boolean) : base.greetings,
     systemPrompt: overlay.systemPrompt?.trim() || base.systemPrompt,
@@ -237,50 +456,36 @@ function mergeExtract(base: SetupExtract, overlay: Partial<SetupExtract>): Setup
   };
 }
 
-async function aiExtract(combined: string, pages: string[]): Promise<Partial<SetupExtract> | null> {
-  if (!hasOpenAI()) return null;
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: process.env.OPENAI_MODEL || "gpt-4o-mini",
-      response_format: { type: "json_object" },
-      temperature: 0.2,
-      messages: [
-        {
-          role: "system",
-          content:
-            "Extract dental practice facts from website text. Return JSON only with keys: name, phone, bookingUrl, avatarName, greetings (string array, 1-3 lines), systemPrompt, faqs (array of {title, question, answer}), treatments (array of {label, actionType: lead|book|call, starterMessage, url}). Use UK English. Do not invent prices or clinical claims. If unknown, use empty string or [].",
-        },
-        {
-          role: "user",
-          content: `Pages:\n${pages.join("\n")}\n\nText:\n${combined.slice(0, 28000)}`,
-        },
-      ],
-    }),
+async function aiExtract(combined: string, pages: string[]): Promise<Partial<SetupExtract>> {
+  const raw = await completeChat({
+    json: true,
+    temperature: 0.2,
+    messages: [
+      {
+        role: "system",
+        content:
+          'Extract a dental chatbot knowledge base from the website text. Return JSON only with keys: name, phone, bookingUrl, avatarName, greetings (1-3 lines), systemPrompt, faqs (array of {title, question, answer, source}), treatments (array of {label, actionType: lead|book|call, starterMessage, url}). name, phone, and bookingUrl must be copied from the pages or be empty strings — never guess, never invent, never use the homepage as bookingUrl unless that URL is clearly an online booking page (Dentally, book, appointment). Phone only if a practice number is written or in a tel: link. treatments must be every named service the practice lists (use the site’s own names: hygiene, implants, Invisalign, composite bonding, and so on). Do not invent services the pages do not mention. actionType is lead unless the service is clearly book-online or emergency call. source must be "site" when the answer is stated on the pages, or "suggested" for extra FAQs you recommend that the site did not cover (max 6 suggested). Pull as many site FAQs as the text supports: treatments, hours, location, parking, fees, NHS/private, team, emergencies, new patients. Paraphrase the site; do not invent clinic-specific facts. Do not use generic dental template answers unless source is suggested.',
+      },
+      {
+        role: "user",
+          content: `Pages:\n${pages.join("\n")}\n\nText:\n${combined.slice(0, 35000)}`,
+      },
+    ],
   });
-  const json = await res.json();
-  const raw = json.choices?.[0]?.message?.content;
-  if (!raw) return null;
-  try {
-    const parsed = JSON.parse(raw) as Record<string, unknown>;
-    return {
-      name: asString(parsed.name),
-      phone: asString(parsed.phone),
-      bookingUrl: asString(parsed.bookingUrl),
-      avatarName: asString(parsed.avatarName),
-      greetings: Array.isArray(parsed.greetings) ? parsed.greetings.map(asString).filter(Boolean) : [],
-      systemPrompt: asString(parsed.systemPrompt),
-      faqs: asFaqs(parsed.faqs),
-      treatments: asTreatments(parsed.treatments),
-      pages,
-    };
-  } catch {
-    return null;
-  }
+  const parsed = parseModelJson(raw);
+  const faqList = pickFaqList(parsed);
+  const faqs = asFaqs(faqList);
+  return {
+    name: asString(parsed.name),
+    phone: asString(parsed.phone),
+    bookingUrl: asString(parsed.bookingUrl),
+    avatarName: asString(parsed.avatarName),
+    greetings: Array.isArray(parsed.greetings) ? parsed.greetings.map(asString).filter(Boolean) : [],
+    systemPrompt: asString(parsed.systemPrompt),
+    faqs,
+    treatments: asTreatments(pickTreatmentList(parsed)),
+    pages,
+  };
 }
 
 export async function scanPracticeSite(rawUrl: string): Promise<SetupExtract> {
@@ -304,12 +509,12 @@ export async function scanPracticeSite(rawUrl: string): Promise<SetupExtract> {
   const pages = [homePage, ...extraPages];
   const base = heuristicExtract(new URL(homePage.url), pages);
   const combined = pages.map((p) => `URL: ${p.url}\n${stripHtml(p.html)}`).join("\n\n");
-  try {
-    const ai = await aiExtract(combined, pages.map((p) => p.url));
-    if (ai) return mergeExtract(base, ai);
-  } catch {
-    /* keep heuristic */
+  if (hasGemini()) {
+    const ai = await aiExtract(
+      combined,
+      pages.map((p) => p.url),
+    );
+    return mergeExtract(new URL(homePage.url), base, ai);
   }
-  if (!base.faqs.length) base.faqs = catalogFaqs();
   return { ...emptyExtract(), ...base, pages: pages.map((p) => p.url) };
 }

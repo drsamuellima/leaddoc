@@ -10,7 +10,7 @@ Related: [architecture.md](architecture.md), [pages/widget.md](pages/widget.md).
 **Method:** POST (form)  
 **Who:** anyone
 
-Checks email and password against `profiles`. On failure, redirects to `/login?error=invalid`. On success, sets `dentchat_session` and redirects super admins to `/admin` and everyone else to `/app`.
+Checks email and password against `profiles`. Rate-limited per IP. On failure, redirects to `/login?error=invalid`. On success, sets a signed `dentchat_session` cookie and redirects super admins to `/admin` and everyone else to `/app`.
 
 ## /api/form/[name]
 
@@ -18,7 +18,7 @@ Checks email and password against `profiles`. On failure, redirects to `/login?e
 **Method:** POST (multipart/form)  
 **Who:** depends on the handler (see below)
 
-Looks up `name` in a table of actions. Unknown names return 404 `{ error: "Unknown form" }`. Known names run the action with the posted `FormData` and return `{ ok: true }`.
+Looks up `name` in a table of actions. Unknown names return 404 `{ error: "Unknown form" }`. Known names run the action with the posted `FormData` and return `{ ok: true }`. Signup and password-reset names are rate-limited per IP.
 
 Many actions also `redirect()` on success or error, so the browser may follow a redirect instead of reading JSON.
 
@@ -26,7 +26,7 @@ If you add or remove a handler, add or remove its heading in this file.
 
 ### signup
 
-Public. Creates a clinic, owner account, default chatbot, and default pipelines, then signs the owner in.
+Public. Creates a clinic, owner account, a draft chatbot (inactive until Go live), default treatment buttons, and a general pipeline, then signs the owner in and sends them to setup.
 
 ### logout
 
@@ -34,7 +34,19 @@ Clears session and impersonation cookies, then sends the user to login.
 
 ### checkout
 
-Signed-in clinic. Starts Stripe Checkout for the active plan, or activates the subscription locally if Stripe is not configured.
+Signed-in clinic. Starts Stripe Checkout for the active plan. With `USE_JSON_STORE=1` and no Stripe key it can activate locally; production returns an error instead.
+
+### billingPortal
+
+Signed-in clinic with a Stripe customer id. Opens the Stripe Customer Portal to update the card or cancel.
+
+### requestPasswordReset
+
+Public. If the email exists, stores a hashed one-hour token and emails a reset link. Always redirects as if it succeeded.
+
+### resetPassword
+
+Public. Sets a new password from a valid token.
 
 ### saveChatbot
 
@@ -43,6 +55,10 @@ Clinic. Saves studio fields: name, greetings, prompt, colours, skin, font, avata
 ### createChatbot
 
 Clinic. Creates a draft chatbot (inactive, setup incomplete) and sends the clinic to `/app/chatbots/[id]/setup`.
+
+### deleteChatbot
+
+Clinic. Deletes a chatbot the clinic owns, plus its FAQs and treatment buttons. Patient leads are kept. Redirects to `/app/chatbots?ok=deleted`.
 
 ### addOption
 
@@ -78,7 +94,7 @@ Clinic. Updates organisation name, colours, logo, welcome image, phone, and book
 
 ### inviteStaff
 
-Clinic owner or admin. Adds a `clinic_staff` profile to this organisation.
+Clinic owner or admin. Adds a `clinic_staff` profile to this organisation. Emails a temporary password (generated if the form left it blank).
 
 ### updateLead
 
@@ -158,11 +174,11 @@ Platform admin. Stores a Stripe customer id on the organisation.
 
 ### adminCreateStripeSub
 
-Platform admin. Creates a Stripe subscription (or simulates it).
+Platform admin. Creates a Stripe subscription. With `USE_JSON_STORE=1` and no Stripe key it can simulate; production does not.
 
 ### adminCharge
 
-Platform admin. Charges the card on file (or simulates it).
+Platform admin. Charges the card on file. Same demo-only simulation rule as create subscription.
 
 ### adminSavePlan
 
@@ -180,13 +196,17 @@ Platform admin. Turns `allowWidgetWithoutSub` on or off so the embed can run wit
 
 Platform admin. Creates a finished chatbot for a chosen clinic (setup already complete) and impersonates into the studio.
 
+### adminDeleteChatbot
+
+Platform admin. Deletes a chatbot for a chosen clinic (same records as `deleteChatbot`) and returns to that clinic’s chatbot list.
+
 ## POST /api/chatbots/[id]/scan
 
 **File:** `src/app/api/chatbots/[id]/scan/route.ts`  
 **Method:** POST (JSON)  
 **Who:** signed-in clinic that owns this bot
 
-Body: `{ url }`. Fetches the practice homepage and a few linked key pages, then extracts name, phone, booking URL, greetings, prompt, treatments, and FAQs (OpenAI when `OPENAI_API_KEY` is set; otherwise heuristics plus the FAQ catalog). Stores a pending extract on the bot. Does not write FAQs until the clinic approves them in setup.
+Body: `{ url }`. Fetches the practice homepage and a few linked key pages, then extracts name, phone, booking URL, greetings, prompt, services/treatments, and FAQs (Gemini when `GEMINI_API_KEY` is set; otherwise page heuristics). Practice name, phone, and booking URL are taken from the site only; if they are missing they are stored blank (the homepage is not treated as a booking page). Services are named treatments listed on the site. Stores a pending extract on the bot and copies name, phone, and booking onto the bot when found. Does not write FAQs or treatment buttons until the clinic approves them in setup.
 
 Rejects non-http(s) URLs, localhost, and private IPs. Returns the updated bot payload, or 400 with an error message.
 
@@ -198,7 +218,7 @@ Rejects non-http(s) URLs, localhost, and private IPs. Returns the updated bot pa
 **Method:** PATCH (JSON)  
 **Who:** signed-in clinic that owns this bot
 
-Autosave for the setup wizard. Can patch step, website URL, name, phone, booking URL, greetings, pending FAQs, **approve knowledge** (writes FAQs and fills extracted fields), or **go live** (sets `active` and `setupComplete`).
+Autosave for the setup wizard. Can patch step, website URL, name, phone, booking URL, greetings, pending FAQs, pending services, **approve knowledge** (writes FAQs and service buttons, and fills extracted fields), or **go live** (sets `active` and `setupComplete`).
 
 **Writes:** `chatbots`, sometimes `knowledgeItems` and `chatbotOptions`.
 
@@ -208,7 +228,7 @@ Autosave for the setup wizard. Can patch step, website URL, name, phone, booking
 **Method:** POST (JSON)  
 **Who:** signed-in clinic that owns this bot
 
-One interview turn. Body: `{ start: true }` to open the thread, or `{ message }` for a reply. The assistant only asks for checklist gaps. Parsed facts are patched onto the bot immediately.
+One interview turn. Body: `{ start: true }` to open the thread, `{ message }` for a typed reply, or `{ confirm: { field, accepted } }` for a green tick / red cross on a value we already have (name, phone, booking, treatments). Known details are shown for confirm first. After that the assistant only asks for remaining gaps (phone and booking stay on the next card). Parsed facts are patched onto the bot immediately. When the interview is finished, the response includes `advanceToBooking: true` so the wizard can open Booking.
 
 **Writes:** `chatbots`, sometimes `knowledgeItems` and `chatbotOptions`.
 
@@ -247,7 +267,7 @@ Later messages. Body: `widgetKey`, `conversationId`, `content`. Stores the visit
 **Method:** POST (JSON)  
 **Who:** Stripe (or a local test client)
 
-Updates an organisation when Checkout or a subscription changes: Stripe customer id, subscription id, and `subscriptionStatus`. Matches the clinic by `client_reference_id` / `metadata.organization_id` or existing customer id.
+Updates an organisation when Checkout or a subscription changes: Stripe customer id, subscription id, and `subscriptionStatus`. Matches the clinic by `client_reference_id` / `metadata.organization_id` or existing customer id. The `Stripe-Signature` header is checked against `STRIPE_WEBHOOK_SECRET` (required in production). If status becomes `past_due`, the clinic owner is emailed.
 
 Unknown payloads with no ids are acknowledged without a store write.
 
@@ -259,7 +279,7 @@ Unknown payloads with no ids are acknowledged without a store write.
 **Method:** POST (multipart)  
 **Who:** signed-in user with an active clinic (including impersonation)
 
-Uploads a JPEG avatar for a chatbot (max 1.5 MB). The bot must belong to the active organisation. Returns a public URL under `/api/uploads/[filename]`.
+Uploads a JPEG avatar for a chatbot (max 1.5 MB). The bot must belong to the active organisation. Returns a public URL (Supabase Storage when configured, otherwise `/api/uploads/[filename]`).
 
 ## /api/uploads/[filename]
 
@@ -267,6 +287,6 @@ Uploads a JPEG avatar for a chatbot (max 1.5 MB). The bot must belong to the act
 **Method:** GET  
 **Who:** anyone with the URL (widget and studio need this)
 
-Serves a stored JPEG from `.data/uploads/`. Rejects unsafe filenames. Long cache headers.
+Serves a stored JPEG, or redirects to the public Storage URL. Rejects unsafe filenames. Long cache headers.
 
 The embed script is `GET /widget.js` — documented in [pages/widget.md](pages/widget.md#widgetjs).
