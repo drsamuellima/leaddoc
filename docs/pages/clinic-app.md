@@ -2,7 +2,7 @@
 
 Everything under `/app` is the practice workspace. The layout (`src/app/app/layout.tsx`) requires a signed-in user with a clinic (`getClinicContext`). Super admins only get here by impersonating a clinic.
 
-Nav: Overview, Chatbots, Leads, Pipelines, Conversations, Settings. The shell can search patients (submits to `/app/leads`) and shows unread “new lead” notifications.
+Nav: Overview, Chatbots, Leads, Pipelines, Conversations, Settings. The shell can search patients (submits to `/app/leads`) and shows unread “new lead” notifications. The dark sidebar uses the official LeadDr. wordmark (dark-background version) plus the practice name.
 
 Related: [architecture.md](../architecture.md), [widget.md](widget.md), [apis.md](../apis.md).
 

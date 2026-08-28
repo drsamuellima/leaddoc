@@ -12,7 +12,7 @@ export default async function LoginPage({
     <div className="auth-shell">
       <div className="w-full max-w-md">
         <div className="mb-6">
-          <BrandLogo size={38} />
+          <BrandLogo on="light" size="auth" />
           <div className="mt-2 text-sm text-neutral-500">Clinic &amp; admin sign in</div>
         </div>
         <LoginForm error={error} ok={ok} />

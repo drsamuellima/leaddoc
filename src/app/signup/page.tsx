@@ -11,7 +11,7 @@ export default async function SignupPage({
     <div className="auth-shell">
       <div className="w-full max-w-md">
         <div className="mb-6">
-          <BrandLogo size={38} />
+          <BrandLogo on="light" size="auth" />
         </div>
         <form action="/api/form/signup" method="post" className="auth-card space-y-4">
           <h1 className="text-2xl font-semibold tracking-tight">Create your clinic</h1>

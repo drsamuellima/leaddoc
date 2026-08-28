@@ -22,7 +22,7 @@ export function MarketingHome() {
     <div className="mkt">
       <header className="mkt-nav">
         <Link href="/" className="no-underline">
-          <BrandLogo size={34} withWordmark={false} />
+          <BrandLogo on="light" size="nav" />
         </Link>
         <nav className="mkt-nav-links max-md:hidden">
           <a href="#product">Product</a>
@@ -177,7 +177,7 @@ export function MarketingHome() {
       </section>
 
       <footer className="mkt-footer">
-        <BrandLogo size={28} />
+        <BrandLogo on="light" size="footer" />
         <span>AI software for dental clinics. © {new Date().getFullYear()}</span>
         <span className="flex gap-3 text-sm">
           <Link href="/privacy">Privacy</Link>

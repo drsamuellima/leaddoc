@@ -2,7 +2,7 @@
 
 Everything under `/admin` is for **super_admin** only. The layout (`src/app/admin/layout.tsx`) calls `requireAdmin()`; other roles are sent to `/app`.
 
-Nav: Clinics, Add clinic, Plans. Search on the shell filters the clinic directory.
+Nav: Clinics, Add clinic, Plans. Search on the shell filters the clinic directory. The dark sidebar uses the official LeadDr. wordmark (dark-background version) plus “Platform admin”.
 
 Admins can **Open as clinic** (impersonate). That sets `dentchat_impersonate_org` and sends them into `/app` for that practice. The clinic shell shows an impersonation banner; **Exit clinic** clears the cookie (`exitImpersonate`).
 

@@ -5,7 +5,7 @@ export default function PrivacyPage() {
   return (
     <div className="auth-shell">
       <div className="mx-auto max-w-2xl space-y-4 px-4 py-10">
-        <BrandLogo size={32} />
+        <BrandLogo on="light" size="auth" />
         <h1 className="text-3xl font-semibold tracking-tight">Privacy</h1>
         <p className="text-sm text-neutral-600">
           LeadDoc is software for dental practices. We store clinic accounts and the visitor details a patient types into

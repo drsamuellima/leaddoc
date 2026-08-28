@@ -11,6 +11,8 @@ Related: [architecture.md](../architecture.md) (sign-in), [clinic-app.md](clinic
 
 The marketing home page for LeadDoc. It explains the product (AI chat widgets for dental practices, lead CRM, billing) and sends people to sign up or log in.
 
+The header and footer show the official LeadDr. wordmark (light-background version on the cream page). It scales down on small screens so it stays on one line with the Log in and Start free clinic buttons.
+
 It renders `MarketingHome` (`src/components/landing/marketing-home.tsx`), including a static chat preview (`hero-chat.tsx`). Links to privacy and terms sit in the footer. Nothing is written to the store from this page.
 
 **Related:** [/signup](#/signup), [/login](#/login)
@@ -20,7 +22,7 @@ It renders `MarketingHome` (`src/components/landing/marketing-home.tsx`), includ
 **File:** `src/app/login/page.tsx` (form in `login-form.tsx`)  
 **Who:** anyone; clinic staff and platform admins use the same form
 
-Sign-in for the clinic app and the platform admin. The form posts email and password to `POST /api/auth/login`. Invalid credentials reload this page with `?error=invalid`. A link goes to forgot password.
+Sign-in for the clinic app and the platform admin. The form posts email and password to `POST /api/auth/login`. Invalid credentials reload this page with `?error=invalid`. A link goes to forgot password. The cream auth pages (login, signup, forgot/reset password, privacy, terms) use the official LeadDr. wordmark for a light background.
 
 After a valid login, super admins go to `/admin` and everyone else goes to `/app`.
 

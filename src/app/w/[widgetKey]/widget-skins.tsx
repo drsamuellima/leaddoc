@@ -1,5 +1,6 @@
 "use client";
 
+import { BrandLogo } from "@/components/brand-logo";
 import type { CSSProperties, ReactNode } from "react";
 import { Avatar, TypingDots, type Option, type WidgetController } from "./chat-widget";
 
@@ -17,10 +18,10 @@ function tokenStyle(ctrl: WidgetController): CSSProperties {
   };
 }
 
-function BrandMark(props: { accent: string; panel: string }) {
+function BrandMark() {
   return (
-    <div className="rounded-full px-3 py-1.5 text-xs font-semibold shadow-md" style={{ background: props.panel, color: props.accent }}>
-      By LeadDoc
+    <div className="flex items-center rounded-full bg-white/95 px-2.5 py-1 shadow-md">
+      <BrandLogo on="light" size="widget" />
     </div>
   );
 }
@@ -272,7 +273,7 @@ function OrbitalSkin({ ctrl }: { ctrl: WidgetController }) {
               />
             </div>
             <div className="flex shrink-0 items-center justify-end px-4 py-2">
-              <BrandMark accent={ctrl.accent} panel={ctrl.panel} />
+              <BrandMark />
             </div>
           </div>
         </div>
@@ -319,7 +320,7 @@ function GlassSkin({ ctrl }: { ctrl: WidgetController }) {
               />
             </div>
             <div className="flex justify-end px-3 pb-3">
-              <BrandMark accent={ctrl.accent} panel={ctrl.panel} />
+              <BrandMark />
             </div>
           </div>
         </div>
@@ -376,7 +377,7 @@ function SheetSkin({ ctrl }: { ctrl: WidgetController }) {
               />
             </div>
             <div className="flex justify-center pb-4">
-              <BrandMark accent={ctrl.accent} panel={ctrl.surface} />
+              <BrandMark />
             </div>
           </div>
         </div>
@@ -437,7 +438,7 @@ function MessengerSkin({ ctrl }: { ctrl: WidgetController }) {
               />
             </div>
             <div className="flex items-center justify-between px-3 py-2" style={{ background: ctrl.panel }}>
-              <BrandMark accent={ctrl.accent} panel={ctrl.surface} />
+              <BrandMark />
             </div>
           </div>
         </div>
@@ -496,7 +497,7 @@ function DockSkin({ ctrl }: { ctrl: WidgetController }) {
               />
             </div>
             <div className="px-3 pb-3">
-              <BrandMark accent={ctrl.accent} panel={ctrl.surface} />
+              <BrandMark />
             </div>
           </div>
         </div>
@@ -554,7 +555,7 @@ function PulseSkin({ ctrl }: { ctrl: WidgetController }) {
               />
             </div>
             <div className="flex justify-end px-3 py-2">
-              <BrandMark accent={ctrl.accent} panel={ctrl.surface} />
+              <BrandMark />
             </div>
           </div>
         </div>

@@ -107,7 +107,6 @@ function isActive(pathname: string, href: string, home: string) {
 
 export function DashboardShell(props: {
   home: string;
-  brand: string;
   subtitle: string;
   nav: DashNavItem[];
   userName: string;
@@ -124,11 +123,10 @@ export function DashboardShell(props: {
     <div className="dash">
       <aside className="dash-sidebar" style={{ background: "var(--sidebar)" }}>
         <div className="dash-brand">
-          <BrandLogo size={34} withWordmark={false} />
-          <div>
-            <div className="dash-brand-name">{props.brand}</div>
-            <div className="dash-brand-sub">{props.subtitle}</div>
-          </div>
+          <Link href={props.home} className="no-underline" aria-label="LeadDr. home">
+            <BrandLogo on="dark" size="sidebar" />
+          </Link>
+          <div className="dash-brand-sub">{props.subtitle}</div>
         </div>
         <nav className="dash-nav">
           {props.nav.map((item) => (

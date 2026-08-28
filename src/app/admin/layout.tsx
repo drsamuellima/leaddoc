@@ -12,7 +12,6 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <DashboardShell
       home="/admin"
-      brand="LeadDoc"
       subtitle="Platform admin"
       nav={nav}
       userName={user.name}

@@ -5,7 +5,7 @@ export default function TermsPage() {
   return (
     <div className="auth-shell">
       <div className="mx-auto max-w-2xl space-y-4 px-4 py-10">
-        <BrandLogo size={32} />
+        <BrandLogo on="light" size="auth" />
         <h1 className="text-3xl font-semibold tracking-tight">Terms</h1>
         <p className="text-sm text-neutral-600">
           LeadDoc provides an AI chat widget and lead CRM for dental practices on a monthly subscription. The widget is
