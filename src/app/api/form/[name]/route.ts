@@ -13,6 +13,9 @@ import {
   adminLinkStripeAction,
   adminSavePlanAction,
   adminToggleWidgetExceptionAction,
+  adminSetSubscriptionAction,
+  adminDeleteClinicAction,
+  adminResetUserPasswordAction,
   createChatbotAction,
   deleteChatbotAction,
   adminDeleteChatbotAction,
@@ -93,6 +96,9 @@ const handlers: Record<string, (formData: FormData) => Promise<void>> = {
   adminToggleWidgetException: adminToggleWidgetExceptionAction,
   adminCreateChatbot: adminCreateChatbotAction,
   adminDeleteChatbot: adminDeleteChatbotAction,
+  adminSetSubscription: adminSetSubscriptionAction,
+  adminDeleteClinic: adminDeleteClinicAction,
+  adminResetUserPassword: adminResetUserPasswordAction,
 };
 
 export async function POST(request: Request, ctx: { params: Promise<{ name: string }> }) {

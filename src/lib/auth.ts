@@ -8,13 +8,17 @@ import type { Organization, Profile, Role } from "./types";
 export const SESSION_COOKIE = "dentchat_session";
 export const IMPERSONATE_COOKIE = "dentchat_impersonate_org";
 
-function cookieBase() {
+export function cookieBase() {
   return {
     httpOnly: true,
     sameSite: "lax" as const,
     path: "/",
     secure: isSecureCookie(),
   };
+}
+
+export function sessionCookieValue(userId: string) {
+  return signValue(userId);
 }
 
 export async function getSessionUser(): Promise<Profile | null> {

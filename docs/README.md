@@ -78,6 +78,9 @@ Every heading below must stay as a markdown `##` heading in the linked file (the
 | Route | Doc |
 | --- | --- |
 | `/admin` | [pages/admin.md](pages/admin.md) |
+| `/admin/leads` | [pages/admin.md](pages/admin.md) |
+| `/admin/users` | [pages/admin.md](pages/admin.md) |
+| `/admin/audit` | [pages/admin.md](pages/admin.md) |
 | `/admin/clinics/new` | [pages/admin.md](pages/admin.md) |
 | `/admin/clinics/[id]` | [pages/admin.md](pages/admin.md) |
 | `/admin/clinics/[id]/billing` | [pages/admin.md](pages/admin.md) |

@@ -2,9 +2,9 @@
 
 Everything under `/admin` is for **super_admin** only. The layout (`src/app/admin/layout.tsx`) calls `requireAdmin()`; other roles are sent to `/app`.
 
-Nav: Clinics, Add clinic, Plans. Search on the shell filters the clinic directory. The dark sidebar uses the official LeadDr. wordmark (dark-background version) plus “Platform admin”.
+Nav: Clinics, All leads, Users, Plans, Activity, Add clinic. Search on the shell filters the clinic directory. The dark sidebar uses the official LeadDr. wordmark (dark-background version) plus “Platform admin”.
 
-Admins can **Open as clinic** (impersonate). That sets `dentchat_impersonate_org` and sends them into `/app` for that practice. The clinic shell shows an impersonation banner; **Exit clinic** clears the cookie (`exitImpersonate`).
+Admins can **Open as clinic** (impersonate). That sets `dentchat_impersonate_org` and sends them into `/app` for that practice so they have the full clinic product (chatbots, CRM, pipelines, settings). The clinic shell shows an impersonation banner; **Exit clinic** clears the cookie (`exitImpersonate`).
 
 Related: [architecture.md](../architecture.md), [clinic-app.md](clinic-app.md), [apis.md](../apis.md).
 
@@ -13,11 +13,38 @@ Related: [architecture.md](../architecture.md), [clinic-app.md](clinic-app.md), 
 **File:** `src/app/admin/page.tsx`  
 **Who:** platform admin
 
-Directory of every practice. Search by name (`?q=`). Each row shows subscription status and lead count. Actions: **Open** (clinic hub) and **Open as clinic** (impersonate).
+Directory of every practice, plus connection pills (database, Stripe, Gemini, email). Search by name (`?q=`). Each row shows subscription status and lead count. Actions: **Open** (clinic hub) and **Open as clinic** (impersonate).
 
-**Reads:** `organizations`, `leads`. Impersonate writes the impersonation cookie.
+**Reads:** `organizations`, `leads`, `profiles`. Impersonate writes the impersonation cookie.
 
 **Related:** [/admin/clinics/[id]](#adminclinicsid), [impersonate](../apis.md#impersonate)
+
+## /admin/leads
+
+**File:** `src/app/admin/leads/page.tsx`  
+**Who:** platform admin
+
+Every lead across every clinic. Jump to the clinic hub or impersonate into that practice’s CRM.
+
+**Reads:** `leads`, `organizations`.
+
+## /admin/users
+
+**File:** `src/app/admin/users/page.tsx`  
+**Who:** platform admin
+
+Every login (platform admin, clinic owner, staff). Reset any password with `adminResetUserPassword`.
+
+**Reads/writes:** `profiles`.
+
+## /admin/audit
+
+**File:** `src/app/admin/audit/page.tsx`  
+**Who:** platform admin
+
+Audit log of impersonation, billing, password resets, and other admin actions.
+
+**Reads:** `auditLogs`.
 
 ## /admin/clinics/new
 
@@ -35,7 +62,7 @@ Manually create a practice: owner name, email, temporary password (required, 8+ 
 **File:** `src/app/admin/clinics/[id]/page.tsx`  
 **Who:** platform admin
 
-Hub for one clinic: staff list, chatbots, recent leads, internal support notes, links to billing / chatbots / leads, and **Open as clinic**.
+Hub for one clinic: staff list, chatbots, recent leads, internal support notes, links to billing / chatbots / leads, **Open as clinic**, set subscription / widget exception, and delete the clinic.
 
 Support notes are only for platform staff (`adminAddSupportNote`). They are not shown to the clinic.
 

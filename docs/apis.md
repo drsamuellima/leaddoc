@@ -10,7 +10,7 @@ Related: [architecture.md](architecture.md), [pages/widget.md](pages/widget.md).
 **Method:** POST (form)  
 **Who:** anyone
 
-Checks email and password against `profiles`. Rate-limited per IP. On failure, redirects to `/login?error=invalid`. On success, sets a signed `dentchat_session` cookie and redirects super admins to `/admin` and everyone else to `/app`.
+Checks email and password against `profiles`. Rate-limited per IP. The login form posts with `fetch` and stays on `/login`. Failures return JSON `{ ok: false, code, error }` (401 invalid, 429 rate limit, 500 database/server) so the page can show a red animated message instead of a blank screen or 404. GET `/api/auth/login` redirects to `/login`. On success, sets a signed `dentchat_session` cookie on the JSON response and the browser goes to `/admin` (super admin) or `/app`.
 
 ## /api/form/[name]
 
@@ -199,6 +199,18 @@ Platform admin. Creates a finished chatbot for a chosen clinic (setup already co
 ### adminDeleteChatbot
 
 Platform admin. Deletes a chatbot for a chosen clinic (same records as `deleteChatbot`) and returns to that clinic’s chatbot list.
+
+### adminSetSubscription
+
+Platform admin. Sets a clinic’s `subscriptionStatus` and `allowWidgetWithoutSub` without going through Stripe.
+
+### adminDeleteClinic
+
+Platform admin. Removes a practice and its staff, bots, leads, and related records after typing DELETE.
+
+### adminResetUserPassword
+
+Platform admin. Sets a new password (8+ characters) for any profile.
 
 ## POST /api/chatbots/[id]/scan
 

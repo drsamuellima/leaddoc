@@ -762,6 +762,14 @@ function normalizeStore(data: StoreData): { data: StoreData; changed: boolean } 
     data.passwordResetTokens = [];
     changed = true;
   }
+  const priceId = (process.env.STRIPE_PRICE_ID || "").trim();
+  if (priceId) {
+    const plan = data.plans.find((p) => p.active) || data.plans[0];
+    if (plan && !plan.stripePriceId) {
+      plan.stripePriceId = priceId;
+      changed = true;
+    }
+  }
   if (seedClinicPipelines(data)) changed = true;
   if (ensureOrgPipelines(data)) changed = true;
   if (migrateLeadCrm(data)) changed = true;

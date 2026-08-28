@@ -8,7 +8,7 @@ import { BrandLogo } from "@/components/brand-logo";
 export type DashNavItem = {
   href: string;
   label: string;
-  icon: "home" | "bots" | "leads" | "chat" | "settings" | "clinics" | "plus" | "plans" | "pipeline";
+  icon: "home" | "bots" | "leads" | "chat" | "settings" | "clinics" | "plus" | "plans" | "pipeline" | "users" | "activity";
 };
 
 function Icon({ name }: { name: DashNavItem["icon"] }) {
@@ -73,6 +73,23 @@ function Icon({ name }: { name: DashNavItem["icon"] }) {
     return (
       <svg {...common} viewBox="0 0 24 24">
         <path d="M12 5v14M5 12h14" />
+      </svg>
+    );
+  }
+  if (name === "users") {
+    return (
+      <svg {...common} viewBox="0 0 24 24">
+        <path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2" />
+        <circle cx="9.5" cy="7" r="3.2" />
+        <path d="M20 8v6M17 11h6" />
+      </svg>
+    );
+  }
+  if (name === "activity") {
+    return (
+      <svg {...common} viewBox="0 0 24 24">
+        <path d="M4 19V5h16v14z" />
+        <path d="M8 9h8M8 13h5M8 17h3" />
       </svg>
     );
   }

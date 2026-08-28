@@ -657,11 +657,41 @@ async function persist(tx: Tx, data: StoreData) {
 
 let bootstrapped = false;
 
+async function ensureBootstrap() {
+  const sql = getSql();
+  const priceId = (process.env.STRIPE_PRICE_ID || "").trim();
+  const plans = await sql`select id, stripe_price_id, active from plans`;
+  if (!plans.length) {
+    await sql`
+      insert into plans (id, name, amount_pence, interval, stripe_price_id, active)
+      values (${randomUUID()}::uuid, 'Clinic Standard', 7900, 'month', ${priceId}, true)
+    `;
+  } else if (priceId) {
+    const plan = plans.find((p) => p.active) || plans[0];
+    if (plan && !String(plan.stripe_price_id || "")) {
+      await sql`update plans set stripe_price_id = ${priceId} where id = ${String(plan.id)}::uuid`;
+    }
+  }
+
+  const email = (process.env.ADMIN_EMAIL || "").trim().toLowerCase();
+  const password = process.env.ADMIN_PASSWORD || "";
+  if (email && password) {
+    const existing = await sql`select id from profiles where lower(email) = ${email} limit 1`;
+    if (!existing.length) {
+      await sql`
+        insert into profiles (id, organization_id, role, name, email, password_hash, created_at)
+        values (
+          ${randomUUID()}::uuid, null, 'super_admin', 'Platform Admin', ${email},
+          ${hashPassword(password)}, ${new Date().toISOString()}
+        )
+      `;
+    }
+  }
+}
+
 export async function readPgStore(): Promise<StoreData> {
   if (!bootstrapped) {
-    await mutatePgStore((data) => {
-      applyBootstrap(data);
-    });
+    await ensureBootstrap();
     bootstrapped = true;
   }
   return load(getSql());

@@ -22,7 +22,7 @@ It renders `MarketingHome` (`src/components/landing/marketing-home.tsx`), includ
 **File:** `src/app/login/page.tsx` (form in `login-form.tsx`)  
 **Who:** anyone; clinic staff and platform admins use the same form
 
-Sign-in for the clinic app and the platform admin. The form posts email and password to `POST /api/auth/login`. Invalid credentials reload this page with `?error=invalid`. A link goes to forgot password. The cream auth pages (login, signup, forgot/reset password, privacy, terms) use the official LeadDr. wordmark for a light background.
+Sign-in for the clinic app and the platform admin. The form posts email and password to `POST /api/auth/login` with `fetch` so the browser never leaves `/login`. Wrong password, database errors, and server errors stay on this page as a red animated message. A GET of `/api/auth/login` also sends you back here (not a 404). A link goes to forgot password. The cream auth pages (login, signup, forgot/reset password, privacy, terms) use the official LeadDr. wordmark for a light background.
 
 After a valid login, super admins go to `/admin` and everyone else goes to `/app`.
 

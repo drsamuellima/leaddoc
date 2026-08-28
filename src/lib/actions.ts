@@ -1123,4 +1123,93 @@ export async function adminDeleteChatbotAction(formData: FormData) {
   redirect(`/admin/clinics/${organizationId}/chatbots?ok=deleted`);
 }
 
+function removeOrganizationRecords(data: StoreData, orgId: string) {
+  const botIds = data.chatbots.filter((b) => b.organizationId === orgId).map((b) => b.id);
+  const convIds = data.conversations.filter((c) => c.organizationId === orgId).map((c) => c.id);
+  const leadIds = data.leads.filter((l) => l.organizationId === orgId).map((l) => l.id);
+  data.organizations = data.organizations.filter((o) => o.id !== orgId);
+  data.profiles = data.profiles.filter((p) => p.organizationId !== orgId);
+  data.chatbots = data.chatbots.filter((b) => b.organizationId !== orgId);
+  data.chatbotOptions = data.chatbotOptions.filter((o) => !botIds.includes(o.chatbotId));
+  data.knowledgeItems = data.knowledgeItems.filter((k) => !botIds.includes(k.chatbotId));
+  data.pipelines = data.pipelines.filter((p) => p.organizationId !== orgId);
+  data.conversations = data.conversations.filter((c) => c.organizationId !== orgId);
+  data.leads = data.leads.filter((l) => l.organizationId !== orgId);
+  data.messages = data.messages.filter((m) => !convIds.includes(m.conversationId));
+  data.notifications = data.notifications.filter((n) => n.organizationId !== orgId);
+  data.leadTasks = (data.leadTasks || []).filter((t) => !leadIds.includes(t.leadId));
+  data.leadEvents = (data.leadEvents || []).filter((e) => !leadIds.includes(e.leadId));
+  data.leadNotes = (data.leadNotes || []).filter((n) => !leadIds.includes(n.leadId));
+  data.leadRecalls = (data.leadRecalls || []).filter((r) => !leadIds.includes(r.leadId));
+  data.supportNotes = data.supportNotes.filter((n) => n.organizationId !== orgId);
+}
+
+function isSubscriptionStatus(value: string): value is SubscriptionStatus {
+  return ["inactive", "trialing", "active", "past_due", "canceled"].includes(value);
+}
+
+export async function adminSetSubscriptionAction(formData: FormData) {
+  const admin = await requireAdmin();
+  const organizationId = String(formData.get("organizationId") || "");
+  const status = String(formData.get("subscriptionStatus") || "");
+  const allowWidget = formData.get("allowWidgetWithoutSub") === "on";
+  await mutateStore((data) => {
+    const org = data.organizations.find((o) => o.id === organizationId);
+    if (!org || !isSubscriptionStatus(status)) return;
+    org.subscriptionStatus = status;
+    org.allowWidgetWithoutSub = allowWidget;
+    data.auditLogs.push({
+      id: randomUUID(),
+      actorId: admin.id,
+      action: "set_subscription",
+      organizationId,
+      detail: `${status}; widget exception ${allowWidget ? "on" : "off"}`,
+      createdAt: iso(),
+    });
+  });
+  redirect(`/admin/clinics/${organizationId}?ok=access`);
+}
+
+export async function adminDeleteClinicAction(formData: FormData) {
+  const admin = await requireAdmin();
+  const organizationId = String(formData.get("organizationId") || "");
+  const confirm = String(formData.get("confirm") || "").trim();
+  if (confirm !== "DELETE") redirect(`/admin/clinics/${organizationId}?error=confirm`);
+  await mutateStore((data) => {
+    const org = data.organizations.find((o) => o.id === organizationId);
+    if (!org) return;
+    removeOrganizationRecords(data, organizationId);
+    data.auditLogs.push({
+      id: randomUUID(),
+      actorId: admin.id,
+      action: "delete_clinic",
+      organizationId: null,
+      detail: `Deleted ${org.name} (${organizationId})`,
+      createdAt: iso(),
+    });
+  });
+  redirect("/admin?ok=deleted");
+}
+
+export async function adminResetUserPasswordAction(formData: FormData) {
+  const admin = await requireAdmin();
+  const userId = String(formData.get("userId") || "");
+  const password = String(formData.get("password") || "");
+  if (password.length < 8) redirect("/admin/users?error=short");
+  await mutateStore((data) => {
+    const user = data.profiles.find((p) => p.id === userId);
+    if (!user) return;
+    user.passwordHash = hashPassword(password);
+    data.auditLogs.push({
+      id: randomUUID(),
+      actorId: admin.id,
+      action: "reset_password",
+      organizationId: user.organizationId,
+      detail: `Reset password for ${user.email}`,
+      createdAt: iso(),
+    });
+  });
+  redirect("/admin/users?ok=reset");
+}
+
 export { requireUser };

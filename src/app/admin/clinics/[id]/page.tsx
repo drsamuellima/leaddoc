@@ -45,6 +45,35 @@ export default async function AdminClinicHub({ params }: { params: Promise<{ id:
           Billing
         </Link>
       </div>
+      <div className="stagger mb-4 grid gap-4 md:grid-cols-2">
+        <form action="/api/form/adminSetSubscription" method="post" className="card space-y-3">
+          <h2 className="font-semibold">Subscription</h2>
+          <input type="hidden" name="organizationId" value={org.id} />
+          <select name="subscriptionStatus" defaultValue={org.subscriptionStatus}>
+            <option value="inactive">inactive</option>
+            <option value="trialing">trialing</option>
+            <option value="active">active</option>
+            <option value="past_due">past_due</option>
+            <option value="canceled">canceled</option>
+          </select>
+          <label className="flex items-center gap-2 font-normal">
+            <input type="checkbox" name="allowWidgetWithoutSub" defaultChecked={org.allowWidgetWithoutSub} className="w-auto" />
+            Allow widget without paying
+          </label>
+          <button className="btn" type="submit">
+            Save access
+          </button>
+        </form>
+        <form action="/api/form/adminDeleteClinic" method="post" className="card space-y-3">
+          <h2 className="font-semibold">Delete clinic</h2>
+          <p className="text-sm text-neutral-500">Removes the practice, staff, bots, and leads. Type DELETE to confirm.</p>
+          <input type="hidden" name="organizationId" value={org.id} />
+          <input name="confirm" placeholder="DELETE" required />
+          <button className="btn" type="submit">
+            Delete clinic
+          </button>
+        </form>
+      </div>
       <div className="stagger grid gap-4 md:grid-cols-2">
         <div className="card">
           <h2 className="font-semibold">Staff</h2>
