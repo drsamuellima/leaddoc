@@ -689,14 +689,20 @@ async function ensureBootstrap() {
   }
 }
 
+function isUuid(id: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+}
+
 export async function getPgProfileById(id: string) {
+  if (!isUuid(id)) return null;
   const rows = await getSql()`select * from profiles where id = ${id}::uuid limit 1`;
   return rows[0] ? mapProfile(rows[0] as Record<string, unknown>) : null;
 }
 
 export async function getPgOrganizationById(id: string) {
+  if (!isUuid(id)) return null;
   const rows = await getSql()`select * from organizations where id = ${id}::uuid limit 1`;
-  return rows[0] ? mapOrganization(rows[0] as Record<string, unknown>) : null;
+  return rows[0] ? mapOrg(rows[0] as Record<string, unknown>) : null;
 }
 
 export async function readPgStore(): Promise<StoreData> {
