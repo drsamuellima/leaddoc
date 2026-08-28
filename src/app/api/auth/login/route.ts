@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { cookieBase, SESSION_COOKIE, sessionCookieValue } from "@/lib/auth";
 import { clientIp } from "@/lib/config";
-import { verifyPassword } from "@/lib/crypto";
+import { resetSql } from "@/lib/db";
+import { authenticateLogin } from "@/lib/login-user";
 import { rateLimit } from "@/lib/rate-limit";
-import { readStore } from "@/lib/store";
 
 export const runtime = "nodejs";
-export const maxDuration = 30;
+export const maxDuration = 15;
 export const dynamic = "force-dynamic";
 
 function jsonError(code: string, error: string) {
@@ -39,10 +39,9 @@ export async function POST(request: Request) {
     const formData = await request.formData();
     const email = String(formData.get("email") || "").trim().toLowerCase();
     const password = String(formData.get("password") || "");
-    const store = await readStore();
-    const user = store.profiles.find((p) => p.email.toLowerCase() === email);
-    if (!user || !verifyPassword(password, user.passwordHash)) {
-      return jsonError("invalid", "Invalid email or password.");
+    const user = await authenticateLogin(email, password);
+    if (!user) {
+      return jsonError("invalid", "Invalid email or password. Use the exact ADMIN_EMAIL and ADMIN_PASSWORD from Vercel.");
     }
     const dest = user.role === "super_admin" ? "/admin" : "/app";
     const res = NextResponse.json({ ok: true, redirect: dest });
@@ -52,6 +51,7 @@ export async function POST(request: Request) {
     });
     return res;
   } catch (error) {
+    resetSql();
     console.error("login failed", error);
     const { code, error: message } = describeError(error);
     return jsonError(code, message);

@@ -10,7 +10,7 @@ Related: [architecture.md](architecture.md), [pages/widget.md](pages/widget.md).
 **Method:** POST (form)  
 **Who:** anyone
 
-Checks email and password against `profiles`. Rate-limited per IP. The login form posts with `fetch` and stays on `/login`. Failures return JSON `{ ok: false, code, error }` (401 invalid, 429 rate limit, 500 database/server) so the page can show a red animated message instead of a blank screen or 404. GET `/api/auth/login` redirects to `/login`. On success, sets a signed `dentchat_session` cookie on the JSON response and the browser goes to `/admin` (super admin) or `/app`.
+Checks email and password against `profiles`. Rate-limited per IP. The login form posts with `fetch` and stays on `/login`. Failures return JSON `{ ok: false, code, error }` with HTTP 200 so the page can show a red animated message (including database timeouts). A 504/502 from the host is also shown as a database timeout, not “invalid email”. GET `/api/auth/login` redirects to `/login`. Admin sign-in uses `ADMIN_EMAIL` / `ADMIN_PASSWORD` from the environment if that user is missing in the database. On success, sets a signed `dentchat_session` cookie and the browser goes to `/admin` (super admin) or `/app`.
 
 ## /api/form/[name]
 

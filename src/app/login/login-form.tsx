@@ -42,8 +42,12 @@ export function LoginForm({ error, ok }: { error?: string; ok?: string }) {
         error?: string;
         code?: string;
       };
+      if (res.status === 504 || res.status === 502 || res.status === 503) {
+        fail("The server timed out reaching the database. Check DATABASE_URL (pooler port 6543), wait for a redeploy, then try again.");
+        return;
+      }
       if (!res.ok || !data.ok) {
-        fail(data.error || errorMessage(data.code) || "Invalid email or password.");
+        fail(data.error || errorMessage(data.code) || "Sign-in failed. Try again.");
         return;
       }
       window.location.assign(data.redirect || "/app");

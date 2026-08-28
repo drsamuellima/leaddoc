@@ -6,10 +6,21 @@ function normalizeDatabaseUrl(raw: string) {
   let url = raw.trim().replace(/^['"]|['"]$/g, "");
   if (!url) return url;
   const supabase = /supabase\.(co|com)|pooler\.supabase/i.test(url);
+  const join = url.includes("?") ? "&" : "?";
   if (supabase && !/[?&]sslmode=/i.test(url)) {
-    url += `${url.includes("?") ? "&" : "?"}sslmode=require`;
+    url += `${join}sslmode=require`;
+  }
+  if (supabase && !/[?&]pgbouncer=/i.test(url)) {
+    url += `${url.includes("?") ? "&" : "?"}pgbouncer=true`;
   }
   return url;
+}
+
+export function resetSql() {
+  if (!client) return;
+  const current = client;
+  client = null;
+  void current.end({ timeout: 1 }).catch(() => undefined);
 }
 
 export function getSql() {
@@ -19,8 +30,8 @@ export function getSql() {
   const supabase = /supabase\.(co|com)|pooler\.supabase/i.test(url);
   client = postgres(url, {
     max: 1,
-    idle_timeout: 20,
-    connect_timeout: 15,
+    idle_timeout: 10,
+    connect_timeout: 5,
     prepare: false,
     ssl: supabase ? { rejectUnauthorized: false } : undefined,
   });
