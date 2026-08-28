@@ -260,9 +260,11 @@ html:has([data-widget-root]) body > * {
   width: auto;
   max-width: 100%;
   height: clamp(22px, 4.5vw, 32px);
-  aspect-ratio: 2237 / 541;
+  aspect-ratio: 1012 / 246;
   object-fit: contain;
   object-position: left center;
+  background: transparent;
+  mix-blend-mode: normal;
 }
 
 .brand-logo-nav {
