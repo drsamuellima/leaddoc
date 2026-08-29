@@ -10,6 +10,7 @@ import {
   getClinicContext,
   requireAdmin,
   requireUser,
+  setImpersonate,
   setSession,
 } from "./auth";
 import { generatePassword, hashPassword, hashToken, randomToken, verifyPassword, widgetKey } from "./crypto";
