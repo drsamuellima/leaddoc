@@ -1,6 +1,6 @@
 import { useJsonStore } from "./config";
 import { mutateJsonStore, readJsonStore, slugify, DEMO_WIDGET_KEY } from "./store-json";
-import { getPgOrganizationById, getPgProfileById, mutatePgStore, readPgStore } from "./store-pg";
+import { getPgAdminDirectory, getPgOrganizationById, getPgProfileById, mutatePgStore, readPgStore } from "./store-pg";
 import type { Organization, Profile, StoreData } from "./types";
 
 export { slugify, DEMO_WIDGET_KEY };
@@ -29,4 +29,21 @@ export async function getOrganizationById(id: string): Promise<Organization | nu
     return store.organizations.find((o) => o.id === id) ?? null;
   }
   return getPgOrganizationById(id);
+}
+
+export async function getAdminDirectory() {
+  if (useJsonStore()) {
+    const store = await readJsonStore();
+    const leadCountByOrg: Record<string, number> = {};
+    for (const lead of store.leads) {
+      leadCountByOrg[lead.organizationId] = (leadCountByOrg[lead.organizationId] || 0) + 1;
+    }
+    return {
+      organizations: store.organizations,
+      profileCount: store.profiles.length,
+      leadCount: store.leads.length,
+      leadCountByOrg,
+    };
+  }
+  return getPgAdminDirectory();
 }

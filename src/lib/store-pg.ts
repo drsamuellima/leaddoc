@@ -329,45 +329,26 @@ function mapReset(row: Record<string, unknown>): PasswordResetToken {
 }
 
 async function load(tx: Tx): Promise<StoreData> {
-  const [
-    organizations,
-    profiles,
-    plans,
-    chatbots,
-    chatbotOptions,
-    knowledgeItems,
-    pipelines,
-    conversations,
-    leads,
-    messages,
-    notifications,
-    leadTasks,
-    leadEvents,
-    leadNotes,
-    leadRecalls,
-    supportNotes,
-    auditLogs,
-    passwordResetTokens,
-  ] = await Promise.all([
-    tx`select * from organizations`,
-    tx`select * from profiles`,
-    tx`select * from plans`,
-    tx`select * from chatbots`,
-    tx`select * from chatbot_options`,
-    tx`select * from knowledge_items`,
-    tx`select * from pipelines`,
-    tx`select * from conversations`,
-    tx`select * from leads`,
-    tx`select * from messages`,
-    tx`select * from notifications`,
-    tx`select * from lead_tasks`,
-    tx`select * from lead_events`,
-    tx`select * from lead_notes`,
-    tx`select * from lead_recalls`,
-    tx`select * from support_notes`,
-    tx`select * from audit_logs`,
-    tx`select * from password_reset_tokens`,
-  ]);
+  // Sequential on purpose: Supabase transaction pooler + postgres.js max:1
+  // hangs if many queries are pipelined at once (Vercel then kills /admin).
+  const organizations = await tx`select * from organizations`;
+  const profiles = await tx`select * from profiles`;
+  const plans = await tx`select * from plans`;
+  const chatbots = await tx`select * from chatbots`;
+  const chatbotOptions = await tx`select * from chatbot_options`;
+  const knowledgeItems = await tx`select * from knowledge_items`;
+  const pipelines = await tx`select * from pipelines`;
+  const conversations = await tx`select * from conversations`;
+  const leads = await tx`select * from leads`;
+  const messages = await tx`select * from messages`;
+  const notifications = await tx`select * from notifications`;
+  const leadTasks = await tx`select * from lead_tasks`;
+  const leadEvents = await tx`select * from lead_events`;
+  const leadNotes = await tx`select * from lead_notes`;
+  const leadRecalls = await tx`select * from lead_recalls`;
+  const supportNotes = await tx`select * from support_notes`;
+  const auditLogs = await tx`select * from audit_logs`;
+  const passwordResetTokens = await tx`select * from password_reset_tokens`;
 
   const data = emptyStore();
   data.organizations = organizations.map((row: Record<string, unknown>) => mapOrg(row));
@@ -703,6 +684,29 @@ export async function getPgOrganizationById(id: string) {
   if (!isUuid(id)) return null;
   const rows = await getSql()`select * from organizations where id = ${id}::uuid limit 1`;
   return rows[0] ? mapOrg(rows[0] as Record<string, unknown>) : null;
+}
+
+export async function getPgAdminDirectory() {
+  await ensureBootstrap();
+  const sql = getSql();
+  const organizations = (await sql`select * from organizations order by name`).map((row) =>
+    mapOrg(row as Record<string, unknown>),
+  );
+  const leadRows = await sql`
+    select organization_id, count(*)::int as n from leads group by organization_id
+  `;
+  const profileCountRows = await sql`select count(*)::int as n from profiles`;
+  const leadCountRows = await sql`select count(*)::int as n from leads`;
+  const leadCountByOrg: Record<string, number> = {};
+  for (const row of leadRows) {
+    leadCountByOrg[String(row.organization_id)] = Number(row.n || 0);
+  }
+  return {
+    organizations,
+    profileCount: Number(profileCountRows[0]?.n || 0),
+    leadCount: Number(leadCountRows[0]?.n || 0),
+    leadCountByOrg,
+  };
 }
 
 export async function readPgStore(): Promise<StoreData> {

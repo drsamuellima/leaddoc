@@ -2,7 +2,7 @@ import Link from "next/link";
 import { EmptyState, PageHeader, StatusBadge } from "@/components/ui";
 import { requireAdmin } from "@/lib/auth";
 import { platformStatus } from "@/lib/platform-status";
-import { readStore } from "@/lib/store";
+import { getAdminDirectory } from "@/lib/store";
 
 function Pill({ ok, label }: { ok: boolean; label: string }) {
   return (
@@ -19,10 +19,17 @@ export default async function AdminHome({
 }) {
   await requireAdmin();
   const { q } = await searchParams;
-  const [store, status] = await Promise.all([readStore(), platformStatus()]);
+  let directory: Awaited<ReturnType<typeof getAdminDirectory>> | null = null;
+  let loadError = "";
+  try {
+    directory = await getAdminDirectory();
+  } catch (error) {
+    loadError = error instanceof Error ? error.message : "Could not load clinics.";
+  }
+  const status = await platformStatus();
   const query = (q || "").toLowerCase();
-  const clinics = store.organizations.filter((o) => !query || o.name.toLowerCase().includes(query));
-  const dbOk = status.database === "ok" || status.database === "json";
+  const clinics = (directory?.organizations || []).filter((o) => !query || o.name.toLowerCase().includes(query));
+  const dbOk = Boolean(directory) && (status.database === "ok" || status.database === "json") && !loadError;
 
   return (
     <div>
@@ -41,12 +48,13 @@ export default async function AdminHome({
         <Pill ok={status.stripe} label={status.stripe ? "Stripe" : "Stripe off"} />
         <Pill ok={status.gemini} label={status.gemini ? "Gemini" : "Gemini off"} />
         <Pill ok={status.resend} label={status.resend ? "Email" : "Email off"} />
-        <span className="text-xs text-neutral-500">{store.profiles.length} users · {store.leads.length} leads</span>
+        <span className="text-xs text-neutral-500">{directory?.profileCount || 0} users · {directory?.leadCount || 0} leads</span>
       </div>
       {!dbOk ? (
         <p className="login-error mb-4 text-sm font-medium text-red-700" role="alert">
           Admin is not connected to Postgres. Set DATABASE_URL to the Supabase transaction pooler (port 6543), not SUPABASE_URL.
           {status.databaseDetail ? ` ${status.databaseDetail}` : ""}
+          {loadError ? ` ${loadError}` : ""}
         </p>
       ) : null}
       {query ? <p className="mb-4 text-sm text-neutral-500">Showing “{q}”</p> : null}
@@ -70,7 +78,7 @@ export default async function AdminHome({
                   <td>
                     <StatusBadge status={org.subscriptionStatus} />
                   </td>
-                  <td>{store.leads.filter((l) => l.organizationId === org.id).length}</td>
+                  <td>{directory?.leadCountByOrg[org.id] || 0}</td>
                   <td>
                     <div className="flex flex-wrap justify-end gap-2">
                       <Link href={`/admin/clinics/${org.id}`} className="btn secondary">

@@ -12,6 +12,7 @@ function errorMessage(error?: string | null) {
     return "Sign-in hit a server error. Check SESSION_SECRET and the latest Vercel logs.";
   }
   if (error === "invalid") return "Invalid email or password.";
+  if (error === "rate") return "Too many failed sign-ins. Wait a few minutes and try again.";
   return error;
 }
 

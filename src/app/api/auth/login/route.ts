@@ -32,15 +32,15 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  if (!rateLimit(`login:${clientIp(request)}`, 10, 15 * 60 * 1000)) {
-    return jsonError("rate", "Too many attempts. Wait a few minutes and try again.");
-  }
   try {
     const formData = await request.formData();
     const email = String(formData.get("email") || "").trim().toLowerCase();
     const password = String(formData.get("password") || "");
     const user = await authenticateLogin(email, password);
     if (!user) {
+      if (!rateLimit(`login-fail:${clientIp(request)}`, 25, 15 * 60 * 1000)) {
+        return jsonError("rate", "Too many failed sign-ins. Wait a few minutes and try again.");
+      }
       return jsonError("invalid", "Invalid email or password.");
     }
     const dest = user.role === "super_admin" ? "/admin" : "/app";

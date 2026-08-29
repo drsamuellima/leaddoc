@@ -15,7 +15,7 @@ Related: [architecture.md](../architecture.md), [clinic-app.md](clinic-app.md), 
 
 Directory of every practice, plus connection pills (database, Stripe, Gemini, email). Search by name (`?q=`). Each row shows subscription status and lead count. Actions: **Open** (clinic hub) and **Open as clinic** (impersonate).
 
-**Reads:** `organizations`, `leads`, `profiles`. Impersonate writes the impersonation cookie.
+**Reads:** organisations and lead counts (not the full store). Impersonate writes the impersonation cookie.
 
 **Related:** [/admin/clinics/[id]](#adminclinicsid), [impersonate](../apis.md#impersonate)
 

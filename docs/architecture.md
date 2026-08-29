@@ -49,11 +49,13 @@ Login is `POST /api/auth/login`. Super admins land on `/admin`; everyone else la
 
 The cookie prefix `dentchat_` is a leftover name. The product name is **LeadDoc**.
 
-Login, signup, password reset, widget chat, and website scan are rate-limited per IP.
+Login (failed passwords only), signup, password reset, widget chat, and website scan are rate-limited per IP.
 
 ## Data
 
 [`src/lib/store.ts`](../src/lib/store.ts) is the facade. With `USE_JSON_STORE=1` it reads `.data/store.json`. Otherwise it uses Postgres (`src/lib/store-pg.ts`) with an advisory lock around writes so Vercel instances do not clobber each other.
+
+Login and session checks read a single profile (or organisation) row. The admin clinic directory uses a small set of queries (organisations plus lead counts). Other pages still call `readStore()`, which loads every table, but those queries run one after another. Parallel queries on the Supabase transaction pooler hang and Vercel then fails the page.
 
 First JSON run seeds a demo clinic (“Bright Smile Dental”). Postgres never seeds that clinic. It inserts the monthly plan (and `STRIPE_PRICE_ID` if set) and the admin from env.
 
