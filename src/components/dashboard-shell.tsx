@@ -179,6 +179,11 @@ export function DashboardShell(props: {
         ) : null}
 
         <div className="dash-canvas">
+          <div className="dash-ambient" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </div>
           <header className="dash-top">
             <form action={props.searchAction} className="dash-search">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2">

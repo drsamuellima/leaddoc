@@ -104,17 +104,6 @@ export async function PATCH(request: Request, ctx: { params: Promise<{ id: strin
       bot.setup.awaitingField = undefined;
     }
 
-    if (body.applyPrescriptions === true) {
-      const treatments = pendingTreatments || asTreatments(bot.setup.pendingExtract?.treatments || []);
-      if (treatments?.length) {
-        const next = treatmentsFromDrafts(bot.id, treatments);
-        data.chatbotOptions = data.chatbotOptions.filter((o) => o.chatbotId !== bot.id).concat(next);
-        if (bot.setup.pendingExtract) bot.setup.pendingExtract.treatments = treatments;
-        else bot.setup.pendingExtract = { ...emptyExtract(), treatments };
-      }
-      bot.setup.checklist.treatments = data.chatbotOptions.some((o) => o.chatbotId === bot.id);
-    }
-
     if (body.enterClinic === true) {
       bot.setupComplete = true;
       bot.setup.step = "live";

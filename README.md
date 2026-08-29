@@ -62,7 +62,7 @@ Without `USE_JSON_STORE`, missing Stripe or Gemini is an error, not a silent dem
 
 ## Widget
 
-Clinic staff start on **Overview** (`/app`) after they finish or skip ahead from the Clinix wizard. Signup opens `/app/chatbots/[id]/setup`: choose prescriptions, optionally paste the practice website, then enter Clinix. After that, **Chatbots → a bot** (`/app/chatbots/[id]`) is the studio.
+Clinic staff start on **Overview** (`/app`) after they finish or skip ahead from clinic sign-up. Signup opens `/app/chatbots/[id]/setup` on website scan. After that, **Chatbots → a bot** (`/app/chatbots/[id]`) is the studio.
 
 ```html
 <script src="https://YOUR_DOMAIN/widget.js" data-widget-key="dc_..." async></script>

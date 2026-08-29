@@ -35,11 +35,11 @@ After a valid login, super admins go to `/admin` and everyone else goes to `/app
 **File:** `src/app/signup/page.tsx`  
 **Who:** anyone creating a new practice
 
-Self-service Clinix registration. The visitor enters their name, practice name, email, and a password (8+ characters). The form posts to `POST /api/form/signup`.
+Self-service clinic sign-up. The visitor enters their name, practice name, email, and a password (8+ characters). The form posts to `POST /api/form/signup`.
 
-On success the new owner is signed in and sent to the Clinix AI setup wizard. They pick the treatments (prescriptions) their practice offers, then can enter the clinic workspace. Scanning the website and going live with the widget are optional next steps. Errors: `?error=exists` (email already registered) or `?error=invalid` (missing fields or short password).
+On success the new owner is signed in and sent to the clinic sign-up wizard, which starts with a website scan. They can then review what we found, finish a short interview, add booking details, and open the clinic. Errors: `?error=exists` (email already registered) or `?error=invalid` (missing fields or short password).
 
-**Reads/writes:** creates an organisation, an owner profile, a draft chatbot (and widget key), and a general pipeline. Treatment buttons are chosen in the wizard. On Postgres this is a direct insert (not a full store rewrite).
+**Reads/writes:** creates an organisation, an owner profile, a draft chatbot (and widget key), and a general pipeline. Treatment buttons come from the website scan and review step. On Postgres this is a direct insert (not a full store rewrite).
 
 **Related:** [/login](#/login), [signup handler](../apis.md#signup)
 

@@ -78,6 +78,7 @@ export function ensureSetup(bot: Chatbot): ChatbotSetup {
     return {
       ...emptySetup(),
       ...bot.setup,
+      step: parseSetupStep(String(bot.setup.step || "website")),
       checklist: { ...emptyChecklist(), ...(bot.setup.checklist || {}) },
       interview: Array.isArray(bot.setup.interview) ? bot.setup.interview : [],
       confirmed: { ...(bot.setup.confirmed || {}) },
@@ -114,17 +115,10 @@ export function checklistScore(list: SetupChecklist) {
 }
 
 export function parseSetupStep(value: string): SetupStep {
-  if (
-    value === "prescriptions" ||
-    value === "website" ||
-    value === "knowledge" ||
-    value === "interview" ||
-    value === "booking" ||
-    value === "live"
-  ) {
+  if (value === "knowledge" || value === "interview" || value === "booking" || value === "live") {
     return value;
   }
-  return "prescriptions";
+  return "website";
 }
 
 export function applyExtractToBot(bot: Chatbot, extract: SetupExtract) {

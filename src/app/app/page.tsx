@@ -58,7 +58,7 @@ export default async function OverviewPage() {
   return (
     <div className="page-enter">
       <PageHeader
-        kicker="Clinix"
+        kicker={org.name}
         title="Overview"
         description="Leads, chatbots and conversations at a glance."
         action={

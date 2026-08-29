@@ -96,7 +96,7 @@ export type KnowledgeItem = {
   answer: string;
 };
 
-export type SetupStep = "prescriptions" | "website" | "knowledge" | "interview" | "booking" | "live";
+export type SetupStep = "website" | "knowledge" | "interview" | "booking" | "live";
 
 export type SetupScanStatus = "idle" | "scanning" | "ready" | "error";
 
@@ -162,12 +162,11 @@ export type ChatbotSetup = {
 };
 
 export const SETUP_STEPS: { id: SetupStep; title: string; blurb: string }[] = [
-  { id: "prescriptions", title: "Prescriptions", blurb: "Pick the treatments Clinix should offer on your AI chat." },
-  { id: "website", title: "Website", blurb: "Paste your practice site. We’ll read the homepage and a few key pages." },
+  { id: "website", title: "Website scan", blurb: "Paste your practice site. We’ll read the homepage and a few key pages." },
   { id: "knowledge", title: "Review knowledge", blurb: "Check what we found. Edit anything before it goes into the chat." },
   { id: "interview", title: "Finish setup", blurb: "A few short questions to fill the gaps." },
   { id: "booking", title: "Booking", blurb: "Add your Dentally or booking link, and the practice phone." },
-  { id: "live", title: "Enter Clinix", blurb: "Open your clinic workspace. Activate the widget when you are ready." },
+  { id: "live", title: "Open clinic", blurb: "Open your clinic workspace. Activate the widget when you are ready." },
 ];
 
 export type Lead = {

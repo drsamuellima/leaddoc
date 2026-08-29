@@ -14,11 +14,8 @@ export default async function SignupPage({
           <BrandLogo on="light" size="auth" />
         </div>
         <form action="/api/form/signup" method="post" className="auth-card space-y-4">
-          <p className="setup-kicker" style={{ margin: 0 }}>
-            Clinix
-          </p>
-          <h1 className="text-2xl font-semibold tracking-tight">Create your clinic</h1>
-          <p className="text-sm text-neutral-500">Sign up, choose your prescriptions, then open your Clinix workspace.</p>
+          <h1 className="text-2xl font-semibold tracking-tight">Clinic Sign Up</h1>
+          <p className="text-sm text-neutral-500">Create your practice, then scan the website to set up the clinic chat.</p>
           {error === "exists" ? <p className="text-sm font-medium text-red-700">That email is already registered.</p> : null}
           {error === "invalid" ? (
             <p className="text-sm font-medium text-red-700">Fill all fields. Password must be 8+ characters.</p>
@@ -40,7 +37,7 @@ export default async function SignupPage({
             <input id="password" name="password" type="password" minLength={8} required />
           </div>
           <button className="btn w-full" type="submit">
-            Start Clinix setup
+            Create clinic
           </button>
           <p className="text-sm text-neutral-500">
             Already have an account?{" "}
