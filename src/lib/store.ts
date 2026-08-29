@@ -2,24 +2,49 @@ import { cache } from "react";
 import { useJsonStore } from "./config";
 import { mutateJsonStore, readJsonStore, slugify, DEMO_WIDGET_KEY } from "./store-json";
 import {
+  appendPgAudit,
   appendPgChatTurn,
   createPgWidgetLead,
+  deletePgChatbot,
+  emailTakenPg,
+  getPgAdminAudit,
   getPgAdminDirectory,
+  getPgAdminLeads,
+  getPgAdminUsers,
   getPgChatbotOptions,
   getPgChatHistory,
   getPgClinicNotifyEmail,
   getPgKnowledgeForBot,
   getPgOwnedChatbot,
   getPgOrganizationById,
+  getPgPlans,
   getPgProfileById,
   getPgWidgetByKey,
+  insertPgChatbot,
+  insertPgProfile,
+  insertPgSupportNote,
   mutateOwnedBotPg,
   mutatePgStore,
   readPgClinicStore,
   readPgStore,
+  savePgOrganization,
+  savePgPlan,
+  setPgPassword,
 } from "./store-pg";
 import { applyPipelineToLead, matchPipeline, stageIdForStatus } from "./pipelines";
-import type { Chatbot, ChatbotOption, KnowledgeItem, Message, Organization, Profile, StoreData } from "./types";
+import type {
+  AuditLog,
+  Chatbot,
+  ChatbotOption,
+  KnowledgeItem,
+  Lead,
+  Message,
+  Organization,
+  Plan,
+  Profile,
+  StoreData,
+  SupportNote,
+} from "./types";
 import { randomUUID } from "crypto";
 
 export { slugify, DEMO_WIDGET_KEY };
@@ -114,6 +139,161 @@ export async function getAdminDirectory() {
     };
   }
   return getPgAdminDirectory();
+}
+
+export type AdminLeadRow = Lead & { clinicName: string };
+export type AdminUserRow = Profile & { clinicName: string };
+export type AdminAuditRow = AuditLog & { actorEmail: string; clinicName: string };
+
+export async function getAdminLeads(): Promise<AdminLeadRow[]> {
+  if (useJsonStore()) {
+    const store = await readJsonStore();
+    return [...store.leads]
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .slice(0, 500)
+      .map((lead) => ({
+        ...lead,
+        clinicName: store.organizations.find((o) => o.id === lead.organizationId)?.name || "Unknown clinic",
+      }));
+  }
+  return getPgAdminLeads();
+}
+
+export async function getAdminUsers(): Promise<AdminUserRow[]> {
+  if (useJsonStore()) {
+    const store = await readJsonStore();
+    return [...store.profiles]
+      .sort((a, b) => a.email.localeCompare(b.email))
+      .map((user) => ({
+        ...user,
+        clinicName: user.organizationId
+          ? store.organizations.find((o) => o.id === user.organizationId)?.name || "—"
+          : "Platform",
+      }));
+  }
+  return getPgAdminUsers();
+}
+
+export async function getAdminAudit(): Promise<AdminAuditRow[]> {
+  if (useJsonStore()) {
+    const store = await readJsonStore();
+    return [...(store.auditLogs || [])]
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .slice(0, 200)
+      .map((log) => ({
+        ...log,
+        actorEmail: store.profiles.find((p) => p.id === log.actorId)?.email || "system",
+        clinicName: log.organizationId
+          ? store.organizations.find((o) => o.id === log.organizationId)?.name || log.organizationId
+          : "—",
+      }));
+  }
+  return getPgAdminAudit();
+}
+
+export async function listPlans(): Promise<Plan[]> {
+  if (useJsonStore()) {
+    const store = await readJsonStore();
+    return store.plans;
+  }
+  return getPgPlans();
+}
+
+export async function appendAuditLog(entry: AuditLog) {
+  if (useJsonStore()) {
+    await mutateJsonStore((data) => {
+      data.auditLogs.push(entry);
+    });
+    return;
+  }
+  await appendPgAudit(entry);
+}
+
+export async function saveOrganization(org: Organization) {
+  if (useJsonStore()) {
+    await mutateJsonStore((data) => {
+      const i = data.organizations.findIndex((o) => o.id === org.id);
+      if (i >= 0) data.organizations[i] = org;
+    });
+    return;
+  }
+  await savePgOrganization(org);
+}
+
+export async function insertChatbot(bot: Chatbot, options: ChatbotOption[]) {
+  if (useJsonStore()) {
+    await mutateJsonStore((data) => {
+      data.chatbots.push(bot);
+      data.chatbotOptions.push(...options);
+    });
+    return;
+  }
+  await insertPgChatbot(bot, options);
+}
+
+export async function deleteChatbotForOrg(orgId: string, botId: string) {
+  if (useJsonStore()) {
+    await mutateJsonStore((data) => {
+      const bot = data.chatbots.find((b) => b.id === botId && b.organizationId === orgId);
+      if (!bot) return;
+      data.chatbots = data.chatbots.filter((b) => b.id !== botId);
+      data.chatbotOptions = data.chatbotOptions.filter((o) => o.chatbotId !== botId);
+      data.knowledgeItems = data.knowledgeItems.filter((k) => k.chatbotId !== botId);
+    });
+    return;
+  }
+  await deletePgChatbot(orgId, botId);
+}
+
+export async function emailTaken(email: string) {
+  if (useJsonStore()) {
+    const store = await readJsonStore();
+    return store.profiles.some((p) => p.email.toLowerCase() === email);
+  }
+  return emailTakenPg(email);
+}
+
+export async function insertProfile(profile: Profile) {
+  if (useJsonStore()) {
+    await mutateJsonStore((data) => {
+      data.profiles.push(profile);
+    });
+    return;
+  }
+  await insertPgProfile(profile);
+}
+
+export async function savePlan(plan: Plan) {
+  if (useJsonStore()) {
+    await mutateJsonStore((data) => {
+      const i = data.plans.findIndex((p) => p.id === plan.id);
+      if (i >= 0) data.plans[i] = plan;
+      else data.plans.push(plan);
+    });
+    return;
+  }
+  await savePgPlan(plan);
+}
+
+export async function insertSupportNote(note: SupportNote) {
+  if (useJsonStore()) {
+    await mutateJsonStore((data) => {
+      data.supportNotes.push(note);
+    });
+    return;
+  }
+  await insertPgSupportNote(note);
+}
+
+export async function setProfilePassword(userId: string, passwordHash: string) {
+  if (useJsonStore()) {
+    await mutateJsonStore((data) => {
+      const user = data.profiles.find((p) => p.id === userId);
+      if (user) user.passwordHash = passwordHash;
+    });
+    return;
+  }
+  await setPgPassword(userId, passwordHash);
 }
 
 export async function getOwnedChatbot(botId: string, orgId: string) {

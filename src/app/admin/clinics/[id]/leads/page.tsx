@@ -1,15 +1,16 @@
 import { notFound } from "next/navigation";
+import { ImpersonateForm } from "@/components/admin/impersonate-form";
 import { BackLink, EmptyState, PageHeader, StatusBadge } from "@/components/ui";
 import { requireAdmin } from "@/lib/auth";
-import { readStore } from "@/lib/store";
+import { readClinicStore } from "@/lib/store";
 
-export default async function AdminLeadsPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function AdminClinicLeadsPage({ params }: { params: Promise<{ id: string }> }) {
   await requireAdmin();
   const { id } = await params;
-  const store = await readStore();
+  const store = await readClinicStore(id);
   const org = store.organizations.find((o) => o.id === id);
   if (!org) notFound();
-  const leads = store.leads.filter((l) => l.organizationId === id);
+  const leads = [...store.leads].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
   return (
     <div>
@@ -17,14 +18,8 @@ export default async function AdminLeadsPage({ params }: { params: Promise<{ id:
       <PageHeader
         kicker="Leads"
         title={org.name}
-        action={
-          <form action="/api/form/impersonate" method="post">
-            <input type="hidden" name="organizationId" value={id} />
-            <button className="btn" type="submit">
-              Edit in clinic CRM
-            </button>
-          </form>
-        }
+        description="Every enquiry this clinic has captured. Open a record in the clinic CRM to edit status, notes, and follow-ups."
+        action={<ImpersonateForm organizationId={id} next="/app/leads" label="Open clinic CRM" />}
       />
       <div className="table-wrap page-enter">
         {leads.length === 0 ? (
@@ -37,6 +32,7 @@ export default async function AdminLeadsPage({ params }: { params: Promise<{ id:
                 <th>Contact</th>
                 <th>Inquiry</th>
                 <th>Status</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -51,6 +47,14 @@ export default async function AdminLeadsPage({ params }: { params: Promise<{ id:
                   <td className="max-w-sm truncate">{lead.inquiry}</td>
                   <td>
                     <StatusBadge status={lead.status} />
+                  </td>
+                  <td>
+                    <ImpersonateForm
+                      organizationId={id}
+                      next={`/app/leads/${lead.id}`}
+                      label="Open"
+                      className="btn secondary"
+                    />
                   </td>
                 </tr>
               ))}

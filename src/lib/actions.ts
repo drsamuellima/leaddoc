@@ -17,12 +17,28 @@ import { sendInviteEmail, sendPasswordResetEmail } from "./email";
 import { allowDemoFallbacks } from "./config";
 import { appUrl, hasStripe, stripeGet, stripeRequest } from "./integrations";
 import { createClinicSignup } from "./clinic-signup";
-import { mutateStore, readStore, slugify } from "./store";
+import {
+  appendAuditLog,
+  clinicNotifyEmail,
+  deleteChatbotForOrg,
+  emailTaken,
+  getOrganizationById,
+  getProfileById,
+  insertChatbot,
+  insertProfile,
+  insertSupportNote,
+  listPlans,
+  mutateStore,
+  readStore,
+  saveOrganization,
+  savePlan,
+  setProfilePassword,
+} from "./store";
 import { knowledgeKey, KNOWLEDGE_PACKS } from "./knowledge-examples";
 import { parseActionType, parseWidgetFont, parseWidgetStyle, widgetFieldDefaults, type ChatbotActionType, type StoreData, type SubscriptionStatus } from "./types";
 import { completedSetup, emptySetup } from "./chatbot-setup";
 import { isLeadStatus, LEAD_STAGE_LABELS } from "./leads";
-import { applyPipelineToLead, findPipeline, generalPipeline, parseGbpToPence, sortedStages } from "./pipelines";
+import { applyPipelineToLead, findPipeline, parseGbpToPence, sortedStages } from "./pipelines";
 
 function iso() {
   return new Date().toISOString();
@@ -34,10 +50,6 @@ function parseGreetings(formData: FormData, fallback: string[]): string[] {
     .map((line) => line.trim())
     .filter(Boolean);
   return lines.length ? lines : fallback;
-}
-
-function emptyOrgContact() {
-  return { phone: "", bookingUrl: "" };
 }
 
 function defaultTreatments(chatbotId: string): {
@@ -225,41 +237,56 @@ export async function saveChatbotAction(formData: FormData) {
   redirect(`/app/chatbots/${id}?ok=saved`);
 }
 
-function removeChatbotRecords(data: StoreData, chatbotId: string) {
-  data.chatbots = data.chatbots.filter((b) => b.id !== chatbotId);
-  data.chatbotOptions = data.chatbotOptions.filter((o) => o.chatbotId !== chatbotId);
-  data.knowledgeItems = data.knowledgeItems.filter((k) => k.chatbotId !== chatbotId);
+function buildChatbot(org: { id: string; name: string; primaryColor: string; phone?: string; bookingUrl?: string }, name: string, ready: boolean) {
+  const botId = randomUUID();
+  const bot = {
+    id: botId,
+    organizationId: org.id,
+    name,
+    ...widgetFieldDefaults(org.name, org.primaryColor),
+    systemPrompt: `You are a helpful receptionist for ${org.name}.`,
+    widgetKey: widgetKey(),
+    active: ready,
+    createdAt: iso(),
+    setupComplete: ready,
+    setup: ready ? completedSetup({ phone: org.phone || "", bookingUrl: org.bookingUrl || "" }) : emptySetup(),
+  };
+  return { bot, options: ready ? defaultTreatments(botId) : [] };
+}
+
+function clinicAppPath(raw: string) {
+  const next = String(raw || "").trim();
+  if (!next.startsWith("/app")) return "/app";
+  if (next.startsWith("//") || /[\s\\]/.test(next)) return "/app";
+  return next;
+}
+
+async function recordAdmin(actorId: string, action: string, organizationId: string | null, detail: string) {
+  try {
+    await appendAuditLog({
+      id: randomUUID(),
+      actorId,
+      action,
+      organizationId,
+      detail,
+      createdAt: iso(),
+    });
+  } catch {
+    // Clinic access must not depend on the audit log write.
+  }
 }
 
 export async function createChatbotAction(_formData: FormData) {
   const { org } = await getClinicContext();
-  const id = await mutateStore((data) => {
-    const botId = randomUUID();
-    data.chatbots.push({
-      id: botId,
-      organizationId: org.id,
-      name: "New chatbot",
-      ...widgetFieldDefaults(org.name, org.primaryColor),
-      systemPrompt: `You are a helpful receptionist for ${org.name}.`,
-      widgetKey: widgetKey(),
-      active: false,
-      createdAt: iso(),
-      setupComplete: false,
-      setup: emptySetup("prescriptions"),
-    });
-    return botId;
-  });
-  redirect(`/app/chatbots/${id}/setup`);
+  const { bot } = buildChatbot(org, "New chatbot", false);
+  await insertChatbot(bot, []);
+  redirect(`/app/chatbots/${bot.id}/setup`);
 }
 
 export async function deleteChatbotAction(formData: FormData) {
   const { org } = await getClinicContext();
   const id = String(formData.get("id") || "");
-  await mutateStore((data) => {
-    const bot = data.chatbots.find((b) => b.id === id && b.organizationId === org.id);
-    if (!bot) return;
-    removeChatbotRecords(data, id);
-  });
+  await deleteChatbotForOrg(org.id, id);
   redirect("/app/chatbots?ok=deleted");
 }
 
@@ -401,16 +428,15 @@ export async function deleteKnowledgeAction(formData: FormData) {
 
 export async function saveBrandingAction(formData: FormData) {
   const { org } = await getClinicContext();
-  await mutateStore((data) => {
-    const o = data.organizations.find((x) => x.id === org.id);
-    if (!o) return;
-    o.name = String(formData.get("name") || o.name);
-    o.primaryColor = String(formData.get("primaryColor") || o.primaryColor);
-    o.logoUrl = String(formData.get("logoUrl") || "");
-    o.welcomeImageUrl = String(formData.get("welcomeImageUrl") || "");
-    o.phone = String(formData.get("phone") || "").trim();
-    o.bookingUrl = String(formData.get("bookingUrl") || "").trim();
-  });
+  const current = await getOrganizationById(org.id);
+  if (!current) redirect("/app/settings?error=missing");
+  current.name = String(formData.get("name") || current.name);
+  current.primaryColor = String(formData.get("primaryColor") || current.primaryColor);
+  current.logoUrl = String(formData.get("logoUrl") || "");
+  current.welcomeImageUrl = String(formData.get("welcomeImageUrl") || "");
+  current.phone = String(formData.get("phone") || "").trim();
+  current.bookingUrl = String(formData.get("bookingUrl") || "").trim();
+  await saveOrganization(current);
   redirect("/app/settings?ok=branding");
 }
 
@@ -421,21 +447,18 @@ export async function inviteStaffAction(formData: FormData) {
   const email = String(formData.get("email") || "").trim().toLowerCase();
   if (!name || !email) redirect("/app/settings?error=invalid");
   const password = String(formData.get("password") || "").trim() || generatePassword();
-  const created = await mutateStore((data) => {
-    if (data.profiles.some((p) => p.email.toLowerCase() === email)) return false;
-    data.profiles.push({
-      id: randomUUID(),
-      organizationId: org.id,
-      role: "clinic_staff",
-      name,
-      email,
-      passwordHash: hashPassword(password),
-      createdAt: iso(),
-    });
-    return true;
+  if (await emailTaken(email)) redirect("/app/settings?error=exists");
+  await insertProfile({
+    id: randomUUID(),
+    organizationId: org.id,
+    role: "clinic_staff",
+    name,
+    email,
+    passwordHash: hashPassword(password),
+    createdAt: iso(),
   });
-  if (created) await sendInviteEmail(email, { name, clinicName: org.name, password });
-  redirect(created ? "/app/settings?ok=staff" : "/app/settings?error=exists");
+  await sendInviteEmail(email, { name, clinicName: org.name, password });
+  redirect("/app/settings?ok=staff");
 }
 
 export async function updateLeadAction(formData: FormData) {
@@ -786,52 +809,19 @@ export async function adminCreateClinicAction(formData: FormData) {
   if (!clinicName || !ownerName || !email || password.length < 8) {
     redirect("/admin/clinics/new?error=invalid");
   }
-  const orgId = await mutateStore((data) => {
-    const id = randomUUID();
-    const userId = randomUUID();
-    data.organizations.push({
-      id,
-      name: clinicName,
-      slug: slugify(clinicName) + "-" + id.slice(0, 6),
-      logoUrl: "",
-      primaryColor: "#0f766e",
-      welcomeImageUrl: "",
-      ...emptyOrgContact(),
-      stripeCustomerId: "",
-      stripeSubscriptionId: "",
-      subscriptionStatus: "inactive",
-      allowWidgetWithoutSub: false,
-      createdAt: iso(),
-    });
-    data.profiles.push({
-      id: userId,
-      organizationId: id,
-      role: "clinic_owner",
-      name: ownerName,
-      email,
-      passwordHash: hashPassword(password),
-      createdAt: iso(),
-    });
-    return id;
-  });
-  redirect(`/admin/clinics/${orgId}`);
+  const result = await createClinicSignup({ name: ownerName, clinicName, email, password });
+  if ("error" in result) redirect("/admin/clinics/new?error=exists");
+  redirect(`/admin/clinics/${result.orgId}`);
 }
 
 export async function impersonateAction(formData: FormData) {
   const admin = await requireAdmin();
   const organizationId = String(formData.get("organizationId") || "");
+  const org = await getOrganizationById(organizationId);
+  if (!org) redirect("/admin?error=missing");
   await setImpersonate(organizationId);
-  await mutateStore((data) => {
-    data.auditLogs.push({
-      id: randomUUID(),
-      actorId: admin.id,
-      action: "impersonate",
-      organizationId,
-      detail: `${admin.email} opened clinic ${organizationId}`,
-      createdAt: iso(),
-    });
-  });
-  redirect("/app");
+  await recordAdmin(admin.id, "impersonate", organizationId, `${admin.email} opened ${org.name}`);
+  redirect(clinicAppPath(String(formData.get("next") || "/app")));
 }
 
 export async function exitImpersonateAction() {
@@ -845,73 +835,50 @@ export async function adminLinkStripeAction(formData: FormData) {
   const admin = await requireAdmin();
   const organizationId = String(formData.get("organizationId") || "");
   const customerId = String(formData.get("stripeCustomerId") || "").trim();
-  await mutateStore((data) => {
-    const org = data.organizations.find((o) => o.id === organizationId);
-    if (!org) return;
-    org.stripeCustomerId = customerId;
-    data.auditLogs.push({
-      id: randomUUID(),
-      actorId: admin.id,
-      action: "link_stripe",
-      organizationId,
-      detail: customerId,
-      createdAt: iso(),
-    });
-  });
+  const org = await getOrganizationById(organizationId);
+  if (!org) redirect("/admin");
+  org.stripeCustomerId = customerId;
   if (hasStripe() && customerId) {
     try {
       const customer = await stripeGet(`customers/${customerId}`);
       const subs = customer.subscriptions?.data ?? [];
       const sub = subs[0];
-      await mutateStore((data) => {
-        const org = data.organizations.find((o) => o.id === organizationId);
-        if (!org) return;
-        if (sub) {
-          org.stripeSubscriptionId = sub.id;
-          org.subscriptionStatus = (sub.status as SubscriptionStatus) || org.subscriptionStatus;
-        }
-      });
+      if (sub) {
+        org.stripeSubscriptionId = sub.id;
+        org.subscriptionStatus = (sub.status as SubscriptionStatus) || org.subscriptionStatus;
+      }
     } catch {
       // keep linked id even if Stripe lookup fails
     }
   }
+  await saveOrganization(org);
+  await recordAdmin(admin.id, "link_stripe", organizationId, customerId);
   redirect(`/admin/clinics/${organizationId}/billing?ok=linked`);
 }
 
 export async function adminCreateStripeSubAction(formData: FormData) {
   const admin = await requireAdmin();
   const organizationId = String(formData.get("organizationId") || "");
-  const store = await readStore();
-  const org = store.organizations.find((o) => o.id === organizationId);
-  const owner = store.profiles.find((p) => p.organizationId === organizationId && p.role === "clinic_owner");
-  const plan = store.plans.find((p) => p.active);
-  if (!org || !owner || !plan) redirect(`/admin/clinics/${organizationId}/billing?error=missing`);
+  const org = await getOrganizationById(organizationId);
+  const plans = await listPlans();
+  const plan = plans.find((p) => p.active) || plans[0];
+  const ownerEmail = await clinicNotifyEmail(organizationId);
+  if (!org || !plan) redirect(`/admin/clinics/${organizationId}/billing?error=missing`);
 
   if (!hasStripe()) {
     if (!allowDemoFallbacks()) redirect(`/admin/clinics/${organizationId}/billing?error=nostripe`);
-    await mutateStore((data) => {
-      const o = data.organizations.find((x) => x.id === organizationId);
-      if (o) {
-        o.stripeCustomerId = o.stripeCustomerId || `cus_demo_${organizationId.slice(0, 8)}`;
-        o.stripeSubscriptionId = `sub_demo_${randomUUID().slice(0, 8)}`;
-        o.subscriptionStatus = "active";
-      }
-      data.auditLogs.push({
-        id: randomUUID(),
-        actorId: admin.id,
-        action: "create_stripe_demo",
-        organizationId,
-        detail: "Demo customer + subscription (no Stripe key)",
-        createdAt: iso(),
-      });
-    });
+    org.stripeCustomerId = org.stripeCustomerId || `cus_demo_${organizationId.slice(0, 8)}`;
+    org.stripeSubscriptionId = `sub_demo_${randomUUID().slice(0, 8)}`;
+    org.subscriptionStatus = "active";
+    await saveOrganization(org);
+    await recordAdmin(admin.id, "create_stripe_demo", organizationId, "Demo customer + subscription (no Stripe key)");
     redirect(`/admin/clinics/${organizationId}/billing?ok=demo`);
   }
 
   let customerId = org.stripeCustomerId;
   if (!customerId) {
     const params = new URLSearchParams();
-    params.set("email", owner.email);
+    params.set("email", ownerEmail || admin.email);
     params.set("name", org.name);
     params.set("metadata[organization_id]", organizationId);
     const customer = await stripeRequest("customers", params);
@@ -928,14 +895,11 @@ export async function adminCreateStripeSubAction(formData: FormData) {
     subParams.set("items[0][price_data][recurring][interval]", "month");
   }
   const sub = await stripeRequest("subscriptions", subParams);
-  await mutateStore((data) => {
-    const o = data.organizations.find((x) => x.id === organizationId);
-    if (o) {
-      o.stripeCustomerId = customerId;
-      o.stripeSubscriptionId = sub.id;
-      o.subscriptionStatus = (sub.status as SubscriptionStatus) || "active";
-    }
-  });
+  org.stripeCustomerId = customerId;
+  org.stripeSubscriptionId = sub.id;
+  org.subscriptionStatus = (sub.status as SubscriptionStatus) || "active";
+  await saveOrganization(org);
+  await recordAdmin(admin.id, "create_stripe_sub", organizationId, sub.id);
   redirect(`/admin/clinics/${organizationId}/billing?ok=created`);
 }
 
@@ -943,22 +907,12 @@ export async function adminChargeAction(formData: FormData) {
   const admin = await requireAdmin();
   const organizationId = String(formData.get("organizationId") || "");
   const amountPence = Number(formData.get("amountPence") || 0);
-  const store = await readStore();
-  const org = store.organizations.find((o) => o.id === organizationId);
+  const org = await getOrganizationById(organizationId);
   if (!org) redirect("/admin");
 
   if (!hasStripe()) {
     if (!allowDemoFallbacks()) redirect(`/admin/clinics/${organizationId}/billing?error=nostripe`);
-    await mutateStore((data) => {
-      data.auditLogs.push({
-        id: randomUUID(),
-        actorId: admin.id,
-        action: "charge_demo",
-        organizationId,
-        detail: `Demo charge ${amountPence} pence`,
-        createdAt: iso(),
-      });
-    });
+    await recordAdmin(admin.id, "charge_demo", organizationId, `Demo charge ${amountPence} pence`);
     redirect(`/admin/clinics/${organizationId}/billing?ok=charged-demo`);
   }
   if (!org.stripeCustomerId) {
@@ -977,40 +931,27 @@ export async function adminChargeAction(formData: FormData) {
     const message = e instanceof Error ? e.message : "charge failed";
     redirect(`/admin/clinics/${organizationId}/billing?error=${encodeURIComponent(message)}`);
   }
-  await mutateStore((data) => {
-    data.auditLogs.push({
-      id: randomUUID(),
-      actorId: admin.id,
-      action: "charge",
-      organizationId,
-      detail: `${amountPence} pence`,
-      createdAt: iso(),
-    });
-  });
+  await recordAdmin(admin.id, "charge", organizationId, `${amountPence} pence`);
   redirect(`/admin/clinics/${organizationId}/billing?ok=charged`);
 }
 
 export async function adminSavePlanAction(formData: FormData) {
   await requireAdmin();
-  const id = String(formData.get("id") || "");
-  await mutateStore((data) => {
-    let plan = data.plans.find((p) => p.id === id);
-    if (!plan) {
-      plan = {
-        id: id || randomUUID(),
-        name: "Clinic Standard",
-        amountPence: 7900,
-        interval: "month",
-        stripePriceId: "",
-        active: true,
-      };
-      data.plans.push(plan);
-    }
-    plan.name = String(formData.get("name") || plan.name);
-    plan.amountPence = Number(formData.get("amountPence") || plan.amountPence);
-    plan.stripePriceId = String(formData.get("stripePriceId") || "");
-    plan.active = formData.get("active") === "on";
-  });
+  const existing = await listPlans();
+  const id = String(formData.get("id") || existing[0]?.id || randomUUID());
+  const plan = existing.find((p) => p.id === id) || {
+    id,
+    name: "Clinic Standard",
+    amountPence: 7900,
+    interval: "month" as const,
+    stripePriceId: "",
+    active: true,
+  };
+  plan.name = String(formData.get("name") || plan.name);
+  plan.amountPence = Number(formData.get("amountPence") || plan.amountPence);
+  plan.stripePriceId = String(formData.get("stripePriceId") || "");
+  plan.active = formData.get("active") === "on";
+  await savePlan(plan);
   redirect("/admin/plans?ok=saved");
 }
 
@@ -1018,14 +959,13 @@ export async function adminAddSupportNoteAction(formData: FormData) {
   const admin = await requireAdmin();
   const organizationId = String(formData.get("organizationId") || "");
   const body = String(formData.get("body") || "").trim();
-  await mutateStore((data) => {
-    data.supportNotes.push({
-      id: randomUUID(),
-      organizationId,
-      authorId: admin.id,
-      body,
-      createdAt: iso(),
-    });
+  if (!body) redirect(`/admin/clinics/${organizationId}`);
+  await insertSupportNote({
+    id: randomUUID(),
+    organizationId,
+    authorId: admin.id,
+    body,
+    createdAt: iso(),
   });
   redirect(`/admin/clinics/${organizationId}`);
 }
@@ -1033,49 +973,72 @@ export async function adminAddSupportNoteAction(formData: FormData) {
 export async function adminToggleWidgetExceptionAction(formData: FormData) {
   await requireAdmin();
   const organizationId = String(formData.get("organizationId") || "");
-  await mutateStore((data) => {
-    const org = data.organizations.find((o) => o.id === organizationId);
-    if (org) org.allowWidgetWithoutSub = !org.allowWidgetWithoutSub;
-  });
+  const org = await getOrganizationById(organizationId);
+  if (!org) redirect("/admin");
+  org.allowWidgetWithoutSub = !org.allowWidgetWithoutSub;
+  await saveOrganization(org);
   redirect(`/admin/clinics/${organizationId}/billing`);
 }
 
 export async function adminCreateChatbotAction(formData: FormData) {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const organizationId = String(formData.get("organizationId") || "");
-  const name = String(formData.get("name") || "Chatbot");
+  const org = await getOrganizationById(organizationId);
+  if (!org) redirect("/admin");
+  const name = String(formData.get("name") || `${org.name} chatbot`).trim() || `${org.name} chatbot`;
+  const ready = formData.get("ready") !== "draft";
+  const { bot, options } = buildChatbot(org, name, ready);
+  await insertChatbot(bot, options);
   await setImpersonate(organizationId);
-  const id = await mutateStore((data) => {
-    const botId = randomUUID();
-    const org = data.organizations.find((o) => o.id === organizationId);
-    data.chatbots.push({
-      id: botId,
-      organizationId,
-      name,
-      ...widgetFieldDefaults(org?.name ?? "the practice", org?.primaryColor || "#0f766e"),
-      systemPrompt: `You are a helpful receptionist for ${org?.name ?? "the practice"}.`,
-      widgetKey: widgetKey(),
-      active: true,
-      createdAt: iso(),
-      setupComplete: true,
-      setup: completedSetup({ phone: "", bookingUrl: "" }),
-    });
-    data.chatbotOptions.push(...defaultTreatments(botId));
-    return botId;
-  });
-  redirect(`/app/chatbots/${id}?from=admin`);
+  await recordAdmin(admin.id, "create_chatbot", organizationId, bot.name);
+  redirect(ready ? `/app/chatbots/${bot.id}` : `/app/chatbots/${bot.id}/setup`);
 }
 
 export async function adminDeleteChatbotAction(formData: FormData) {
   await requireAdmin();
   const organizationId = String(formData.get("organizationId") || "");
   const id = String(formData.get("id") || "");
-  await mutateStore((data) => {
-    const bot = data.chatbots.find((b) => b.id === id && b.organizationId === organizationId);
-    if (!bot) return;
-    removeChatbotRecords(data, id);
-  });
+  await deleteChatbotForOrg(organizationId, id);
   redirect(`/admin/clinics/${organizationId}/chatbots?ok=deleted`);
+}
+
+export async function adminSaveBrandingAction(formData: FormData) {
+  await requireAdmin();
+  const organizationId = String(formData.get("organizationId") || "");
+  const org = await getOrganizationById(organizationId);
+  if (!org) redirect("/admin");
+  org.name = String(formData.get("name") || org.name);
+  org.primaryColor = String(formData.get("primaryColor") || org.primaryColor);
+  org.logoUrl = String(formData.get("logoUrl") || "");
+  org.welcomeImageUrl = String(formData.get("welcomeImageUrl") || "");
+  org.phone = String(formData.get("phone") || "").trim();
+  org.bookingUrl = String(formData.get("bookingUrl") || "").trim();
+  await saveOrganization(org);
+  redirect(`/admin/clinics/${organizationId}?ok=branding`);
+}
+
+export async function adminInviteStaffAction(formData: FormData) {
+  const admin = await requireAdmin();
+  const organizationId = String(formData.get("organizationId") || "");
+  const org = await getOrganizationById(organizationId);
+  if (!org) redirect("/admin");
+  const name = String(formData.get("name") || "").trim();
+  const email = String(formData.get("email") || "").trim().toLowerCase();
+  if (!name || !email) redirect(`/admin/clinics/${organizationId}?error=invalid`);
+  const password = String(formData.get("password") || "").trim() || generatePassword();
+  if (await emailTaken(email)) redirect(`/admin/clinics/${organizationId}?error=exists`);
+  await insertProfile({
+    id: randomUUID(),
+    organizationId,
+    role: "clinic_staff",
+    name,
+    email,
+    passwordHash: hashPassword(password),
+    createdAt: iso(),
+  });
+  await sendInviteEmail(email, { name, clinicName: org.name, password });
+  await recordAdmin(admin.id, "invite_staff", organizationId, email);
+  redirect(`/admin/clinics/${organizationId}?ok=staff`);
 }
 
 function removeOrganizationRecords(data: StoreData, orgId: string) {
@@ -1108,20 +1071,12 @@ export async function adminSetSubscriptionAction(formData: FormData) {
   const organizationId = String(formData.get("organizationId") || "");
   const status = String(formData.get("subscriptionStatus") || "");
   const allowWidget = formData.get("allowWidgetWithoutSub") === "on";
-  await mutateStore((data) => {
-    const org = data.organizations.find((o) => o.id === organizationId);
-    if (!org || !isSubscriptionStatus(status)) return;
-    org.subscriptionStatus = status;
-    org.allowWidgetWithoutSub = allowWidget;
-    data.auditLogs.push({
-      id: randomUUID(),
-      actorId: admin.id,
-      action: "set_subscription",
-      organizationId,
-      detail: `${status}; widget exception ${allowWidget ? "on" : "off"}`,
-      createdAt: iso(),
-    });
-  });
+  const org = await getOrganizationById(organizationId);
+  if (!org || !isSubscriptionStatus(status)) redirect(`/admin/clinics/${organizationId}`);
+  org.subscriptionStatus = status;
+  org.allowWidgetWithoutSub = allowWidget;
+  await saveOrganization(org);
+  await recordAdmin(admin.id, "set_subscription", organizationId, `${status}; widget exception ${allowWidget ? "on" : "off"}`);
   redirect(`/admin/clinics/${organizationId}?ok=access`);
 }
 
@@ -1130,19 +1085,12 @@ export async function adminDeleteClinicAction(formData: FormData) {
   const organizationId = String(formData.get("organizationId") || "");
   const confirm = String(formData.get("confirm") || "").trim();
   if (confirm !== "DELETE") redirect(`/admin/clinics/${organizationId}?error=confirm`);
+  const org = await getOrganizationById(organizationId);
   await mutateStore((data) => {
-    const org = data.organizations.find((o) => o.id === organizationId);
-    if (!org) return;
+    if (!data.organizations.some((o) => o.id === organizationId)) return;
     removeOrganizationRecords(data, organizationId);
-    data.auditLogs.push({
-      id: randomUUID(),
-      actorId: admin.id,
-      action: "delete_clinic",
-      organizationId: null,
-      detail: `Deleted ${org.name} (${organizationId})`,
-      createdAt: iso(),
-    });
   });
+  await recordAdmin(admin.id, "delete_clinic", null, `Deleted ${org?.name || organizationId} (${organizationId})`);
   redirect("/admin?ok=deleted");
 }
 
@@ -1151,19 +1099,10 @@ export async function adminResetUserPasswordAction(formData: FormData) {
   const userId = String(formData.get("userId") || "");
   const password = String(formData.get("password") || "");
   if (password.length < 8) redirect("/admin/users?error=short");
-  await mutateStore((data) => {
-    const user = data.profiles.find((p) => p.id === userId);
-    if (!user) return;
-    user.passwordHash = hashPassword(password);
-    data.auditLogs.push({
-      id: randomUUID(),
-      actorId: admin.id,
-      action: "reset_password",
-      organizationId: user.organizationId,
-      detail: `Reset password for ${user.email}`,
-      createdAt: iso(),
-    });
-  });
+  const user = await getProfileById(userId);
+  if (!user) redirect("/admin/users?error=missing");
+  await setProfilePassword(userId, hashPassword(password));
+  await recordAdmin(admin.id, "reset_password", user.organizationId, `Reset password for ${user.email}`);
   redirect("/admin/users?ok=reset");
 }
 

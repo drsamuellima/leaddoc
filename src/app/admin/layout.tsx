@@ -1,7 +1,7 @@
 import { DashboardShell } from "@/components/dashboard-shell";
 import { requireAdmin } from "@/lib/auth";
 
-export const maxDuration = 15;
+export const maxDuration = 30;
 
 const nav = [
   { href: "/admin", label: "Clinics", icon: "clinics" as const },

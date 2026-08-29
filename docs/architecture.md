@@ -32,7 +32,9 @@ All clinic data is filtered by `organizationId`. The layout at `src/app/app/layo
 
 ### Platform admin (`/admin`)
 
-A user with role **super_admin**. They are not tied to one clinic. They can list every practice, edit billing and plans, add support notes, and **impersonate** a clinic (work in `/app` as if they were that practice). Non-admins who hit `/admin` are sent to `/app`.
+A user with role **super_admin**. They are not tied to one clinic. They can list every practice, see every lead and chatbot, edit billing and plans, change a clinic’s account settings and staff, add support notes, and **impersonate** a clinic (work in `/app` as if they were that practice). Non-admins who hit `/admin` are sent to `/app`.
+
+Opening a clinic hub loads that organisation only. All-leads, users, activity, and plans use small queries. Impersonation sets a cookie and does not rewrite every table. That keeps admin navigation from timing out.
 
 On a live database the first admin is created from `ADMIN_EMAIL` and `ADMIN_PASSWORD`. Local JSON demo still seeds `clinic@dentchat.local` and `admin@dentchat.local`.
 
@@ -55,7 +57,7 @@ Login (failed passwords only), signup, password reset, widget chat, and website 
 
 [`src/lib/store.ts`](../src/lib/store.ts) is the facade. With `USE_JSON_STORE=1` it reads `.data/store.json`. Otherwise it uses Postgres (`src/lib/store-pg.ts`). Clinic screens load one organisation at a time. Sign-up inserts organisation, owner, chatbot, and pipeline rows directly. The setup wizard updates that chatbot without rewriting the whole database.
 
-Login and session checks read a single profile (or organisation) row. Clinic screens load one organisation in a single Postgres round-trip, and layout plus page reuse that result for the same request. The widget looks up one chatbot by widget key instead of loading every table. The admin clinic directory uses a small set of queries (organisations plus lead counts). Full-store mutations still take an advisory lock and rewrite every table — only remaining admin/legacy form handlers use that path.
+Login and session checks read a single profile (or organisation) row. Clinic screens load one organisation in a single Postgres round-trip, and layout plus page reuse that result for the same request. The widget looks up one chatbot by widget key instead of loading every table. The clinic directory uses organisations plus lead counts. Other admin screens load one clinic or a small list (leads, users, audit, plans). Full-store mutations still take an advisory lock and rewrite every table — only remaining bulk deletes (delete clinic) and some clinic CRM handlers use that path. Impersonation, subscription, branding, staff invite, and chatbot create/delete use targeted writes.
 
 The Postgres client prefers IPv4, uses the transaction pooler (`pgbouncer=true`), one connection per instance, and an 8-second statement timeout so a hung pooler connection fails before Vercel returns 504. Login also aborts after 8 seconds and returns a JSON error.
 
@@ -83,7 +85,7 @@ Server mutations live in [`src/lib/actions.ts`](../src/lib/actions.ts). Browser 
 
 Clinics subscribe monthly. Statuses: `inactive`, `trialing`, `active`, `past_due`, `canceled`.
 
-- Clinic **Settings** starts checkout (`POST /api/form/checkout`) and, after a customer exists, **Manage billing** opens the Stripe Customer Portal.
+- Clinic **Settings** shows a subscription panel (status, price, widget access) then **Subscribe monthly** (`POST /api/form/checkout`). After a customer exists, **Manage billing** opens the Stripe Customer Portal.
 - Stripe sends events to `POST /api/stripe/webhook`, which verifies `STRIPE_WEBHOOK_SECRET` and updates the organisation. `past_due` emails the clinic owner.
 - Admins can link a Stripe customer, create a subscription, charge a card on file, or allow the widget to run without a paid sub.
 - Simulation (activate without Stripe) only happens with `USE_JSON_STORE=1`. Production fails closed if keys are missing.

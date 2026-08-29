@@ -10,7 +10,9 @@ import {
   adminCreateChatbotAction,
   adminCreateClinicAction,
   adminCreateStripeSubAction,
+  adminInviteStaffAction,
   adminLinkStripeAction,
+  adminSaveBrandingAction,
   adminSavePlanAction,
   adminToggleWidgetExceptionAction,
   adminSetSubscriptionAction,
@@ -50,6 +52,8 @@ import {
   completeLeadRecallAction,
   updateOptionAction,
 } from "@/lib/actions";
+
+export const maxDuration = 30;
 
 const handlers: Record<string, (formData: FormData) => Promise<void>> = {
   signup: signupAction,
@@ -97,6 +101,8 @@ const handlers: Record<string, (formData: FormData) => Promise<void>> = {
   adminCreateChatbot: adminCreateChatbotAction,
   adminDeleteChatbot: adminDeleteChatbotAction,
   adminSetSubscription: adminSetSubscriptionAction,
+  adminSaveBranding: adminSaveBrandingAction,
+  adminInviteStaff: adminInviteStaffAction,
   adminDeleteClinic: adminDeleteClinicAction,
   adminResetUserPassword: adminResetUserPasswordAction,
 };

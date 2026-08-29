@@ -55,7 +55,7 @@ export function buildClinicSignup(input: {
     active: false,
     createdAt,
     setupComplete: false,
-    setup: emptySetup("prescriptions"),
+    setup: emptySetup(),
   };
   return { org, user, bot, pipeline: generalPipeline(orgId, createdAt) };
 }
@@ -65,7 +65,7 @@ export async function createClinicSignup(input: {
   clinicName: string;
   email: string;
   password: string;
-}): Promise<{ userId: string; botId: string } | { error: "exists" }> {
+}): Promise<{ userId: string; botId: string; orgId: string } | { error: "exists" }> {
   const passwordHash = hashPassword(input.password);
   const built = buildClinicSignup({
     name: input.name,
@@ -82,7 +82,7 @@ export async function createClinicSignup(input: {
       data.profiles.push(built.user);
       data.chatbots.push(built.bot);
       data.pipelines.push(built.pipeline);
-      return { userId: built.user.id, botId: built.bot.id };
+      return { userId: built.user.id, botId: built.bot.id, orgId: built.org.id };
     });
   }
   return createClinicSignupPg({

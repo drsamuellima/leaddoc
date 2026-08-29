@@ -12,6 +12,7 @@ export default async function NewClinicPage({
     <div>
       <PageHeader kicker="Platform" title="Add clinic" description="Create a practice and owner login by hand." />
       {error === "invalid" ? <p className="mb-4 text-sm font-medium text-red-700">Fill all fields. Password must be 8+ characters.</p> : null}
+      {error === "exists" ? <p className="mb-4 text-sm font-medium text-red-700">That email already has an account.</p> : null}
       <form action="/api/form/adminCreateClinic" method="post" className="card max-w-lg space-y-3 page-enter">
         <div>
           <label>Practice name</label>

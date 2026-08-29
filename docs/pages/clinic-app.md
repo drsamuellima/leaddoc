@@ -2,7 +2,7 @@
 
 Everything under `/app` is the practice workspace. The layout (`src/app/app/layout.tsx`) requires a signed-in user with a clinic (`getClinicContext`). Super admins only get here by impersonating a clinic. Layout and page share one clinic data load for that request.
 
-Nav: Overview, Chatbots, Leads, Pipelines, Conversations, Settings. The shell can search patients (submits to `/app/leads`) and shows unread “new lead” notifications. The dark sidebar uses the official LeadDr. wordmark (dark-background version) plus the practice name.
+Nav: Overview, Chatbots, Leads, Pipelines, Conversations, Settings. The shell can search patients (submits to `/app/leads`) and shows unread “new lead” notifications. The dark sidebar uses the official LeadDr. wordmark (dark-background version) plus the practice name. The main canvas — search bar and page together — shares one cream background with the same soft colour wash, so the header is not a separate white strip.
 
 Related: [architecture.md](../architecture.md), [widget.md](widget.md), [apis.md](../apis.md).
 
@@ -33,11 +33,9 @@ Lists this practice’s chatbots as cards (name, greeting, widget key, active/in
 **File:** `src/app/app/chatbots/[id]/setup/page.tsx` (UI: `src/components/chatbot-setup/wizard.tsx`)  
 **Who:** clinic owner, clinic staff, impersonating admin (must own this bot)
 
-AI-guided Clinix setup for a new chatbot. Glass cards, numbered step rail, progress, and a checklist (prescriptions, website scanned, knowledge approved, name, phone, booking link, greetings, treatment buttons, system prompt). Cards: Prescriptions → Website → Review knowledge → Finish setup → Booking → Enter Clinix. Prescriptions is always open. Website can be skipped. Interview, booking, and Enter Clinix unlock after at least one prescription is chosen (or knowledge is approved). Every field, scan, approval, and chat turn auto-saves (`PATCH /api/chatbots/[id]/setup`). There is no Save button.
+AI-guided clinic sign-up for a new chatbot. Glass cards, numbered step rail, progress, and a checklist (website scanned, knowledge approved, name, phone, booking link, greetings, treatment buttons, system prompt). Cards: Website scan → Review knowledge → Finish setup → Booking → Open clinic. Website scan is always open. Later cards stay locked until the previous work is done (knowledge is required before interview, booking, and open clinic). Every field, scan, approval, and chat turn auto-saves (`PATCH /api/chatbots/[id]/setup`). There is no Save button.
 
-**Prescriptions.** A visual catalogue of common UK dental treatments. The clinic taps the ones they offer, or adds a custom name. **Enter Clinix** writes those as widget buttons, marks setup complete, and opens `/app`. **Scan website next** keeps them in the wizard.
-
-**Website.** Paste an `http`/`https` URL and **Scan**. The server fetches the homepage and a few same-site pages (About, Contact, Treatments, Hours, and similar). Localhost and private IPs are blocked. Gemini (when `GEMINI_API_KEY` is in `.env.local`) returns a structured draft. If the key is missing, the page shows a warning and we fall back to heuristics plus the dental FAQ catalog. If the key is set but Gemini fails, the scan returns that error instead of pretending it worked.
+**Website scan.** Paste an `http`/`https` URL and **Scan**. The server fetches the homepage and a few same-site pages (About, Contact, Treatments, Hours, and similar). Localhost and private IPs are blocked. Gemini (when `GEMINI_API_KEY` is in `.env.local`) returns a structured draft. If the key is missing, the page shows a warning and we fall back to heuristics plus the dental FAQ catalog. If the key is set but Gemini fails, the scan returns that error instead of pretending it worked.
 
 **Review knowledge.** Organised into Practice, Services, From the website, and Suggested extras. A summary shows how many practice fields, services, and answers were found, plus pills for name, phone, and booking. After a scan, Gemini fills name, phone, and booking from the pages when they are clearly there; otherwise those stay blank. Services are the treatments the site actually lists — not a generic catalogue — and become widget buttons (Chat, Book, or Call). The homepage is not used as a booking link. Site answers and suggested extras are edited separately. **Approve knowledge** writes FAQs and service buttons onto the bot.
 
@@ -45,7 +43,7 @@ AI-guided Clinix setup for a new chatbot. Glass cards, numbered step rail, progr
 
 **Booking.** Dedicated form for a Dentally (or other) booking URL and the practice phone.
 
-**Go live / Enter Clinix.** Marks setup complete and opens the clinic workspace (`/app`). **Activate widget** also turns the public chat on. The embed snippet can be copied here or later from the studio.
+**Go live / Open clinic.** Marks setup complete and opens the clinic workspace (`/app`). **Activate widget** also turns the public chat on. The embed snippet can be copied here or later from the studio.
 
 Unknown ids return 404. Incomplete bots that open `/app/chatbots/[id]` are sent here. **Delete draft** removes the bot the same way as the list page.
 
@@ -167,7 +165,7 @@ Read-only transcript of one chat. If a lead is attached, there is a link to that
 Practice settings in three blocks:
 
 - **Branding** — practice name, primary colour, logo URL, welcome photo URL, phone (used by Call on the widget), Dentally/booking URL (used by Book unless a treatment overrides it). Saved with `saveBranding`.
-- **Billing** — current subscription status, **Subscribe monthly** (`checkout`), and **Manage billing** (`billingPortal`) when a Stripe customer already exists.
+- **Billing** — subscription panel (status, monthly price, widget access), **Subscribe monthly** (`checkout`), and **Manage billing** (`billingPortal`) when a Stripe customer already exists.
 - **Team** — list of people on this clinic; add staff with name, email, and an optional temporary password (`inviteStaff`). A password is generated and emailed if left blank. Owners (and admins) can invite; clinic staff cannot.
 
 **Reads/writes:** `organizations`, `profiles`; checkout may talk to Stripe.

@@ -713,6 +713,164 @@ export async function getPgAdminDirectory() {
   };
 }
 
+export async function getPgAdminLeads() {
+  await ensureBootstrap();
+  const sql = getSql();
+  const rows = await sql`
+    select l.*, o.name as clinic_name
+    from leads l
+    left join organizations o on o.id = l.organization_id
+    order by l.created_at desc
+    limit 500
+  `;
+  return rows.map((row) => ({
+    ...mapLead(row as Record<string, unknown>),
+    clinicName: str(row.clinic_name, "Unknown clinic"),
+  }));
+}
+
+export async function getPgAdminUsers() {
+  await ensureBootstrap();
+  const sql = getSql();
+  const rows = await sql`
+    select p.*, o.name as clinic_name
+    from profiles p
+    left join organizations o on o.id = p.organization_id
+    order by p.email
+  `;
+  return rows.map((row) => ({
+    ...mapProfile(row as Record<string, unknown>),
+    clinicName: row.organization_id ? str(row.clinic_name, "—") : "Platform",
+  }));
+}
+
+export async function getPgAdminAudit() {
+  await ensureBootstrap();
+  const sql = getSql();
+  const rows = await sql`
+    select a.*, p.email as actor_email, o.name as clinic_name
+    from audit_logs a
+    left join profiles p on p.id = a.actor_id
+    left join organizations o on o.id = a.organization_id
+    order by a.created_at desc
+    limit 200
+  `;
+  return rows.map((row) => ({
+    ...mapAudit(row as Record<string, unknown>),
+    actorEmail: str(row.actor_email, "system"),
+    clinicName: row.organization_id ? str(row.clinic_name, String(row.organization_id)) : "—",
+  }));
+}
+
+export async function getPgPlans() {
+  await ensureBootstrap();
+  const sql = getSql();
+  const rows = await sql`select * from plans order by name`;
+  return rows.map((row) => mapPlan(row as Record<string, unknown>));
+}
+
+export async function appendPgAudit(entry: AuditLog) {
+  await ensureBootstrap();
+  const sql = getSql();
+  await sql`
+    insert into audit_logs (id, actor_id, action, organization_id, detail, created_at)
+    values (
+      ${entry.id}::uuid, ${uuidOrNull(entry.actorId)}::uuid, ${entry.action},
+      ${uuidOrNull(entry.organizationId)}::uuid, ${entry.detail}, ${entry.createdAt}
+    )
+  `;
+}
+
+export async function savePgOrganization(org: Organization) {
+  if (!isUuid(org.id)) return;
+  await ensureBootstrap();
+  const sql = getSql();
+  await sql`
+    update organizations set
+      name = ${org.name},
+      slug = ${org.slug},
+      logo_url = ${org.logoUrl},
+      primary_color = ${org.primaryColor},
+      welcome_image_url = ${org.welcomeImageUrl},
+      phone = ${org.phone},
+      booking_url = ${org.bookingUrl},
+      stripe_customer_id = ${org.stripeCustomerId},
+      stripe_subscription_id = ${org.stripeSubscriptionId},
+      subscription_status = ${org.subscriptionStatus},
+      allow_widget_without_sub = ${org.allowWidgetWithoutSub}
+    where id = ${org.id}::uuid
+  `;
+}
+
+export async function insertPgChatbot(bot: Chatbot, options: ChatbotOption[]) {
+  if (!isUuid(bot.id) || !isUuid(bot.organizationId)) return;
+  await ensureBootstrap();
+  const sql = getSql();
+  await sql.begin(async (tx) => {
+    await persistChatbot(tx, bot);
+    await persistBotChildren(tx, bot.id, options, []);
+  });
+}
+
+export async function deletePgChatbot(orgId: string, botId: string) {
+  if (!isUuid(orgId) || !isUuid(botId)) return;
+  await ensureBootstrap();
+  const sql = getSql();
+  await sql.begin(async (tx) => {
+    const owned = await tx`select id from chatbots where id = ${botId}::uuid and organization_id = ${orgId}::uuid`;
+    if (!owned.length) return;
+    await tx`delete from chatbot_options where chatbot_id = ${botId}::uuid`;
+    await tx`delete from knowledge_items where chatbot_id = ${botId}::uuid`;
+    await tx`delete from chatbots where id = ${botId}::uuid`;
+  });
+}
+
+export async function insertPgProfile(profile: Profile) {
+  await ensureBootstrap();
+  const sql = getSql();
+  await sql`
+    insert into profiles (id, organization_id, role, name, email, password_hash, created_at)
+    values (
+      ${profile.id}::uuid, ${uuidOrNull(profile.organizationId)}::uuid, ${profile.role},
+      ${profile.name}, ${profile.email}, ${profile.passwordHash}, ${profile.createdAt}
+    )
+  `;
+}
+
+export async function emailTakenPg(email: string) {
+  await ensureBootstrap();
+  const sql = getSql();
+  const rows = await sql`select id from profiles where lower(email) = ${email} limit 1`;
+  return rows.length > 0;
+}
+
+export async function savePgPlan(plan: Plan) {
+  await ensureBootstrap();
+  const sql = getSql();
+  await sql`
+    insert into plans as t (id, name, amount_pence, interval, stripe_price_id, active)
+    values (${plan.id}::uuid, ${plan.name}, ${plan.amountPence}, ${plan.interval}, ${plan.stripePriceId}, ${plan.active})
+    on conflict (id) do update set
+      name = excluded.name, amount_pence = excluded.amount_pence, interval = excluded.interval,
+      stripe_price_id = excluded.stripe_price_id, active = excluded.active
+  `;
+}
+
+export async function insertPgSupportNote(note: SupportNote) {
+  await ensureBootstrap();
+  const sql = getSql();
+  await sql`
+    insert into support_notes (id, organization_id, author_id, body, created_at)
+    values (${note.id}::uuid, ${note.organizationId}::uuid, ${uuidOrNull(note.authorId)}::uuid, ${note.body}, ${note.createdAt})
+  `;
+}
+
+export async function setPgPassword(userId: string, passwordHash: string) {
+  if (!isUuid(userId)) return;
+  await ensureBootstrap();
+  await getSql()`update profiles set password_hash = ${passwordHash} where id = ${userId}::uuid`;
+}
+
 export async function readPgStore(): Promise<StoreData> {
   if (!bootstrapped) {
     await ensureBootstrap();
@@ -783,7 +941,7 @@ export async function createClinicSignupPg(input: {
   user: Profile;
   bot: Chatbot;
   pipeline: TreatmentPipeline;
-}): Promise<{ userId: string; botId: string } | { error: "exists" }> {
+}): Promise<{ userId: string; botId: string; orgId: string } | { error: "exists" }> {
   await ensureBootstrap();
   const sql = getSql();
   const existing = await sql`select id from profiles where lower(email) = ${input.email} limit 1`;
@@ -816,7 +974,7 @@ export async function createClinicSignupPg(input: {
       `;
     });
     bootstrapped = true;
-    return { userId: p.id, botId: input.bot.id };
+    return { userId: p.id, botId: input.bot.id, orgId: o.id };
   } catch (err) {
     const code = typeof err === "object" && err && "code" in err ? String((err as { code?: string }).code) : "";
     if (code === "23505") return { error: "exists" };

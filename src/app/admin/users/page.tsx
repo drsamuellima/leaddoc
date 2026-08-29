@@ -1,16 +1,21 @@
 import { EmptyState, PageHeader } from "@/components/ui";
 import { requireAdmin } from "@/lib/auth";
-import { readStore } from "@/lib/store";
+import { getAdminUsers } from "@/lib/store";
 
-export default async function AdminUsersPage() {
+export default async function AdminUsersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ ok?: string; error?: string }>;
+}) {
   await requireAdmin();
-  const store = await readStore();
-  const users = [...store.profiles].sort((a, b) => a.email.localeCompare(b.email));
-  const orgName = (id: string | null) => (id ? store.organizations.find((o) => o.id === id)?.name || "—" : "Platform");
+  const { ok, error } = await searchParams;
+  const users = await getAdminUsers();
 
   return (
     <div>
       <PageHeader kicker="Platform" title="Users" description="Every login: platform admins, clinic owners, and staff. Reset a password without impersonating." />
+      {ok === "reset" ? <p className="mb-4 text-sm font-medium text-lime-800">Password reset.</p> : null}
+      {error === "short" ? <p className="mb-4 text-sm font-medium text-red-700">Password must be 8+ characters.</p> : null}
       <div className="table-wrap page-enter">
         {users.length === 0 ? (
           <EmptyState title="No users" body="The first platform admin is created from ADMIN_EMAIL on boot." />
@@ -32,7 +37,7 @@ export default async function AdminUsersPage() {
                     <div className="text-xs text-neutral-500">{user.email}</div>
                   </td>
                   <td>{user.role.replace(/_/g, " ")}</td>
-                  <td>{orgName(user.organizationId)}</td>
+                  <td>{user.clinicName}</td>
                   <td>
                     <form action="/api/form/adminResetUserPassword" method="post" className="flex flex-wrap items-end gap-2">
                       <input type="hidden" name="userId" value={user.id} />

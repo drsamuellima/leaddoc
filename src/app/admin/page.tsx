@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ImpersonateForm } from "@/components/admin/impersonate-form";
 import { EmptyState, PageHeader, StatusBadge } from "@/components/ui";
 import { requireAdmin } from "@/lib/auth";
 import { platformStatus } from "@/lib/platform-status";
@@ -84,12 +85,7 @@ export default async function AdminHome({
                       <Link href={`/admin/clinics/${org.id}`} className="btn secondary">
                         Open
                       </Link>
-                      <form action="/api/form/impersonate" method="post">
-                        <input type="hidden" name="organizationId" value={org.id} />
-                        <button className="btn" type="submit">
-                          Open as clinic
-                        </button>
-                      </form>
+                      <ImpersonateForm organizationId={org.id} label="Open as clinic" />
                     </div>
                   </td>
                 </tr>

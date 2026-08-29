@@ -26,7 +26,7 @@ If you add or remove a handler, add or remove its heading in this file.
 
 ### signup
 
-Public. Creates a clinic, owner account, a draft chatbot (inactive until they activate it), and a general pipeline, then signs the owner in and sends them to the Clinix prescription wizard. Treatment buttons are chosen in that wizard, not at sign-up. On Postgres this writes those rows directly.
+Public. Creates a clinic, owner account, a draft chatbot (inactive until they activate it), and a general pipeline, then signs the owner in and sends them to the clinic sign-up wizard, starting with a website scan. Treatment buttons come from the scan and review step. On Postgres this writes those rows directly.
 
 ### logout
 
@@ -158,11 +158,11 @@ Clinic. Marks in-app notifications as read.
 
 ### adminCreateClinic
 
-Platform admin. Creates a practice and owner, same idea as signup.
+Platform admin. Creates a practice the same way as public signup: owner, draft chatbot, and a general pipeline. Duplicate emails fail.
 
 ### impersonate
 
-Platform admin. Sets `dentchat_impersonate_org` and redirects to `/app`.
+Platform admin. Sets `dentchat_impersonate_org` and redirects into `/app` (or a `next` path that starts with `/app`, such as a chatbot studio or lead record). Writes a small audit row; it does not rewrite the whole database. If the clinic id is missing, returns to `/admin`.
 
 ### exitImpersonate
 
@@ -194,7 +194,7 @@ Platform admin. Turns `allowWidgetWithoutSub` on or off so the embed can run wit
 
 ### adminCreateChatbot
 
-Platform admin. Creates a finished chatbot for a chosen clinic (setup already complete) and impersonates into the studio.
+Platform admin. Creates a chatbot for a chosen clinic. With `ready=draft` (or omitted as draft via the hub form) it is an inactive setup wizard bot; otherwise it is a finished bot with default treatment buttons. Then impersonates into setup or the studio.
 
 ### adminDeleteChatbot
 
@@ -203,6 +203,14 @@ Platform admin. Deletes a chatbot for a chosen clinic (same records as `deleteCh
 ### adminSetSubscription
 
 Platform admin. Sets a clinic’s `subscriptionStatus` and `allowWidgetWithoutSub` without going through Stripe.
+
+### adminSaveBranding
+
+Platform admin. Updates a clinic’s name, colour, logo, welcome photo, phone, and booking URL (the same fields as clinic Settings).
+
+### adminInviteStaff
+
+Platform admin. Adds a `clinic_staff` login to a chosen clinic. Same rules as `inviteStaff` (email must be new).
 
 ### adminDeleteClinic
 
@@ -230,7 +238,7 @@ Rejects non-http(s) URLs, localhost, and private IPs. Returns the updated bot pa
 **Method:** PATCH (JSON)  
 **Who:** signed-in clinic that owns this bot
 
-Autosave for the setup wizard. Can patch step, website URL, name, phone, booking URL, greetings, pending FAQs, pending services, **apply prescriptions** (writes treatment buttons), **approve knowledge** (writes FAQs and service buttons, and fills extracted fields), **enter clinic** (marks setup complete and is followed by `/app` in the browser), or **go live** (sets `active` and `setupComplete`).
+Autosave for the setup wizard. Can patch step, website URL, name, phone, booking URL, greetings, pending FAQs, pending services, **approve knowledge** (writes FAQs and service buttons, and fills extracted fields), **enter clinic** (marks setup complete and is followed by `/app` in the browser), or **go live** (sets `active` and `setupComplete`).
 
 **Writes:** `chatbots`, sometimes `knowledgeItems` and `chatbotOptions`.
 

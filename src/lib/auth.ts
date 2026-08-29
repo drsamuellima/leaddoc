@@ -81,7 +81,10 @@ export async function setSession(userId: string) {
 
 export async function setImpersonate(organizationId: string) {
   const jar = await cookies();
-  jar.set(IMPERSONATE_COOKIE, signValue(organizationId), cookieBase());
+  jar.set(IMPERSONATE_COOKIE, signValue(organizationId), {
+    ...cookieBase(),
+    maxAge: 60 * 60 * 24 * 30,
+  });
 }
 
 export async function clearSession() {

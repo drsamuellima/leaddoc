@@ -1,13 +1,10 @@
 import { EmptyState, PageHeader } from "@/components/ui";
 import { requireAdmin } from "@/lib/auth";
-import { readStore } from "@/lib/store";
+import { getAdminAudit } from "@/lib/store";
 
 export default async function AdminAuditPage() {
   await requireAdmin();
-  const store = await readStore();
-  const logs = [...(store.auditLogs || [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  const actor = (id: string) => store.profiles.find((p) => p.id === id)?.email || "system";
-  const clinic = (id: string | null) => (id ? store.organizations.find((o) => o.id === id)?.name || id : "—");
+  const logs = await getAdminAudit();
 
   return (
     <div>
@@ -30,9 +27,9 @@ export default async function AdminAuditPage() {
               {logs.map((log) => (
                 <tr key={log.id}>
                   <td className="whitespace-nowrap text-xs text-neutral-500">{log.createdAt.replace("T", " ").slice(0, 16)}</td>
-                  <td>{actor(log.actorId)}</td>
+                  <td>{log.actorEmail}</td>
                   <td className="font-medium">{log.action.replace(/_/g, " ")}</td>
-                  <td>{clinic(log.organizationId)}</td>
+                  <td>{log.clinicName}</td>
                   <td className="max-w-sm truncate">{log.detail}</td>
                 </tr>
               ))}

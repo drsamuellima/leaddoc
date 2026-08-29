@@ -1,4 +1,5 @@
 import { PageHeader } from "@/components/ui";
+import { SubscriptionPanel } from "@/components/billing/subscription-panel";
 import { getClinicContext } from "@/lib/auth";
 import { hasStripe } from "@/lib/integrations";
 import { readClinicStore } from "@/lib/store";
@@ -11,6 +12,7 @@ export default async function SettingsPage({
   const { org } = await getClinicContext();
   const store = await readClinicStore(org.id);
   const staff = store.profiles.filter((p) => p.organizationId === org.id);
+  const plan = store.plans.find((p) => p.active) || store.plans[0];
   const { ok, error } = await searchParams;
 
   return (
@@ -58,24 +60,9 @@ export default async function SettingsPage({
           </button>
         </form>
 
-        <div className="card space-y-3">
-          <h2 className="font-semibold">Billing</h2>
-          <p className="text-sm text-neutral-500">
-            Status: <span className="font-medium capitalize text-black">{org.subscriptionStatus}</span>
-            {hasStripe() ? "" : " · Stripe keys not set"}
-          </p>
-          <form action="/api/form/checkout" method="post">
-            <button className="btn" type="submit">
-              Subscribe monthly
-            </button>
-          </form>
-          {hasStripe() && org.stripeCustomerId ? (
-            <form action="/api/form/billingPortal" method="post">
-              <button className="btn secondary" type="submit">
-                Manage billing
-              </button>
-            </form>
-          ) : null}
+        <div className="lg:col-span-2">
+          <SubscriptionPanel org={org} plan={plan} variant="clinic" />
+          {!hasStripe() ? <p className="mt-2 text-sm text-neutral-500">Stripe keys are not set, so Checkout cannot take a real card.</p> : null}
         </div>
 
         <div className="card space-y-3">
