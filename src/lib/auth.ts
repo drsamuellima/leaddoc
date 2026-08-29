@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { isSecureCookie } from "./config";
 import { verifySignedValue, signValue } from "./crypto";
@@ -21,12 +22,12 @@ export function sessionCookieValue(userId: string) {
   return signValue(userId);
 }
 
-export async function getSessionUser(): Promise<Profile | null> {
+export const getSessionUser = cache(async (): Promise<Profile | null> => {
   const jar = await cookies();
   const id = verifySignedValue(jar.get(SESSION_COOKIE)?.value);
   if (!id) return null;
   return getProfileById(id);
-}
+});
 
 export async function requireUser(): Promise<Profile> {
   const user = await getSessionUser();
@@ -47,11 +48,11 @@ export async function getActiveOrgId(user: Profile): Promise<string | null> {
   return user.organizationId;
 }
 
-export async function getClinicContext(): Promise<{
+export const getClinicContext = cache(async (): Promise<{
   user: Profile;
   org: Organization;
   impersonating: boolean;
-}> {
+}> => {
   const user = await requireUser();
   if (user.role === "super_admin") {
     const orgId = await getActiveOrgId(user);
@@ -64,7 +65,7 @@ export async function getClinicContext(): Promise<{
   const org = await getOrganizationById(user.organizationId);
   if (!org) redirect("/login");
   return { user, org, impersonating: false };
-}
+});
 
 export function canManageClinic(role: Role): boolean {
   return role === "super_admin" || role === "clinic_owner";

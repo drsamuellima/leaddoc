@@ -1,9 +1,8 @@
-import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 import { clientIp } from "@/lib/config";
 import { replyAsClinic } from "@/lib/gemini";
 import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
-import { mutateStore, readStore } from "@/lib/store";
+import { appendChatTurn, listBotKnowledge, listConversationMessages } from "@/lib/store";
 import { loadWidget, widgetAllowed } from "@/lib/widget";
 
 export const maxDuration = 60;
@@ -25,16 +24,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "This chat is temporarily unavailable" }, { status: 402 });
   }
 
-  const store = await readStore();
-  const conversation = store.conversations.find(
-    (c) => c.id === conversationId && c.organizationId === loaded.org.id,
-  );
-  if (!conversation) return NextResponse.json({ error: "Unknown conversation" }, { status: 404 });
+  const messages = await listConversationMessages(loaded.org.id, conversationId);
+  if (!messages) return NextResponse.json({ error: "Unknown conversation" }, { status: 404 });
 
-  const history = store.messages
-    .filter((m) => m.conversationId === conversationId && m.role !== "system")
+  const history = messages
+    .filter((m) => m.role !== "system")
     .map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
-  const knowledge = store.knowledgeItems.filter((k) => k.chatbotId === loaded.bot.id);
+  const knowledge = await listBotKnowledge(loaded.bot.id);
 
   let reply: string;
   try {
@@ -49,22 +45,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: detail }, { status: 502 });
   }
 
-  await mutateStore((data) => {
-    data.messages.push({
-      id: randomUUID(),
-      conversationId,
-      role: "user",
-      content,
-      createdAt: new Date().toISOString(),
-    });
-    data.messages.push({
-      id: randomUUID(),
-      conversationId,
-      role: "assistant",
-      content: reply,
-      createdAt: new Date().toISOString(),
-    });
-  });
+  await appendChatTurn(conversationId, content, reply);
 
   return NextResponse.json({ reply });
 }

@@ -2,7 +2,7 @@ import { randomUUID } from "crypto";
 import { hashPassword } from "./crypto";
 import { getSql, type Tx } from "./db";
 import { emptySetup } from "./chatbot-setup";
-import { ensureOrgPipelines } from "./pipelines";
+import { applyPipelineToLead, ensureOrgPipelines, matchPipeline, stageIdForStatus } from "./pipelines";
 import {
   parseActionType,
   parseWidgetFont,
@@ -328,47 +328,51 @@ function mapReset(row: Record<string, unknown>): PasswordResetToken {
   };
 }
 
-async function load(tx: Tx): Promise<StoreData> {
-  // Sequential on purpose: Supabase transaction pooler + postgres.js max:1
-  // hangs if many queries are pipelined at once (Vercel then kills /admin).
-  const organizations = await tx`select * from organizations`;
-  const profiles = await tx`select * from profiles`;
-  const plans = await tx`select * from plans`;
-  const chatbots = await tx`select * from chatbots`;
-  const chatbotOptions = await tx`select * from chatbot_options`;
-  const knowledgeItems = await tx`select * from knowledge_items`;
-  const pipelines = await tx`select * from pipelines`;
-  const conversations = await tx`select * from conversations`;
-  const leads = await tx`select * from leads`;
-  const messages = await tx`select * from messages`;
-  const notifications = await tx`select * from notifications`;
-  const leadTasks = await tx`select * from lead_tasks`;
-  const leadEvents = await tx`select * from lead_events`;
-  const leadNotes = await tx`select * from lead_notes`;
-  const leadRecalls = await tx`select * from lead_recalls`;
-  const supportNotes = await tx`select * from support_notes`;
-  const auditLogs = await tx`select * from audit_logs`;
-  const passwordResetTokens = await tx`select * from password_reset_tokens`;
+function mapRows<T>(value: unknown, map: (row: Record<string, unknown>) => T): T[] {
+  return jsonArray<Record<string, unknown>>(value).map(map);
+}
 
+async function load(tx: Tx): Promise<StoreData> {
+  const [row] = await tx`
+    select
+      (select coalesce(json_agg(t), '[]'::json) from organizations t) as organizations,
+      (select coalesce(json_agg(t), '[]'::json) from profiles t) as profiles,
+      (select coalesce(json_agg(t), '[]'::json) from plans t) as plans,
+      (select coalesce(json_agg(t), '[]'::json) from chatbots t) as chatbots,
+      (select coalesce(json_agg(t), '[]'::json) from chatbot_options t) as chatbot_options,
+      (select coalesce(json_agg(t), '[]'::json) from knowledge_items t) as knowledge_items,
+      (select coalesce(json_agg(t), '[]'::json) from pipelines t) as pipelines,
+      (select coalesce(json_agg(t), '[]'::json) from conversations t) as conversations,
+      (select coalesce(json_agg(t), '[]'::json) from leads t) as leads,
+      (select coalesce(json_agg(t), '[]'::json) from messages t) as messages,
+      (select coalesce(json_agg(t), '[]'::json) from notifications t) as notifications,
+      (select coalesce(json_agg(t), '[]'::json) from lead_tasks t) as lead_tasks,
+      (select coalesce(json_agg(t), '[]'::json) from lead_events t) as lead_events,
+      (select coalesce(json_agg(t), '[]'::json) from lead_notes t) as lead_notes,
+      (select coalesce(json_agg(t), '[]'::json) from lead_recalls t) as lead_recalls,
+      (select coalesce(json_agg(t), '[]'::json) from support_notes t) as support_notes,
+      (select coalesce(json_agg(t), '[]'::json) from audit_logs t) as audit_logs,
+      (select coalesce(json_agg(t), '[]'::json) from password_reset_tokens t) as password_reset_tokens
+  `;
   const data = emptyStore();
-  data.organizations = organizations.map((row: Record<string, unknown>) => mapOrg(row));
-  data.profiles = profiles.map((row: Record<string, unknown>) => mapProfile(row));
-  data.plans = plans.map((row: Record<string, unknown>) => mapPlan(row));
-  data.chatbots = chatbots.map((row: Record<string, unknown>) => mapBot(row));
-  data.chatbotOptions = chatbotOptions.map((row: Record<string, unknown>) => mapOption(row));
-  data.knowledgeItems = knowledgeItems.map((row: Record<string, unknown>) => mapKnowledge(row));
-  data.pipelines = pipelines.map((row: Record<string, unknown>) => mapPipeline(row));
-  data.conversations = conversations.map((row: Record<string, unknown>) => mapConversation(row));
-  data.leads = leads.map((row: Record<string, unknown>) => mapLead(row));
-  data.messages = messages.map((row: Record<string, unknown>) => mapMessage(row));
-  data.notifications = notifications.map((row: Record<string, unknown>) => mapNotification(row));
-  data.leadTasks = leadTasks.map((row: Record<string, unknown>) => mapTask(row));
-  data.leadEvents = leadEvents.map((row: Record<string, unknown>) => mapEvent(row));
-  data.leadNotes = leadNotes.map((row: Record<string, unknown>) => mapNote(row));
-  data.leadRecalls = leadRecalls.map((row: Record<string, unknown>) => mapRecall(row));
-  data.supportNotes = supportNotes.map((row: Record<string, unknown>) => mapSupport(row));
-  data.auditLogs = auditLogs.map((row: Record<string, unknown>) => mapAudit(row));
-  data.passwordResetTokens = passwordResetTokens.map((row: Record<string, unknown>) => mapReset(row));
+  data.organizations = mapRows(row.organizations, mapOrg);
+  data.profiles = mapRows(row.profiles, mapProfile);
+  data.plans = mapRows(row.plans, mapPlan);
+  data.chatbots = mapRows(row.chatbots, mapBot);
+  data.chatbotOptions = mapRows(row.chatbot_options, mapOption);
+  data.knowledgeItems = mapRows(row.knowledge_items, mapKnowledge);
+  data.pipelines = mapRows(row.pipelines, mapPipeline);
+  data.conversations = mapRows(row.conversations, mapConversation);
+  data.leads = mapRows(row.leads, mapLead);
+  data.messages = mapRows(row.messages, mapMessage);
+  data.notifications = mapRows(row.notifications, mapNotification);
+  data.leadTasks = mapRows(row.lead_tasks, mapTask);
+  data.leadEvents = mapRows(row.lead_events, mapEvent);
+  data.leadNotes = mapRows(row.lead_notes, mapNote);
+  data.leadRecalls = mapRows(row.lead_recalls, mapRecall);
+  data.supportNotes = mapRows(row.support_notes, mapSupport);
+  data.auditLogs = mapRows(row.audit_logs, mapAudit);
+  data.passwordResetTokens = mapRows(row.password_reset_tokens, mapReset);
   return data;
 }
 
@@ -727,4 +731,328 @@ export async function mutatePgStore<T>(fn: (data: StoreData) => T | Promise<T>):
     bootstrapped = true;
     return result;
   }) as Promise<T>;
+}
+
+async function persistChatbot(tx: Tx, b: Chatbot) {
+  await tx`
+    insert into chatbots as t (
+      id, organization_id, name, greeting, greetings, system_prompt, widget_key, active,
+      accent_color, panel_color, button_text_color, widget_style, font_family, surface_color,
+      user_bubble_color, assistant_bubble_color, launcher_color, avatar_name, avatar_image_url,
+      phone, booking_url, setup_complete, setup, created_at
+    ) values (
+      ${b.id}::uuid, ${b.organizationId}::uuid, ${b.name}, ${b.greeting}, ${tx.json(b.greetings)},
+      ${b.systemPrompt}, ${b.widgetKey}, ${b.active}, ${b.accentColor}, ${b.panelColor},
+      ${b.buttonTextColor}, ${b.widgetStyle}, ${b.fontFamily}, ${b.surfaceColor},
+      ${b.userBubbleColor}, ${b.assistantBubbleColor}, ${b.launcherColor}, ${b.avatarName},
+      ${b.avatarImageUrl}, ${b.phone}, ${b.bookingUrl}, ${b.setupComplete}, ${tx.json(b.setup)}, ${b.createdAt}
+    )
+    on conflict (id) do update set
+      name = excluded.name, greeting = excluded.greeting, greetings = excluded.greetings,
+      system_prompt = excluded.system_prompt, widget_key = excluded.widget_key, active = excluded.active,
+      accent_color = excluded.accent_color, panel_color = excluded.panel_color,
+      button_text_color = excluded.button_text_color, widget_style = excluded.widget_style,
+      font_family = excluded.font_family, surface_color = excluded.surface_color,
+      user_bubble_color = excluded.user_bubble_color, assistant_bubble_color = excluded.assistant_bubble_color,
+      launcher_color = excluded.launcher_color, avatar_name = excluded.avatar_name,
+      avatar_image_url = excluded.avatar_image_url, phone = excluded.phone, booking_url = excluded.booking_url,
+      setup_complete = excluded.setup_complete, setup = excluded.setup
+  `;
+}
+
+async function persistBotChildren(tx: Tx, botId: string, options: ChatbotOption[], faqs: KnowledgeItem[]) {
+  await tx`delete from chatbot_options where chatbot_id = ${botId}::uuid`;
+  await tx`delete from knowledge_items where chatbot_id = ${botId}::uuid`;
+  for (const o of options) {
+    await tx`
+      insert into chatbot_options (id, chatbot_id, label, starter_message, sort_order, action_type, url)
+      values (${o.id}::uuid, ${o.chatbotId}::uuid, ${o.label}, ${o.starterMessage}, ${o.sortOrder}, ${o.actionType}, ${o.url})
+    `;
+  }
+  for (const k of faqs) {
+    await tx`
+      insert into knowledge_items (id, chatbot_id, title, question, answer)
+      values (${k.id}::uuid, ${k.chatbotId}::uuid, ${k.title}, ${k.question}, ${k.answer})
+    `;
+  }
+}
+
+export async function createClinicSignupPg(input: {
+  email: string;
+  org: Organization;
+  user: Profile;
+  bot: Chatbot;
+  pipeline: TreatmentPipeline;
+}): Promise<{ userId: string; botId: string } | { error: "exists" }> {
+  await ensureBootstrap();
+  const sql = getSql();
+  const existing = await sql`select id from profiles where lower(email) = ${input.email} limit 1`;
+  if (existing.length) return { error: "exists" };
+  const o = input.org;
+  const p = input.user;
+  const pipe = input.pipeline;
+  try {
+    await sql.begin(async (tx) => {
+      await tx`
+        insert into organizations (
+          id, name, slug, logo_url, primary_color, welcome_image_url, phone, booking_url,
+          stripe_customer_id, stripe_subscription_id, subscription_status, allow_widget_without_sub, created_at
+        ) values (
+          ${o.id}::uuid, ${o.name}, ${o.slug}, ${o.logoUrl}, ${o.primaryColor}, ${o.welcomeImageUrl},
+          ${o.phone}, ${o.bookingUrl}, ${o.stripeCustomerId}, ${o.stripeSubscriptionId},
+          ${o.subscriptionStatus}, ${o.allowWidgetWithoutSub}, ${o.createdAt}
+        )
+      `;
+      await tx`
+        insert into profiles (id, organization_id, role, name, email, password_hash, created_at)
+        values (
+          ${p.id}::uuid, ${p.organizationId}::uuid, ${p.role}, ${p.name}, ${p.email}, ${p.passwordHash}, ${p.createdAt}
+        )
+      `;
+      await persistChatbot(tx, input.bot);
+      await tx`
+        insert into pipelines (id, organization_id, name, stages, created_at)
+        values (${pipe.id}::uuid, ${pipe.organizationId}::uuid, ${pipe.name}, ${tx.json(pipe.stages)}, ${pipe.createdAt})
+      `;
+    });
+    bootstrapped = true;
+    return { userId: p.id, botId: input.bot.id };
+  } catch (err) {
+    const code = typeof err === "object" && err && "code" in err ? String((err as { code?: string }).code) : "";
+    if (code === "23505") return { error: "exists" };
+    throw err;
+  }
+}
+
+export async function readPgClinicStore(orgId: string): Promise<StoreData> {
+  if (!isUuid(orgId)) return emptyStore();
+  if (!bootstrapped) {
+    await ensureBootstrap();
+    bootstrapped = true;
+  }
+  const sql = getSql();
+  const [row] = await sql`
+    select
+      (select coalesce(json_agg(t), '[]'::json) from organizations t where t.id = ${orgId}::uuid) as organizations,
+      (select coalesce(json_agg(t), '[]'::json) from profiles t where t.organization_id = ${orgId}::uuid) as profiles,
+      (select coalesce(json_agg(t), '[]'::json) from plans t) as plans,
+      (select coalesce(json_agg(t), '[]'::json) from chatbots t where t.organization_id = ${orgId}::uuid) as chatbots,
+      (select coalesce(json_agg(t), '[]'::json) from chatbot_options t
+        where t.chatbot_id in (select id from chatbots where organization_id = ${orgId}::uuid)) as chatbot_options,
+      (select coalesce(json_agg(t), '[]'::json) from knowledge_items t
+        where t.chatbot_id in (select id from chatbots where organization_id = ${orgId}::uuid)) as knowledge_items,
+      (select coalesce(json_agg(t), '[]'::json) from pipelines t where t.organization_id = ${orgId}::uuid) as pipelines,
+      (select coalesce(json_agg(t), '[]'::json) from conversations t where t.organization_id = ${orgId}::uuid) as conversations,
+      (select coalesce(json_agg(t), '[]'::json) from leads t where t.organization_id = ${orgId}::uuid) as leads,
+      (select coalesce(json_agg(t), '[]'::json) from messages t
+        where t.conversation_id in (select id from conversations where organization_id = ${orgId}::uuid)) as messages,
+      (select coalesce(json_agg(t), '[]'::json) from notifications t where t.organization_id = ${orgId}::uuid) as notifications,
+      (select coalesce(json_agg(t), '[]'::json) from lead_tasks t
+        where t.lead_id in (select id from leads where organization_id = ${orgId}::uuid)) as lead_tasks,
+      (select coalesce(json_agg(t), '[]'::json) from lead_events t
+        where t.lead_id in (select id from leads where organization_id = ${orgId}::uuid)) as lead_events,
+      (select coalesce(json_agg(t), '[]'::json) from lead_notes t
+        where t.lead_id in (select id from leads where organization_id = ${orgId}::uuid)) as lead_notes,
+      (select coalesce(json_agg(t), '[]'::json) from lead_recalls t
+        where t.lead_id in (select id from leads where organization_id = ${orgId}::uuid)) as lead_recalls,
+      (select coalesce(json_agg(t), '[]'::json) from support_notes t where t.organization_id = ${orgId}::uuid) as support_notes
+  `;
+  const data = emptyStore();
+  data.organizations = mapRows(row.organizations, mapOrg);
+  data.profiles = mapRows(row.profiles, mapProfile);
+  data.plans = mapRows(row.plans, mapPlan);
+  data.chatbots = mapRows(row.chatbots, mapBot);
+  data.chatbotOptions = mapRows(row.chatbot_options, mapOption);
+  data.knowledgeItems = mapRows(row.knowledge_items, mapKnowledge);
+  data.pipelines = mapRows(row.pipelines, mapPipeline);
+  data.conversations = mapRows(row.conversations, mapConversation);
+  data.leads = mapRows(row.leads, mapLead);
+  data.messages = mapRows(row.messages, mapMessage);
+  data.notifications = mapRows(row.notifications, mapNotification);
+  data.leadTasks = mapRows(row.lead_tasks, mapTask);
+  data.leadEvents = mapRows(row.lead_events, mapEvent);
+  data.leadNotes = mapRows(row.lead_notes, mapNote);
+  data.leadRecalls = mapRows(row.lead_recalls, mapRecall);
+  data.supportNotes = mapRows(row.support_notes, mapSupport);
+  return data;
+}
+
+export async function getPgOwnedChatbot(botId: string, orgId: string) {
+  if (!isUuid(botId) || !isUuid(orgId)) return null;
+  const rows = await getSql()`
+    select * from chatbots where id = ${botId}::uuid and organization_id = ${orgId}::uuid limit 1
+  `;
+  return rows[0] ? mapBot(rows[0] as Record<string, unknown>) : null;
+}
+
+export async function getPgWidgetByKey(widgetKey: string) {
+  const sql = getSql();
+  const botRows = await sql`select * from chatbots where widget_key = ${widgetKey} limit 1`;
+  if (!botRows.length) return null;
+  const bot = mapBot(botRows[0] as Record<string, unknown>);
+  const orgRows = await sql`select * from organizations where id = ${bot.organizationId}::uuid limit 1`;
+  if (!orgRows.length) return null;
+  return { org: mapOrg(orgRows[0] as Record<string, unknown>), bot };
+}
+
+export async function getPgChatbotOptions(botId: string) {
+  if (!isUuid(botId)) return [];
+  return (await getSql()`select * from chatbot_options where chatbot_id = ${botId}::uuid order by sort_order`).map((row) =>
+    mapOption(row as Record<string, unknown>),
+  );
+}
+
+export async function getPgKnowledgeForBot(botId: string) {
+  if (!isUuid(botId)) return [];
+  return (await getSql()`select * from knowledge_items where chatbot_id = ${botId}::uuid`).map((row) =>
+    mapKnowledge(row as Record<string, unknown>),
+  );
+}
+
+export async function getPgChatHistory(orgId: string, conversationId: string) {
+  if (!isUuid(orgId) || !isUuid(conversationId)) return null;
+  const sql = getSql();
+  const conv = await sql`
+    select id from conversations
+    where id = ${conversationId}::uuid and organization_id = ${orgId}::uuid
+    limit 1
+  `;
+  if (!conv.length) return null;
+  const messages = (await sql`
+    select * from messages where conversation_id = ${conversationId}::uuid order by created_at
+  `).map((row) => mapMessage(row as Record<string, unknown>));
+  return messages;
+}
+
+export async function appendPgChatTurn(conversationId: string, userContent: string, reply: string) {
+  const sql = getSql();
+  const at = new Date().toISOString();
+  await sql`
+    insert into messages (id, conversation_id, role, content, created_at)
+    values (${randomUUID()}::uuid, ${conversationId}::uuid, 'user', ${userContent}, ${at})
+  `;
+  await sql`
+    insert into messages (id, conversation_id, role, content, created_at)
+    values (${randomUUID()}::uuid, ${conversationId}::uuid, 'assistant', ${reply}, ${at})
+  `;
+}
+
+export async function getPgClinicNotifyEmail(orgId: string) {
+  if (!isUuid(orgId)) return "";
+  const rows = await getSql()`
+    select email from profiles
+    where organization_id = ${orgId}::uuid and role in ('clinic_owner', 'clinic_staff')
+    order by role
+    limit 1
+  `;
+  return str(rows[0]?.email);
+}
+
+export async function createPgWidgetLead(input: {
+  orgId: string;
+  botId: string;
+  name: string;
+  email: string;
+  phone: string;
+  inquiry: string;
+  reply: string;
+}) {
+  const sql = getSql();
+  const conversationId = randomUUID();
+  const leadId = randomUUID();
+  const at = new Date().toISOString();
+  const pipelines = (await sql`select * from pipelines where organization_id = ${input.orgId}::uuid`).map((row) =>
+    mapPipeline(row as Record<string, unknown>),
+  );
+  const pipeline = matchPipeline(input.inquiry, pipelines);
+  const leadRecord = {
+    id: leadId,
+    organizationId: input.orgId,
+    chatbotId: input.botId,
+    conversationId,
+    name: input.name,
+    email: input.email,
+    phone: input.phone,
+    inquiry: input.inquiry,
+    status: "new" as const,
+    assignedTo: null as string | null,
+    followUpAt: null as string | null,
+    notes: "",
+    treatment: pipeline?.name || "",
+    pipelineId: pipeline?.id || null,
+    stageId: pipeline ? stageIdForStatus(pipeline, "new") : null,
+    amountPence: null as number | null,
+    createdAt: at,
+  };
+  if (pipeline) applyPipelineToLead(leadRecord, pipeline, stageIdForStatus(pipeline, "new"));
+  await sql.begin(async (tx) => {
+    await tx`
+      insert into conversations (id, organization_id, chatbot_id, lead_id, created_at)
+      values (${conversationId}::uuid, ${input.orgId}::uuid, ${input.botId}::uuid, ${leadId}::uuid, ${at})
+    `;
+    await tx`
+      insert into leads (
+        id, organization_id, chatbot_id, conversation_id, name, email, phone, inquiry, status,
+        assigned_to, follow_up_at, notes, treatment, pipeline_id, stage_id, amount_pence, created_at
+      ) values (
+        ${leadId}::uuid, ${input.orgId}::uuid, ${input.botId}::uuid, ${conversationId}::uuid,
+        ${leadRecord.name}, ${leadRecord.email}, ${leadRecord.phone}, ${leadRecord.inquiry}, ${leadRecord.status},
+        ${uuidOrNull(leadRecord.assignedTo)}::uuid, ${leadRecord.followUpAt}, ${leadRecord.notes}, ${leadRecord.treatment},
+        ${uuidOrNull(leadRecord.pipelineId)}::uuid, ${leadRecord.stageId}, ${leadRecord.amountPence}, ${leadRecord.createdAt}
+      )
+    `;
+    await tx`
+      insert into messages (id, conversation_id, role, content, created_at)
+      values (${randomUUID()}::uuid, ${conversationId}::uuid, 'user', ${input.inquiry}, ${at})
+    `;
+    await tx`
+      insert into messages (id, conversation_id, role, content, created_at)
+      values (${randomUUID()}::uuid, ${conversationId}::uuid, 'assistant', ${input.reply}, ${at})
+    `;
+    await tx`
+      insert into notifications (id, organization_id, type, title, body, lead_id, read_at, created_at)
+      values (
+        ${randomUUID()}::uuid, ${input.orgId}::uuid, 'new_lead', ${`New lead: ${input.name}`}, ${input.inquiry},
+        ${leadId}::uuid, null, ${at}
+      )
+    `;
+    await tx`
+      insert into lead_events (id, lead_id, body, created_at)
+      values (${randomUUID()}::uuid, ${leadId}::uuid, 'Enquiry captured from the website widget.', ${at})
+    `;
+  });
+  return { conversationId, leadId, reply: input.reply };
+}
+
+export async function mutateOwnedBotPg<T>(
+  orgId: string,
+  botId: string,
+  fn: (data: StoreData, bot: Chatbot) => T | Promise<T>,
+): Promise<T | null> {
+  if (!isUuid(orgId) || !isUuid(botId)) return null;
+  return getSql().begin(async (tx) => {
+    const botRows = await tx`select * from chatbots where id = ${botId}::uuid and organization_id = ${orgId}::uuid limit 1`;
+    if (!botRows.length) return null;
+    const bot = mapBot(botRows[0] as Record<string, unknown>);
+    const options = (await tx`select * from chatbot_options where chatbot_id = ${botId}::uuid`).map((row) =>
+      mapOption(row as Record<string, unknown>),
+    );
+    const faqs = (await tx`select * from knowledge_items where chatbot_id = ${botId}::uuid`).map((row) =>
+      mapKnowledge(row as Record<string, unknown>),
+    );
+    const data = emptyStore();
+    data.chatbots = [bot];
+    data.chatbotOptions = options;
+    data.knowledgeItems = faqs;
+    const result = await fn(data, bot);
+    const saved = data.chatbots.find((row) => row.id === botId) || bot;
+    await persistChatbot(tx, saved);
+    await persistBotChildren(
+      tx,
+      botId,
+      data.chatbotOptions.filter((o) => o.chatbotId === botId),
+      data.knowledgeItems.filter((k) => k.chatbotId === botId),
+    );
+    return result;
+  }) as Promise<T | null>;
 }

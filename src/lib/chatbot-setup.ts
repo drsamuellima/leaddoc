@@ -38,9 +38,9 @@ export function emptyExtract(): SetupExtract {
   };
 }
 
-export function emptySetup(): ChatbotSetup {
+export function emptySetup(step: SetupStep = "website"): ChatbotSetup {
   return {
-    step: "website",
+    step,
     websiteUrl: "",
     scanStatus: "idle",
     scanError: "",
@@ -114,10 +114,17 @@ export function checklistScore(list: SetupChecklist) {
 }
 
 export function parseSetupStep(value: string): SetupStep {
-  if (value === "website" || value === "knowledge" || value === "interview" || value === "booking" || value === "live") {
+  if (
+    value === "prescriptions" ||
+    value === "website" ||
+    value === "knowledge" ||
+    value === "interview" ||
+    value === "booking" ||
+    value === "live"
+  ) {
     return value;
   }
-  return "website";
+  return "prescriptions";
 }
 
 export function applyExtractToBot(bot: Chatbot, extract: SetupExtract) {

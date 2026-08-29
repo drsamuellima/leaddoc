@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { EmptyState, PageHeader } from "@/components/ui";
 import { getClinicContext } from "@/lib/auth";
-import { readStore } from "@/lib/store";
+import { readClinicStore } from "@/lib/store";
 
 export default async function ConversationsPage() {
   const { org } = await getClinicContext();
-  const store = await readStore();
+  const store = await readClinicStore(org.id);
   const convos = store.conversations
     .filter((c) => c.organizationId === org.id)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));

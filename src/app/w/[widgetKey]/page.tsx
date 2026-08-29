@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { readStore } from "@/lib/store";
+import { listChatbotOptions } from "@/lib/store";
 import { applyPreviewAppearance, loadWidget, widgetAllowed, widgetTheme } from "@/lib/widget";
 import { ChatWidget } from "./chat-widget";
 
@@ -27,10 +27,7 @@ export default async function WidgetPage({
   const loaded = await loadWidget(widgetKey, { allowInactive: isPreview });
   if (!loaded) notFound();
   const { org, bot } = loaded;
-  const store = await readStore();
-  const options = store.chatbotOptions
-    .filter((o) => o.chatbotId === bot.id)
-    .sort((a, b) => a.sortOrder - b.sortOrder);
+  const options = await listChatbotOptions(bot.id);
   const theme = applyPreviewAppearance(widgetTheme(org, bot), search, isPreview);
 
   if (!isPreview && !widgetAllowed(org)) {

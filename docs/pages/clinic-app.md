@@ -1,6 +1,6 @@
 # Clinic app
 
-Everything under `/app` is the practice workspace. The layout (`src/app/app/layout.tsx`) requires a signed-in user with a clinic (`getClinicContext`). Super admins only get here by impersonating a clinic.
+Everything under `/app` is the practice workspace. The layout (`src/app/app/layout.tsx`) requires a signed-in user with a clinic (`getClinicContext`). Super admins only get here by impersonating a clinic. Layout and page share one clinic data load for that request.
 
 Nav: Overview, Chatbots, Leads, Pipelines, Conversations, Settings. The shell can search patients (submits to `/app/leads`) and shows unread “new lead” notifications. The dark sidebar uses the official LeadDr. wordmark (dark-background version) plus the practice name.
 
@@ -13,7 +13,7 @@ Related: [architecture.md](../architecture.md), [widget.md](widget.md), [apis.md
 
 The practice overview. It shows how many leads the clinic has captured, a 14-day trend, a breakdown by lead status (new / contacted / booked / closed), latest leads, chatbot count, conversation count, unread notifications, and subscription status.
 
-**Reads:** `leads`, `chatbots`, `conversations`, `notifications` for this organisation. Does not write.
+**Reads:** `leads`, `chatbots`, `conversations`, `notifications` for this organisation (same clinic load as the layout, not a second full fetch). Does not write.
 
 **Related:** [/app/leads](#appleads), [/app/chatbots](#appchatbots)
 
@@ -33,7 +33,9 @@ Lists this practice’s chatbots as cards (name, greeting, widget key, active/in
 **File:** `src/app/app/chatbots/[id]/setup/page.tsx` (UI: `src/components/chatbot-setup/wizard.tsx`)  
 **Who:** clinic owner, clinic staff, impersonating admin (must own this bot)
 
-AI-guided setup for a new chatbot. Glass cards, numbered step rail, progress, and a checklist (website scanned, knowledge approved, name, phone, booking link, greetings, treatment buttons, system prompt). Cards: Website → Review knowledge → Finish setup → Booking → Go live. Every step uses the same layout: summary, a content block, and a dark action bar. Completed cards can be reopened; later cards stay locked until the previous work is done (knowledge is required before interview, booking, and go live). Every field, scan, approval, and chat turn auto-saves (`PATCH /api/chatbots/[id]/setup`). There is no Save button.
+AI-guided Clinix setup for a new chatbot. Glass cards, numbered step rail, progress, and a checklist (prescriptions, website scanned, knowledge approved, name, phone, booking link, greetings, treatment buttons, system prompt). Cards: Prescriptions → Website → Review knowledge → Finish setup → Booking → Enter Clinix. Prescriptions is always open. Website can be skipped. Interview, booking, and Enter Clinix unlock after at least one prescription is chosen (or knowledge is approved). Every field, scan, approval, and chat turn auto-saves (`PATCH /api/chatbots/[id]/setup`). There is no Save button.
+
+**Prescriptions.** A visual catalogue of common UK dental treatments. The clinic taps the ones they offer, or adds a custom name. **Enter Clinix** writes those as widget buttons, marks setup complete, and opens `/app`. **Scan website next** keeps them in the wizard.
 
 **Website.** Paste an `http`/`https` URL and **Scan**. The server fetches the homepage and a few same-site pages (About, Contact, Treatments, Hours, and similar). Localhost and private IPs are blocked. Gemini (when `GEMINI_API_KEY` is in `.env.local`) returns a structured draft. If the key is missing, the page shows a warning and we fall back to heuristics plus the dental FAQ catalog. If the key is set but Gemini fails, the scan returns that error instead of pretending it worked.
 
@@ -43,7 +45,7 @@ AI-guided setup for a new chatbot. Glass cards, numbered step rail, progress, an
 
 **Booking.** Dedicated form for a Dentally (or other) booking URL and the practice phone.
 
-**Go live.** Activates the widget, marks setup complete, copies the embed snippet, and opens the studio.
+**Go live / Enter Clinix.** Marks setup complete and opens the clinic workspace (`/app`). **Activate widget** also turns the public chat on. The embed snippet can be copied here or later from the studio.
 
 Unknown ids return 404. Incomplete bots that open `/app/chatbots/[id]` are sent here. **Delete draft** removes the bot the same way as the list page.
 

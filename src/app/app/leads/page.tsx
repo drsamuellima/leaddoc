@@ -2,7 +2,7 @@ import Link from "next/link";
 import { EmptyState, PageHeader } from "@/components/ui";
 import { LeadListTable } from "@/components/leads/lead-list-table";
 import { getClinicContext } from "@/lib/auth";
-import { readStore } from "@/lib/store";
+import { readClinicStore } from "@/lib/store";
 
 const PAGE_SIZE = 8;
 
@@ -23,7 +23,7 @@ export default async function LeadsPage({
 }) {
   const { q, pipeline, assigned, page: pageRaw, ok } = await searchParams;
   const { org } = await getClinicContext();
-  const store = await readStore();
+  const store = await readClinicStore(org.id);
   const query = (q || "").trim().toLowerCase();
   const staff = store.profiles.filter((p) => p.organizationId === org.id);
   const bots = store.chatbots.filter((b) => b.organizationId === org.id);

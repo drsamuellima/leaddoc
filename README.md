@@ -13,7 +13,12 @@ export PATH="$HOME/.local/node/bin:$PATH"
 cd /Users/user/Documents/Learning
 npm install
 cp .env.example .env.local
-# keep USE_JSON_STORE=1 for the file-backed demo
+# For a real database on localhost (same Supabase as Vercel):
+# 1. Unset USE_JSON_STORE (comment it out or delete the line).
+# 2. Copy DATABASE_URL and SESSION_SECRET from the Vercel project (Production).
+#    npx vercel env pull .env.local --environment production
+#    then keep your local GEMINI keys and set NEXT_PUBLIC_APP_URL=http://localhost:3000
+# Leave USE_JSON_STORE=1 only if you want the file-backed demo with no Postgres.
 npm run dev
 ```
 
@@ -26,7 +31,7 @@ With `USE_JSON_STORE=1`, data lives in `.data/store.json` (created on first run)
 Do not deploy the JSON store. On Vercel:
 
 1. Create a Supabase project. Run [`supabase/schema.sql`](supabase/schema.sql) in the SQL editor. Create a public Storage bucket named `avatars`.
-2. Use the **transaction pooler** connection string as `DATABASE_URL` (`prepare` is off in the client).
+2. Use the **transaction pooler** URI as `DATABASE_URL` (port **6543**, host like `aws-0-…pooler.supabase.com`). Do not use `SUPABASE_URL` or the direct `db.…supabase.co` host — those hang from Vercel until the function times out.
 3. Create a Stripe product with a monthly GBP Price. Put the Price id in `STRIPE_PRICE_ID` and/or Admin → Plans. Add a webhook to `https://YOUR_DOMAIN/api/stripe/webhook` for `checkout.session.completed` and `customer.subscription.*`.
 4. Verify a Resend sending domain. Set `LEAD_FROM_EMAIL` to an address on that domain.
 5. Set the env vars below on the Vercel project. **Do not** set `USE_JSON_STORE`.
@@ -57,7 +62,7 @@ Without `USE_JSON_STORE`, missing Stripe or Gemini is an error, not a silent dem
 
 ## Widget
 
-Clinic staff start on **Chatbots** (`/app/chatbots`). Signup opens `/app/chatbots/[id]/setup`: paste the practice website, scan a few pages, approve FAQs, answer a short AI interview, add a booking link, then go live. After that, **Chatbots → a bot** (`/app/chatbots/[id]`) is the studio.
+Clinic staff start on **Overview** (`/app`) after they finish or skip ahead from the Clinix wizard. Signup opens `/app/chatbots/[id]/setup`: choose prescriptions, optionally paste the practice website, then enter Clinix. After that, **Chatbots → a bot** (`/app/chatbots/[id]`) is the studio.
 
 ```html
 <script src="https://YOUR_DOMAIN/widget.js" data-widget-key="dc_..." async></script>

@@ -2,7 +2,7 @@ import { ChatbotStudio } from "@/components/chatbot-studio/studio";
 import { PageHeader, StatusBadge } from "@/components/ui";
 import { getClinicContext } from "@/lib/auth";
 import { publicOrigin } from "@/lib/integrations";
-import { readStore } from "@/lib/store";
+import { readClinicStore } from "@/lib/store";
 import { widgetTheme } from "@/lib/widget";
 import { notFound, redirect } from "next/navigation";
 
@@ -16,7 +16,7 @@ export default async function ChatbotEditorPage({
   const { id } = await params;
   const { ok } = await searchParams;
   const { org } = await getClinicContext();
-  const store = await readStore();
+  const store = await readClinicStore(org.id);
   const bot = store.chatbots.find((b) => b.id === id && b.organizationId === org.id);
   if (!bot) notFound();
   if (!bot.setupComplete) redirect(`/app/chatbots/${id}/setup`);

@@ -1,5 +1,5 @@
 import { appearanceFromQuery, type AppearanceTokens } from "./widget-appearance";
-import { readStore } from "./store";
+import { findWidget } from "./store";
 import type { Chatbot, Organization } from "./types";
 import { parseWidgetFont, parseWidgetStyle } from "./types";
 
@@ -52,11 +52,8 @@ export async function loadWidget(
   widgetKey: string,
   opts?: { allowInactive?: boolean },
 ): Promise<{ org: Organization; bot: Chatbot } | null> {
-  const store = await readStore();
-  const bot = store.chatbots.find((b) => b.widgetKey === widgetKey);
-  if (!bot) return null;
-  if (!opts?.allowInactive && !bot.active) return null;
-  const org = store.organizations.find((o) => o.id === bot.organizationId);
-  if (!org) return null;
-  return { org, bot };
+  const loaded = await findWidget(widgetKey);
+  if (!loaded) return null;
+  if (!opts?.allowInactive && !loaded.bot.active) return null;
+  return loaded;
 }

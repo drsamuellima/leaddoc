@@ -2,7 +2,7 @@ import Link from "next/link";
 import { EmptyState, PageHeader, StatusBadge } from "@/components/ui";
 import { DeleteChatbotButton } from "@/components/chatbot-studio/delete-chatbot-button";
 import { getClinicContext } from "@/lib/auth";
-import { readStore } from "@/lib/store";
+import { readClinicStore } from "@/lib/store";
 
 export default async function ChatbotsPage({
   searchParams,
@@ -11,7 +11,7 @@ export default async function ChatbotsPage({
 }) {
   const { ok } = await searchParams;
   const { org } = await getClinicContext();
-  const store = await readStore();
+  const store = await readClinicStore(org.id);
   const bots = store.chatbots.filter((b) => b.organizationId === org.id);
 
   return (

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookieBase, SESSION_COOKIE, sessionCookieValue } from "@/lib/auth";
 import { clientIp } from "@/lib/config";
-import { resetSql } from "@/lib/db";
+import { resetSql, withDbTimeout } from "@/lib/db";
 import { authenticateLogin } from "@/lib/login-user";
 import { rateLimit } from "@/lib/rate-limit";
 
@@ -36,7 +36,7 @@ export async function POST(request: Request) {
     const formData = await request.formData();
     const email = String(formData.get("email") || "").trim().toLowerCase();
     const password = String(formData.get("password") || "");
-    const user = await authenticateLogin(email, password);
+    const user = await withDbTimeout(authenticateLogin(email, password));
     if (!user) {
       if (!rateLimit(`login-fail:${clientIp(request)}`, 25, 15 * 60 * 1000)) {
         return jsonError("rate", "Too many failed sign-ins. Wait a few minutes and try again.");

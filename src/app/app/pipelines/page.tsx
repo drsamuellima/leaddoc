@@ -3,7 +3,7 @@ import { EmptyState, PageHeader } from "@/components/ui";
 import { DeletePipelineButton } from "@/components/leads/delete-pipeline-button";
 import { getClinicContext } from "@/lib/auth";
 import { createPipelineAction } from "@/lib/actions";
-import { readStore } from "@/lib/store";
+import { readClinicStore } from "@/lib/store";
 
 export default async function PipelinesPage({
   searchParams,
@@ -12,7 +12,7 @@ export default async function PipelinesPage({
 }) {
   const { ok } = await searchParams;
   const { org } = await getClinicContext();
-  const store = await readStore();
+  const store = await readClinicStore(org.id);
   const pipelines = store.pipelines.filter((p) => p.organizationId === org.id);
   const counts = Object.fromEntries(
     pipelines.map((p) => [p.id, store.leads.filter((l) => l.pipelineId === p.id).length]),

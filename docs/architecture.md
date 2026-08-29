@@ -53,9 +53,11 @@ Login (failed passwords only), signup, password reset, widget chat, and website 
 
 ## Data
 
-[`src/lib/store.ts`](../src/lib/store.ts) is the facade. With `USE_JSON_STORE=1` it reads `.data/store.json`. Otherwise it uses Postgres (`src/lib/store-pg.ts`) with an advisory lock around writes so Vercel instances do not clobber each other.
+[`src/lib/store.ts`](../src/lib/store.ts) is the facade. With `USE_JSON_STORE=1` it reads `.data/store.json`. Otherwise it uses Postgres (`src/lib/store-pg.ts`). Clinic screens load one organisation at a time. Sign-up inserts organisation, owner, chatbot, and pipeline rows directly. The setup wizard updates that chatbot without rewriting the whole database.
 
-Login and session checks read a single profile (or organisation) row. The admin clinic directory uses a small set of queries (organisations plus lead counts). Other pages still call `readStore()`, which loads every table, but those queries run one after another. Parallel queries on the Supabase transaction pooler hang and Vercel then fails the page.
+Login and session checks read a single profile (or organisation) row. Clinic screens load one organisation in a single Postgres round-trip, and layout plus page reuse that result for the same request. The widget looks up one chatbot by widget key instead of loading every table. The admin clinic directory uses a small set of queries (organisations plus lead counts). Full-store mutations still take an advisory lock and rewrite every table — only remaining admin/legacy form handlers use that path.
+
+The Postgres client prefers IPv4, uses the transaction pooler (`pgbouncer=true`), one connection per instance, and an 8-second statement timeout so a hung pooler connection fails before Vercel returns 504. Login also aborts after 8 seconds and returns a JSON error.
 
 First JSON run seeds a demo clinic (“Bright Smile Dental”). Postgres never seeds that clinic. It inserts the monthly plan (and `STRIPE_PRICE_ID` if set) and the admin from env.
 

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { getActiveOrgId, getSessionUser } from "@/lib/auth";
-import { readStore } from "@/lib/store";
+import { getOwnedChatbot } from "@/lib/store";
 import { publicUploadUrl, saveUpload } from "@/lib/uploads";
 
 const MAX_BYTES = 1_500_000;
@@ -20,8 +20,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Missing photo" }, { status: 400 });
   }
 
-  const store = await readStore();
-  const bot = store.chatbots.find((b) => b.id === chatbotId && b.organizationId === orgId);
+  const bot = await getOwnedChatbot(chatbotId, orgId);
   if (!bot) return NextResponse.json({ error: "Chatbot not found" }, { status: 404 });
 
   if (file.size > MAX_BYTES) {

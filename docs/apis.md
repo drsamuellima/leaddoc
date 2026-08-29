@@ -10,7 +10,7 @@ Related: [architecture.md](architecture.md), [pages/widget.md](pages/widget.md).
 **Method:** POST (form)  
 **Who:** anyone
 
-Checks email and password against `profiles`. Only **wrong password** attempts are rate-limited per IP (not timeouts or server errors). The login form posts with `fetch` and stays on `/login`. Failures return JSON `{ ok: false, code, error }` with HTTP 200 so the page can show a red animated message (including database timeouts). A 504/502 from the host is also shown as a database timeout, not “invalid email”. GET `/api/auth/login` redirects to `/login`. Admin sign-in uses `ADMIN_EMAIL` / `ADMIN_PASSWORD` from the environment if that user is missing in the database. On success, sets a signed `dentchat_session` cookie and the browser goes to `/admin` (super admin) or `/app`.
+Checks email and password against `profiles`. Only **wrong password** attempts are rate-limited per IP (not timeouts or server errors). The login form posts with `fetch` and stays on `/login`. Failures return JSON `{ ok: false, code, error }` with HTTP 200 so the page can show a red animated message (including database timeouts). If Postgres does not answer within 8 seconds, login returns that database error instead of waiting for Vercel to kill the function. A 504/502 from the host is also shown as a database timeout, not “invalid email”. GET `/api/auth/login` redirects to `/login`. Admin sign-in uses `ADMIN_EMAIL` / `ADMIN_PASSWORD` from the environment if that user is missing in the database. On success, sets a signed `dentchat_session` cookie and the browser goes to `/admin` (super admin) or `/app`.
 
 ## /api/form/[name]
 
@@ -26,7 +26,7 @@ If you add or remove a handler, add or remove its heading in this file.
 
 ### signup
 
-Public. Creates a clinic, owner account, a draft chatbot (inactive until Go live), default treatment buttons, and a general pipeline, then signs the owner in and sends them to setup.
+Public. Creates a clinic, owner account, a draft chatbot (inactive until they activate it), and a general pipeline, then signs the owner in and sends them to the Clinix prescription wizard. Treatment buttons are chosen in that wizard, not at sign-up. On Postgres this writes those rows directly.
 
 ### logout
 
@@ -230,7 +230,7 @@ Rejects non-http(s) URLs, localhost, and private IPs. Returns the updated bot pa
 **Method:** PATCH (JSON)  
 **Who:** signed-in clinic that owns this bot
 
-Autosave for the setup wizard. Can patch step, website URL, name, phone, booking URL, greetings, pending FAQs, pending services, **approve knowledge** (writes FAQs and service buttons, and fills extracted fields), or **go live** (sets `active` and `setupComplete`).
+Autosave for the setup wizard. Can patch step, website URL, name, phone, booking URL, greetings, pending FAQs, pending services, **apply prescriptions** (writes treatment buttons), **approve knowledge** (writes FAQs and service buttons, and fills extracted fields), **enter clinic** (marks setup complete and is followed by `/app` in the browser), or **go live** (sets `active` and `setupComplete`).
 
 **Writes:** `chatbots`, sometimes `knowledgeItems` and `chatbotOptions`.
 
@@ -254,6 +254,7 @@ First step of a visitor chat. Body: `widgetKey`, `name`, `email`, `phone`, `inqu
 
 Validates the widget exists and the clinic is allowed to serve chat. Then:
 
+- Loads FAQs for that bot only (not the whole database).
 - Picks a treatment pipeline from the enquiry text when possible.
 - Creates a lead (status `new`), a conversation, user + assistant messages, and an in-app notification.
 - Emails the clinic owner if Resend is configured (otherwise logs to the console).
@@ -269,7 +270,7 @@ Errors: 400 missing fields, 404 unknown widget, 402 chat unavailable (billing).
 **Method:** POST (JSON)  
 **Who:** public, widget key + existing conversation
 
-Later messages. Body: `widgetKey`, `conversationId`, `content`. Stores the visitor line and the AI reply. Same widget-allowed check as lead capture.
+Later messages. Body: `widgetKey`, `conversationId`, `content`. Loads that conversation’s transcript and the bot’s FAQs, then stores the visitor line and the AI reply. Same widget-allowed check as lead capture.
 
 **Writes:** `messages`.
 

@@ -11,7 +11,7 @@ How access, preview, and billing interact: [architecture.md](../architecture.md)
 **Layout:** `layout.tsx` (transparent page, widget font class)  
 **Who:** anyone with a valid widget key (clinic website iframe, or studio preview)
 
-The chat UI itself. `loadWidget` finds the chatbot and its organisation. If the bot is missing, the page 404s.
+The chat UI itself. `loadWidget` finds that chatbot and its organisation by widget key (not the whole database). Treatment buttons load for that bot only. If the bot is missing, the page 404s.
 
 **Live (not preview):** the widget is hidden behind “this chat is temporarily unavailable” unless the clinic may serve chat (`active` / `trialing` subscription, or admin widget exception). Inactive bots are not loaded.
 

@@ -7,7 +7,7 @@ import { StatusBadge } from "@/components/ui";
 import { getClinicContext } from "@/lib/auth";
 import { formatLeadDate, formatLeadDateTime, telHref } from "@/lib/leads";
 import { findPipeline, formatGbp, formatGbpDisplay, sortedStages } from "@/lib/pipelines";
-import { readStore } from "@/lib/store";
+import { readClinicStore } from "@/lib/store";
 import type { LeadEvent, LeadNote, LeadRecall, LeadTask, Message, Profile, TreatmentPipeline } from "@/lib/types";
 
 type LeadTab = "enquiry" | "activity" | "chat" | "followups" | "notes" | "recalls";
@@ -34,7 +34,7 @@ export default async function LeadDetailPage({
   const { tab: tabRaw, ok } = await searchParams;
   const tab = parseTab(tabRaw);
   const { org } = await getClinicContext();
-  const store = await readStore();
+  const store = await readClinicStore(org.id);
   const lead = store.leads.find((l) => l.id === id && l.organizationId === org.id);
   if (!lead) notFound();
 

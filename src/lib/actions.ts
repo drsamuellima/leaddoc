@@ -16,6 +16,7 @@ import { generatePassword, hashPassword, hashToken, randomToken, verifyPassword,
 import { sendInviteEmail, sendPasswordResetEmail } from "./email";
 import { allowDemoFallbacks } from "./config";
 import { appUrl, hasStripe, stripeGet, stripeRequest } from "./integrations";
+import { createClinicSignup } from "./clinic-signup";
 import { mutateStore, readStore, slugify } from "./store";
 import { knowledgeKey, KNOWLEDGE_PACKS } from "./knowledge-examples";
 import { parseActionType, parseWidgetFont, parseWidgetStyle, widgetFieldDefaults, type ChatbotActionType, type StoreData, type SubscriptionStatus } from "./types";
@@ -99,52 +100,7 @@ export async function signupAction(formData: FormData) {
   if (!name || !clinicName || !email || password.length < 8) {
     redirect("/signup?error=invalid");
   }
-  const result = await mutateStore((data) => {
-    if (data.profiles.some((p) => p.email.toLowerCase() === email)) {
-      return { error: "exists" as const };
-    }
-    const orgId = randomUUID();
-    const userId = randomUUID();
-    const botId = randomUUID();
-    data.organizations.push({
-      id: orgId,
-      name: clinicName,
-      slug: slugify(clinicName) + "-" + orgId.slice(0, 6),
-      logoUrl: "",
-      primaryColor: "#0f766e",
-      welcomeImageUrl: "",
-      ...emptyOrgContact(),
-      stripeCustomerId: "",
-      stripeSubscriptionId: "",
-      subscriptionStatus: "inactive",
-      allowWidgetWithoutSub: false,
-      createdAt: iso(),
-    });
-    data.profiles.push({
-      id: userId,
-      organizationId: orgId,
-      role: "clinic_owner",
-      name,
-      email,
-      passwordHash: hashPassword(password),
-      createdAt: iso(),
-    });
-    data.chatbots.push({
-      id: botId,
-      organizationId: orgId,
-      name: "Main chatbot",
-      ...widgetFieldDefaults(clinicName, "#0f766e"),
-      systemPrompt: `You are a helpful receptionist for ${clinicName}, a dental practice.`,
-      widgetKey: widgetKey(),
-      active: false,
-      createdAt: iso(),
-      setupComplete: false,
-      setup: emptySetup(),
-    });
-    data.chatbotOptions.push(...defaultTreatments(botId));
-    data.pipelines.push(generalPipeline(orgId, iso()));
-    return { userId, botId };
-  });
+  const result = await createClinicSignup({ name, clinicName, email, password });
   if ("error" in result) redirect("/signup?error=exists");
   await setSession(result.userId);
   redirect(`/app/chatbots/${result.botId}/setup`);
@@ -289,9 +245,8 @@ export async function createChatbotAction(_formData: FormData) {
       active: false,
       createdAt: iso(),
       setupComplete: false,
-      setup: emptySetup(),
+      setup: emptySetup("prescriptions"),
     });
-    data.chatbotOptions.push(...defaultTreatments(botId));
     return botId;
   });
   redirect(`/app/chatbots/${id}/setup`);

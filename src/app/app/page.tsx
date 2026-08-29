@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { PageHeader, StatusBadge } from "@/components/ui";
 import { getClinicContext } from "@/lib/auth";
-import { readStore } from "@/lib/store";
+import { readClinicStore } from "@/lib/store";
 import type { Lead, LeadStatus } from "@/lib/types";
 
 function daysBack(n: number) {
@@ -40,7 +40,7 @@ function initials(name: string) {
 
 export default async function OverviewPage() {
   const { org } = await getClinicContext();
-  const store = await readStore();
+  const store = await readClinicStore(org.id);
   const leads = store.leads.filter((l) => l.organizationId === org.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const bots = store.chatbots.filter((b) => b.organizationId === org.id);
   const convos = store.conversations.filter((c) => c.organizationId === org.id);
@@ -58,7 +58,7 @@ export default async function OverviewPage() {
   return (
     <div className="page-enter">
       <PageHeader
-        kicker={org.name}
+        kicker="Clinix"
         title="Overview"
         description="Leads, chatbots and conversations at a glance."
         action={

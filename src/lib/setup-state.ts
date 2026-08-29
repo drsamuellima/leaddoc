@@ -2,7 +2,7 @@ import type { Chatbot, StoreData } from "./types";
 import { checklistScore, deriveChecklist, ensureSetup } from "./chatbot-setup";
 import { getClinicContext } from "./auth";
 import { hasGemini } from "./integrations";
-import { readStore } from "./store";
+import { mutateOwnedChatbot, readClinicStore } from "./store";
 
 export function setupPayload(data: StoreData, bot: Chatbot) {
   bot.setup = ensureSetup(bot);
@@ -21,8 +21,13 @@ export function setupPayload(data: StoreData, bot: Chatbot) {
 
 export async function loadOwnedBot(id: string) {
   const { org } = await getClinicContext();
-  const store = await readStore();
+  const store = await readClinicStore(org.id);
   const bot = store.chatbots.find((b) => b.id === id && b.organizationId === org.id);
   if (!bot) return null;
   return { org, store, bot };
+}
+
+export async function mutateOwnedSetup<T>(id: string, fn: (data: StoreData, bot: Chatbot) => T | Promise<T>) {
+  const { org } = await getClinicContext();
+  return mutateOwnedChatbot(org.id, id, fn);
 }

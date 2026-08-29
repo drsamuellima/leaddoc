@@ -1,7 +1,7 @@
 import { PageHeader } from "@/components/ui";
 import { getClinicContext } from "@/lib/auth";
 import { hasStripe } from "@/lib/integrations";
-import { readStore } from "@/lib/store";
+import { readClinicStore } from "@/lib/store";
 
 export default async function SettingsPage({
   searchParams,
@@ -9,7 +9,7 @@ export default async function SettingsPage({
   searchParams: Promise<{ ok?: string; error?: string }>;
 }) {
   const { org } = await getClinicContext();
-  const store = await readStore();
+  const store = await readClinicStore(org.id);
   const staff = store.profiles.filter((p) => p.organizationId === org.id);
   const { ok, error } = await searchParams;
 

@@ -6,6 +6,7 @@ import type { Chatbot, ChatbotOption, KnowledgeItem, SetupChecklist, SetupConfir
 import { SETUP_STEPS, parseActionType } from "@/lib/types";
 import { checklistScore, emptyExtract, ensureSetup } from "@/lib/chatbot-setup";
 import { DeleteChatbotButton } from "@/components/chatbot-studio/delete-chatbot-button";
+import { isPrescriptionSelected, PRESCRIPTION_CATALOG, togglePrescription } from "@/lib/prescriptions";
 
 type Payload = {
   bot: Chatbot;
@@ -35,12 +36,24 @@ const ACTION_CHOICES: { id: "lead" | "book" | "call"; label: string }[] = [
   { id: "call", label: "Call" },
 ];
 
-function canOpen(step: SetupStep, bot: Chatbot) {
+function canOpen(step: SetupStep, bot: Chatbot, optionCount: number) {
   const setup = ensureSetup(bot);
-  if (step === "website") return true;
+  if (step === "prescriptions" || step === "website") return true;
   if (step === "knowledge") return setup.scanStatus === "ready" || setup.checklist.website;
-  if (step === "interview" || step === "booking" || step === "live") return setup.checklist.knowledge;
+  const hasRx = optionCount > 0 || setup.checklist.treatments;
+  if (step === "interview" || step === "booking" || step === "live") return hasRx || setup.checklist.knowledge;
   return false;
+}
+
+function draftsFromOptions(options: ChatbotOption[]): SetupTreatmentDraft[] {
+  return [...options]
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((row) => ({
+      label: row.label,
+      actionType: row.actionType,
+      starterMessage: row.starterMessage,
+      url: row.url,
+    }));
 }
 
 async function readPayload(res: Response): Promise<Payload> {
@@ -55,7 +68,12 @@ export function ChatbotSetupWizard(props: { initial: Payload; snippet: string })
   const [scanBusy, setScanBusy] = useState(false);
   const [scanError, setScanError] = useState(ensureSetup(props.initial.bot).scanError);
   const [faqs, setFaqs] = useState<SetupFaqDraft[]>(ensureSetup(props.initial.bot).pendingExtract?.faqs || []);
-  const [treatments, setTreatments] = useState<SetupTreatmentDraft[]>(ensureSetup(props.initial.bot).pendingExtract?.treatments || []);
+  const [treatments, setTreatments] = useState<SetupTreatmentDraft[]>(
+    ensureSetup(props.initial.bot).pendingExtract?.treatments?.length
+      ? ensureSetup(props.initial.bot).pendingExtract!.treatments
+      : draftsFromOptions(props.initial.options),
+  );
+  const [customRx, setCustomRx] = useState("");
   const [draft, setDraft] = useState({
     name: props.initial.bot.name === "New chatbot" ? "" : props.initial.bot.name,
     phone: props.initial.bot.phone || "",
@@ -123,7 +141,7 @@ export function ChatbotSetupWizard(props: { initial: Payload; snippet: string })
   }
 
   async function openStep(next: SetupStep) {
-    if (!canOpen(next, bot)) return;
+    if (!canOpen(next, bot, payload.options.length)) return;
     await patch({ step: next });
   }
 
@@ -253,13 +271,23 @@ export function ChatbotSetupWizard(props: { initial: Payload; snippet: string })
   }, [setup.interview.length, chatBusy]);
 
   async function goLive() {
-    const next = await patch({
+    await patch({
       goLive: true,
       name: draft.name,
       phone: draft.phone,
       bookingUrl: draft.bookingUrl,
     });
-    window.location.href = `/app/chatbots/${next.bot.id}`;
+    window.location.href = `/app`;
+  }
+
+  async function enterClinic() {
+    await patch({
+      pendingTreatments: treatments,
+      applyPrescriptions: true,
+      enterClinic: true,
+      name: draft.name,
+    });
+    window.location.href = `/app`;
   }
 
   const missing = useMemo(
@@ -286,9 +314,9 @@ export function ChatbotSetupWizard(props: { initial: Payload; snippet: string })
       <div className="setup-progress-wrap">
         <div className="flex items-end justify-between gap-4">
           <div>
-            <p className="setup-kicker">Setup</p>
-            <h1 className="setup-title">{draft.name || "Your chatbot"}</h1>
-            <p className="setup-lede">We’ll scan the site, you approve the knowledge, then a few short questions. Everything saves as you go.</p>
+            <p className="setup-kicker">Clinix</p>
+            <h1 className="setup-title">{draft.name || "Your clinic"}</h1>
+            <p className="setup-lede">Choose your prescriptions, then step into Clinix. Scan the website if you want the AI to learn from it.</p>
           </div>
           <div className="text-right">
             <div className="setup-percent">{score.percent}%</div>
@@ -310,9 +338,10 @@ export function ChatbotSetupWizard(props: { initial: Payload; snippet: string })
 
       <div className="setup-cards">
         {SETUP_STEPS.map((card, i) => {
-          const open = canOpen(card.id, bot);
+          const open = canOpen(card.id, bot, payload.options.length);
           const active = step === card.id;
           const done =
+            (card.id === "prescriptions" && (payload.checklist.treatments || payload.options.length > 0)) ||
             (card.id === "website" && payload.checklist.website) ||
             (card.id === "knowledge" && payload.checklist.knowledge) ||
             (card.id === "interview" && payload.checklist.name && payload.checklist.prompt) ||
@@ -334,6 +363,82 @@ export function ChatbotSetupWizard(props: { initial: Payload; snippet: string })
           );
         })}
       </div>
+
+      {step === "prescriptions" && (
+        <section key="prescriptions" className="setup-panel rx-panel">
+          <div className="setup-review-hero">
+            <div>
+              <h2>Choose your prescriptions</h2>
+              <p>Tap the treatments this clinic offers. The AI receptionist will use these as chat buttons.</p>
+            </div>
+            <div className="setup-review-stats" aria-label="Selected prescriptions">
+              <div>
+                <strong>{treatments.length || "—"}</strong>
+                <span>{treatments.length === 1 ? "Selected" : "Selected"}</span>
+              </div>
+            </div>
+          </div>
+          <div className="rx-grid">
+            {PRESCRIPTION_CATALOG.map((choice, i) => {
+              const on = isPrescriptionSelected(treatments, choice);
+              return (
+                <button
+                  key={choice.id}
+                  type="button"
+                  className={`rx-card ${on ? "on" : ""}`}
+                  style={{ animationDelay: `${i * 35}ms` }}
+                  onClick={() => queueTreatmentSave(togglePrescription(treatments, choice))}
+                >
+                  <em>{on ? "On" : "Add"}</em>
+                  <strong>{choice.label}</strong>
+                  <span>{choice.blurb}</span>
+                </button>
+              );
+            })}
+          </div>
+          <section className="setup-block">
+            <header className="setup-block-head">
+              <div>
+                <h3>Something else?</h3>
+                <p>Add a custom treatment or service name.</p>
+              </div>
+            </header>
+            <form
+              className="rx-custom"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const label = customRx.trim();
+                if (!label) return;
+                if (treatments.some((row) => row.label.toLowerCase() === label.toLowerCase())) {
+                  setCustomRx("");
+                  return;
+                }
+                queueTreatmentSave([
+                  ...treatments,
+                  { label, actionType: "lead", starterMessage: `I'd like to ask about ${label}.`, url: "" },
+                ]);
+                setCustomRx("");
+              }}
+            >
+              <input value={customRx} onChange={(e) => setCustomRx(e.target.value)} placeholder="e.g. Sedation, Facial aesthetics" />
+              <button className="btn secondary" type="submit">
+                Add
+              </button>
+            </form>
+          </section>
+          <div className="setup-review-actions">
+            <p>{treatments.length ? "Locked in. You can keep refining or enter Clinix now." : "Pick at least one prescription to continue."}</p>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" className="btn secondary" onClick={() => void openStep("website")} disabled={!treatments.length}>
+                Scan website next
+              </button>
+              <button type="button" className="btn" onClick={() => void enterClinic()} disabled={!treatments.length}>
+                Enter Clinix
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
 
       {step === "website" && (
         <section key="website" className={`setup-panel ${scanBusy ? "is-scanning" : ""}`}>
@@ -723,8 +828,8 @@ export function ChatbotSetupWizard(props: { initial: Payload; snippet: string })
         <section key="live" className="setup-panel">
           <div className="setup-review-hero">
             <div>
-              <h2>Go live</h2>
-              <p>This turns the widget on and opens the studio if you want to tweak skins later.</p>
+              <h2>Enter Clinix</h2>
+              <p>Open your clinic workspace. Turn the widget on now, or activate it later from Chatbots.</p>
             </div>
             <div className="setup-review-stats">
               <div>
@@ -754,8 +859,11 @@ export function ChatbotSetupWizard(props: { initial: Payload; snippet: string })
               >
                 {copied ? "Copied" : "Copy snippet"}
               </button>
+              <button type="button" className="btn secondary" onClick={() => void enterClinic()}>
+                Enter Clinix
+              </button>
               <button type="button" className="btn" onClick={() => void goLive()}>
-                Activate and open studio
+                Activate widget
               </button>
             </div>
           </div>

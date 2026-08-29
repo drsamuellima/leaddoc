@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import {
   applyExtractToBot,
+  emptyExtract,
   ensureSetup,
   faqsFromDrafts,
   parseSetupStep,
   treatmentsFromDrafts,
 } from "@/lib/chatbot-setup";
-import { mutateStore } from "@/lib/store";
-import { loadOwnedBot, setupPayload } from "@/lib/setup-state";
+import { mutateOwnedSetup, setupPayload } from "@/lib/setup-state";
 import { nextFactToConfirm } from "@/lib/setup-interview";
 import type { SetupExtract, SetupFaqDraft, SetupTreatmentDraft } from "@/lib/types";
 import { parseActionType } from "@/lib/types";
@@ -42,15 +42,11 @@ function asTreatments(value: unknown): SetupTreatmentDraft[] | null {
 
 export async function PATCH(request: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
-  const owned = await loadOwnedBot(id);
-  if (!owned) return NextResponse.json({ error: "Chatbot not found" }, { status: 404 });
 
   const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
   if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
 
-  const snapshot = await mutateStore((data) => {
-    const bot = data.chatbots.find((b) => b.id === id && b.organizationId === owned.org.id);
-    if (!bot) return null;
+  const snapshot = await mutateOwnedSetup(id, (data, bot) => {
     bot.setup = ensureSetup(bot);
 
     if (typeof body.step === "string") {
@@ -85,7 +81,8 @@ export async function PATCH(request: Request, ctx: { params: Promise<{ id: strin
       bot.setup.pendingExtract.faqs = pendingFaqs;
     }
     const pendingTreatments = asTreatments(body.pendingTreatments);
-    if (pendingTreatments && bot.setup.pendingExtract) {
+    if (pendingTreatments) {
+      if (!bot.setup.pendingExtract) bot.setup.pendingExtract = emptyExtract();
       bot.setup.pendingExtract.treatments = pendingTreatments;
     }
 
@@ -105,6 +102,22 @@ export async function PATCH(request: Request, ctx: { params: Promise<{ id: strin
       bot.setup.interview = [];
       bot.setup.confirmed = {};
       bot.setup.awaitingField = undefined;
+    }
+
+    if (body.applyPrescriptions === true) {
+      const treatments = pendingTreatments || asTreatments(bot.setup.pendingExtract?.treatments || []);
+      if (treatments?.length) {
+        const next = treatmentsFromDrafts(bot.id, treatments);
+        data.chatbotOptions = data.chatbotOptions.filter((o) => o.chatbotId !== bot.id).concat(next);
+        if (bot.setup.pendingExtract) bot.setup.pendingExtract.treatments = treatments;
+        else bot.setup.pendingExtract = { ...emptyExtract(), treatments };
+      }
+      bot.setup.checklist.treatments = data.chatbotOptions.some((o) => o.chatbotId === bot.id);
+    }
+
+    if (body.enterClinic === true) {
+      bot.setupComplete = true;
+      bot.setup.step = "live";
     }
 
     if (body.goLive === true) {
