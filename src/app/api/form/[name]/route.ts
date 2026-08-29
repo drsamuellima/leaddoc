@@ -7,7 +7,7 @@ import {
   addOptionAction,
   adminAddSupportNoteAction,
   adminChargeAction,
-  adminCreateChatbotAction,
+  adminCreateChatbotCore,
   adminCreateClinicAction,
   adminCreateStripeSubAction,
   adminInviteStaffAction,
@@ -18,14 +18,12 @@ import {
   adminSetSubscriptionAction,
   adminDeleteClinicAction,
   adminResetUserPasswordAction,
-  createChatbotAction,
+  createChatbotCore,
   deleteChatbotAction,
   adminDeleteChatbotAction,
   deleteKnowledgeAction,
   deleteOptionAction,
   updateKnowledgeAction,
-  exitImpersonateAction,
-  impersonateAction,
   inviteStaffAction,
   logoutAction,
   markNotificationsReadAction,
@@ -52,6 +50,8 @@ import {
   completeLeadRecallAction,
   updateOptionAction,
 } from "@/lib/actions";
+import { originFromRequest } from "@/lib/integrations";
+import { enterClinicAt, enterClinicResponse, exitClinicResponse } from "@/lib/impersonate";
 
 export const maxDuration = 30;
 
@@ -63,7 +63,6 @@ const handlers: Record<string, (formData: FormData) => Promise<void>> = {
   requestPasswordReset: requestPasswordResetAction,
   resetPassword: resetPasswordAction,
   saveChatbot: saveChatbotAction,
-  createChatbot: createChatbotAction,
   deleteChatbot: deleteChatbotAction,
   addOption: addOptionAction,
   updateOption: updateOptionAction,
@@ -90,15 +89,12 @@ const handlers: Record<string, (formData: FormData) => Promise<void>> = {
   completeLeadRecall: completeLeadRecallAction,
   markNotificationsRead: () => markNotificationsReadAction(),
   adminCreateClinic: adminCreateClinicAction,
-  impersonate: impersonateAction,
-  exitImpersonate: () => exitImpersonateAction(),
   adminLinkStripe: adminLinkStripeAction,
   adminCreateStripeSub: adminCreateStripeSubAction,
   adminCharge: adminChargeAction,
   adminSavePlan: adminSavePlanAction,
   adminAddSupportNote: adminAddSupportNoteAction,
   adminToggleWidgetException: adminToggleWidgetExceptionAction,
-  adminCreateChatbot: adminCreateChatbotAction,
   adminDeleteChatbot: adminDeleteChatbotAction,
   adminSetSubscription: adminSetSubscriptionAction,
   adminSaveBranding: adminSaveBrandingAction,
@@ -115,11 +111,40 @@ export async function POST(request: Request, ctx: { params: Promise<{ name: stri
   ) {
     return NextResponse.json(rateLimitResponse(), { status: 429 });
   }
-  const formData = await request.formData();
+  const formData = await request.formData().catch(() => new FormData());
+  if (name === "impersonate") return enterClinicResponse(request, formData);
+  if (name === "exitImpersonate") return exitClinicResponse(request);
+  if (name === "createChatbot") {
+    const created = await createChatbotCore();
+    return formRedirect(request, created.path);
+  }
+  if (name === "adminCreateChatbot") {
+    const created = await adminCreateChatbotCore(formData);
+    return enterClinicAt(request, created.organizationId, created.path);
+  }
   const handler = handlers[name];
   if (!handler) {
     return NextResponse.json({ error: "Unknown form" }, { status: 404 });
   }
-  await handler(formData);
-  return NextResponse.json({ ok: true });
+  try {
+    await handler(formData);
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    const redirected = formRedirectFromError(request, error);
+    if (redirected) return redirected;
+    throw error;
+  }
+}
+
+function formRedirect(request: Request, path: string) {
+  const target = path.startsWith("http://") || path.startsWith("https://") ? path : new URL(path, originFromRequest(request)).toString();
+  return NextResponse.redirect(target, 303);
+}
+
+function formRedirectFromError(request: Request, error: unknown) {
+  if (!error || typeof error !== "object" || !("digest" in error)) return null;
+  const digest = String((error as { digest?: unknown }).digest || "");
+  if (!digest.startsWith("NEXT_REDIRECT;")) return null;
+  const path = digest.split(";")[2] || "/app";
+  return formRedirect(request, path);
 }

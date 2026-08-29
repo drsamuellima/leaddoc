@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { randomUUID } from "crypto";
@@ -9,7 +10,6 @@ import {
   getClinicContext,
   requireAdmin,
   requireUser,
-  setImpersonate,
   setSession,
 } from "./auth";
 import { generatePassword, hashPassword, hashToken, randomToken, verifyPassword, widgetKey } from "./crypto";
@@ -37,6 +37,7 @@ import {
 import { knowledgeKey, KNOWLEDGE_PACKS } from "./knowledge-examples";
 import { parseActionType, parseWidgetFont, parseWidgetStyle, widgetFieldDefaults, type ChatbotActionType, type StoreData, type SubscriptionStatus } from "./types";
 import { completedSetup, emptySetup } from "./chatbot-setup";
+import { clinicAppPath } from "./impersonate";
 import { isLeadStatus, LEAD_STAGE_LABELS } from "./leads";
 import { applyPipelineToLead, findPipeline, parseGbpToPence, sortedStages } from "./pipelines";
 
@@ -254,13 +255,6 @@ function buildChatbot(org: { id: string; name: string; primaryColor: string; pho
   return { bot, options: ready ? defaultTreatments(botId) : [] };
 }
 
-function clinicAppPath(raw: string) {
-  const next = String(raw || "").trim();
-  if (!next.startsWith("/app")) return "/app";
-  if (next.startsWith("//") || /[\s\\]/.test(next)) return "/app";
-  return next;
-}
-
 async function recordAdmin(actorId: string, action: string, organizationId: string | null, detail: string) {
   try {
     await appendAuditLog({
@@ -276,11 +270,18 @@ async function recordAdmin(actorId: string, action: string, organizationId: stri
   }
 }
 
-export async function createChatbotAction(_formData: FormData) {
+export async function createChatbotCore() {
   const { org } = await getClinicContext();
   const { bot } = buildChatbot(org, "New chatbot", false);
   await insertChatbot(bot, []);
-  redirect(`/app/chatbots/${bot.id}/setup`);
+  return { path: `/app/chatbots/${bot.id}/setup` };
+}
+
+export async function createChatbotAction(_formData: FormData) {
+  const created = await createChatbotCore();
+  revalidatePath("/app/chatbots");
+  revalidatePath(created.path);
+  redirect(created.path);
 }
 
 export async function deleteChatbotAction(formData: FormData) {
@@ -815,12 +816,7 @@ export async function adminCreateClinicAction(formData: FormData) {
 }
 
 export async function impersonateAction(formData: FormData) {
-  const admin = await requireAdmin();
-  const organizationId = String(formData.get("organizationId") || "");
-  const org = await getOrganizationById(organizationId);
-  if (!org) redirect("/admin?error=missing");
-  await setImpersonate(organizationId);
-  await recordAdmin(admin.id, "impersonate", organizationId, `${admin.email} opened ${org.name}`);
+  await requireAdmin();
   redirect(clinicAppPath(String(formData.get("next") || "/app")));
 }
 
@@ -980,7 +976,7 @@ export async function adminToggleWidgetExceptionAction(formData: FormData) {
   redirect(`/admin/clinics/${organizationId}/billing`);
 }
 
-export async function adminCreateChatbotAction(formData: FormData) {
+export async function adminCreateChatbotCore(formData: FormData) {
   const admin = await requireAdmin();
   const organizationId = String(formData.get("organizationId") || "");
   const org = await getOrganizationById(organizationId);
@@ -989,9 +985,17 @@ export async function adminCreateChatbotAction(formData: FormData) {
   const ready = formData.get("ready") !== "draft";
   const { bot, options } = buildChatbot(org, name, ready);
   await insertChatbot(bot, options);
-  await setImpersonate(organizationId);
   await recordAdmin(admin.id, "create_chatbot", organizationId, bot.name);
-  redirect(ready ? `/app/chatbots/${bot.id}` : `/app/chatbots/${bot.id}/setup`);
+  return {
+    organizationId,
+    path: ready ? `/app/chatbots/${bot.id}` : `/app/chatbots/${bot.id}/setup`,
+  };
+}
+
+export async function adminCreateChatbotAction(formData: FormData) {
+  const created = await adminCreateChatbotCore(formData);
+  await setImpersonate(created.organizationId);
+  redirect(created.path);
 }
 
 export async function adminDeleteChatbotAction(formData: FormData) {

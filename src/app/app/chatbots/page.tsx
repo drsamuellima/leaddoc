@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CreateChatbotButton } from "@/components/chatbot-setup/create-chatbot-button";
 import { EmptyState, PageHeader, StatusBadge } from "@/components/ui";
 import { DeleteChatbotButton } from "@/components/chatbot-studio/delete-chatbot-button";
 import { getClinicContext } from "@/lib/auth";
@@ -20,13 +21,7 @@ export default async function ChatbotsPage({
         kicker="Widgets"
         title="Chatbots"
         description="Set up a new chat with AI, then polish it in the studio."
-        action={
-          <form action="/api/form/createChatbot" method="post">
-            <button className="btn" type="submit">
-              Set up with AI
-            </button>
-          </form>
-        }
+        action={<CreateChatbotButton />}
       />
       {ok === "deleted" ? <p className="lead-flash">Chatbot deleted. Patient leads were kept.</p> : null}
       {bots.length === 0 ? (

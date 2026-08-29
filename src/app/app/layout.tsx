@@ -13,7 +13,12 @@ const nav = [
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, org, impersonating } = await getClinicContext();
-  const unread = await getClinicUnreadCount(org.id);
+  let unread = 0;
+  try {
+    unread = await getClinicUnreadCount(org.id);
+  } catch {
+    unread = 0;
+  }
 
   return (
     <DashboardShell

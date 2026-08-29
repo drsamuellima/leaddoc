@@ -18,9 +18,9 @@ Checks email and password against `profiles`. Only **wrong password** attempts a
 **Method:** POST (multipart/form)  
 **Who:** depends on the handler (see below)
 
-Looks up `name` in a table of actions. Unknown names return 404 `{ error: "Unknown form" }`. Known names run the action with the posted `FormData` and return `{ ok: true }`. Signup and password-reset names are rate-limited per IP.
+Looks up `name` in a table of actions. Unknown names return 404 `{ error: "Unknown form" }`. Known names run the action with the posted `FormData`. If the action calls `redirect()`, this route turns that into an HTTP 303 so the browser opens the destination page (for example the AI setup wizard) instead of staying on the API URL. Actions that do not redirect return `{ ok: true }`. Signup and password-reset names are rate-limited per IP.
 
-Many actions also `redirect()` on success or error, so the browser may follow a redirect instead of reading JSON.
+`createChatbot` and `adminCreateChatbot` always 303: clinic create goes to `/app/chatbots/[id]/setup`; admin create impersonates into setup (draft) or studio (ready bot).
 
 If you add or remove a handler, add or remove its heading in this file.
 
@@ -54,7 +54,7 @@ Clinic. Saves studio fields: name, greetings, prompt, colours, skin, font, avata
 
 ### createChatbot
 
-Clinic. Creates a draft chatbot (inactive, setup incomplete) and sends the clinic to `/app/chatbots/[id]/setup`.
+Clinic. Creates a draft chatbot (inactive, setup incomplete) and immediately opens `/app/chatbots/[id]/setup` (the AI wizard). The clinic Chatbots page also runs this as a server action so the wizard appears without a full reload through the API URL.
 
 ### deleteChatbot
 
@@ -162,11 +162,11 @@ Platform admin. Creates a practice the same way as public signup: owner, draft c
 
 ### impersonate
 
-Platform admin. Sets `dentchat_impersonate_org` and redirects into `/app` (or a `next` path that starts with `/app`, such as a chatbot studio or lead record). Writes a small audit row; it does not rewrite the whole database. If the clinic id is missing, returns to `/admin`.
+Platform admin. Sets `dentchat_impersonate_org` on the **redirect response** (HTTP 303) and sends the admin into `/app` — the same clinic dashboard the practice uses. Optional `next` must start with `/app`. If the clinic id is missing, returns to `/admin`. The cookie is not set through `cookies().set()` plus `redirect()` from this route; that dropped the cookie in production and `/app` failed with HTTP 500.
 
 ### exitImpersonate
 
-Platform admin. Clears impersonation and returns to `/admin`.
+Platform admin. Clears the impersonation cookie on the redirect response and returns to `/admin`.
 
 ### adminLinkStripe
 

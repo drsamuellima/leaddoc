@@ -1,0 +1,13 @@
+---
+description: Admins open the same clinic dashboard as the practice; never fork a second UI.
+alwaysApply: true
+---
+
+# Admin uses the clinic dashboard
+
+Platform admins **Open as clinic** into `/app`. That is the one clinic product (overview, chatbots, leads, pipelines, conversations, settings). Do not build a parallel clinic UI under `/admin` that copies those screens.
+
+- Change clinic pages, the clinic layout (`src/app/app/**`), or `DashboardShell` once. Admins impersonating already render those files.
+- Keep impersonation as a cookie (`dentchat_impersonate_org`) plus `getClinicContext()`. Super admins have `canManageClinic` and use `org.id`, never `user.organizationId`.
+- Set the impersonation cookie on the **redirect response** (`NextResponse.cookies`), not via `cookies().set()` then `redirect()` from `/api/form/[name]`. That path drops the cookie and `/app` 500s or bounces to `/admin`.
+- **Open** on `/admin` is the clinic hub (billing, notes). **Open as clinic** must land in `/app` with the impersonation banner.

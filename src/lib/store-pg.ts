@@ -992,69 +992,6 @@ export type ClinicSlice =
   | "settings"
   | "full";
 
-type ClinicCols = {
-  profiles: boolean;
-  plans: boolean;
-  chatbots: boolean;
-  chatbotOptions: boolean;
-  knowledgeItems: boolean;
-  pipelines: boolean;
-  conversations: boolean;
-  leads: boolean;
-  messages: boolean;
-  notifications: boolean;
-  leadTasks: boolean;
-  leadEvents: boolean;
-  leadNotes: boolean;
-  leadRecalls: boolean;
-  supportNotes: boolean;
-};
-
-const CLINIC_NONE: ClinicCols = {
-  profiles: false,
-  plans: false,
-  chatbots: false,
-  chatbotOptions: false,
-  knowledgeItems: false,
-  pipelines: false,
-  conversations: false,
-  leads: false,
-  messages: false,
-  notifications: false,
-  leadTasks: false,
-  leadEvents: false,
-  leadNotes: false,
-  leadRecalls: false,
-  supportNotes: false,
-};
-
-const CLINIC_SLICES: Record<ClinicSlice, ClinicCols> = {
-  overview: { ...CLINIC_NONE, leads: true, chatbots: true, conversations: true, notifications: true },
-  chatbots: { ...CLINIC_NONE, chatbots: true },
-  studio: { ...CLINIC_NONE, chatbots: true, chatbotOptions: true, knowledgeItems: true },
-  leads: { ...CLINIC_NONE, leads: true, pipelines: true, profiles: true, chatbots: true },
-  pipelines: { ...CLINIC_NONE, pipelines: true, leads: true },
-  conversations: { ...CLINIC_NONE, conversations: true, leads: true },
-  settings: { ...CLINIC_NONE, profiles: true, plans: true },
-  full: {
-    profiles: true,
-    plans: true,
-    chatbots: true,
-    chatbotOptions: true,
-    knowledgeItems: true,
-    pipelines: true,
-    conversations: true,
-    leads: true,
-    messages: true,
-    notifications: true,
-    leadTasks: true,
-    leadEvents: true,
-    leadNotes: true,
-    leadRecalls: true,
-    supportNotes: true,
-  },
-};
-
 function storeFromAgg(row: Record<string, unknown>): StoreData {
   const data = emptyStore();
   data.organizations = mapRows(row.organizations, mapOrg);
@@ -1086,40 +1023,38 @@ export async function getPgClinicUnreadCount(orgId: string): Promise<number> {
   return Number(row?.n ?? 0);
 }
 
-export async function readPgClinicStore(orgId: string, slice: ClinicSlice = "full"): Promise<StoreData> {
+export async function readPgClinicStore(orgId: string, _slice: ClinicSlice = "full"): Promise<StoreData> {
   if (!isUuid(orgId)) return emptyStore();
   if (!bootstrapped) {
     await ensureBootstrap();
     bootstrapped = true;
   }
   const sql = getSql();
-  const want = CLINIC_SLICES[slice] ?? CLINIC_SLICES.full;
-  const empty = () => sql`'[]'::json`;
   const [row] = await sql`
     select
       (select coalesce(json_agg(t), '[]'::json) from organizations t where t.id = ${orgId}::uuid) as organizations,
-      ${want.profiles ? sql`(select coalesce(json_agg(t), '[]'::json) from profiles t where t.organization_id = ${orgId}::uuid)` : empty()} as profiles,
-      ${want.plans ? sql`(select coalesce(json_agg(t), '[]'::json) from plans t)` : empty()} as plans,
-      ${want.chatbots ? sql`(select coalesce(json_agg(t), '[]'::json) from chatbots t where t.organization_id = ${orgId}::uuid)` : empty()} as chatbots,
-      ${want.chatbotOptions ? sql`(select coalesce(json_agg(t), '[]'::json) from chatbot_options t
-        where t.chatbot_id in (select id from chatbots where organization_id = ${orgId}::uuid))` : empty()} as chatbot_options,
-      ${want.knowledgeItems ? sql`(select coalesce(json_agg(t), '[]'::json) from knowledge_items t
-        where t.chatbot_id in (select id from chatbots where organization_id = ${orgId}::uuid))` : empty()} as knowledge_items,
-      ${want.pipelines ? sql`(select coalesce(json_agg(t), '[]'::json) from pipelines t where t.organization_id = ${orgId}::uuid)` : empty()} as pipelines,
-      ${want.conversations ? sql`(select coalesce(json_agg(t), '[]'::json) from conversations t where t.organization_id = ${orgId}::uuid)` : empty()} as conversations,
-      ${want.leads ? sql`(select coalesce(json_agg(t), '[]'::json) from leads t where t.organization_id = ${orgId}::uuid)` : empty()} as leads,
-      ${want.messages ? sql`(select coalesce(json_agg(t), '[]'::json) from messages t
-        where t.conversation_id in (select id from conversations where organization_id = ${orgId}::uuid))` : empty()} as messages,
-      ${want.notifications ? sql`(select coalesce(json_agg(t), '[]'::json) from notifications t where t.organization_id = ${orgId}::uuid)` : empty()} as notifications,
-      ${want.leadTasks ? sql`(select coalesce(json_agg(t), '[]'::json) from lead_tasks t
-        where t.lead_id in (select id from leads where organization_id = ${orgId}::uuid))` : empty()} as lead_tasks,
-      ${want.leadEvents ? sql`(select coalesce(json_agg(t), '[]'::json) from lead_events t
-        where t.lead_id in (select id from leads where organization_id = ${orgId}::uuid))` : empty()} as lead_events,
-      ${want.leadNotes ? sql`(select coalesce(json_agg(t), '[]'::json) from lead_notes t
-        where t.lead_id in (select id from leads where organization_id = ${orgId}::uuid))` : empty()} as lead_notes,
-      ${want.leadRecalls ? sql`(select coalesce(json_agg(t), '[]'::json) from lead_recalls t
-        where t.lead_id in (select id from leads where organization_id = ${orgId}::uuid))` : empty()} as lead_recalls,
-      ${want.supportNotes ? sql`(select coalesce(json_agg(t), '[]'::json) from support_notes t where t.organization_id = ${orgId}::uuid)` : empty()} as support_notes
+      (select coalesce(json_agg(t), '[]'::json) from profiles t where t.organization_id = ${orgId}::uuid) as profiles,
+      (select coalesce(json_agg(t), '[]'::json) from plans t) as plans,
+      (select coalesce(json_agg(t), '[]'::json) from chatbots t where t.organization_id = ${orgId}::uuid) as chatbots,
+      (select coalesce(json_agg(t), '[]'::json) from chatbot_options t
+        where t.chatbot_id in (select id from chatbots where organization_id = ${orgId}::uuid)) as chatbot_options,
+      (select coalesce(json_agg(t), '[]'::json) from knowledge_items t
+        where t.chatbot_id in (select id from chatbots where organization_id = ${orgId}::uuid)) as knowledge_items,
+      (select coalesce(json_agg(t), '[]'::json) from pipelines t where t.organization_id = ${orgId}::uuid) as pipelines,
+      (select coalesce(json_agg(t), '[]'::json) from conversations t where t.organization_id = ${orgId}::uuid) as conversations,
+      (select coalesce(json_agg(t), '[]'::json) from leads t where t.organization_id = ${orgId}::uuid) as leads,
+      (select coalesce(json_agg(t), '[]'::json) from messages t
+        where t.conversation_id in (select id from conversations where organization_id = ${orgId}::uuid)) as messages,
+      (select coalesce(json_agg(t), '[]'::json) from notifications t where t.organization_id = ${orgId}::uuid) as notifications,
+      (select coalesce(json_agg(t), '[]'::json) from lead_tasks t
+        where t.lead_id in (select id from leads where organization_id = ${orgId}::uuid)) as lead_tasks,
+      (select coalesce(json_agg(t), '[]'::json) from lead_events t
+        where t.lead_id in (select id from leads where organization_id = ${orgId}::uuid)) as lead_events,
+      (select coalesce(json_agg(t), '[]'::json) from lead_notes t
+        where t.lead_id in (select id from leads where organization_id = ${orgId}::uuid)) as lead_notes,
+      (select coalesce(json_agg(t), '[]'::json) from lead_recalls t
+        where t.lead_id in (select id from leads where organization_id = ${orgId}::uuid)) as lead_recalls,
+      (select coalesce(json_agg(t), '[]'::json) from support_notes t where t.organization_id = ${orgId}::uuid) as support_notes
   `;
   return storeFromAgg(row as Record<string, unknown>);
 }

@@ -32,9 +32,9 @@ All clinic data is filtered by `organizationId`. The layout at `src/app/app/layo
 
 ### Platform admin (`/admin`)
 
-A user with role **super_admin**. They are not tied to one clinic. They can list every practice, see every lead and chatbot, edit billing and plans, change a clinic’s account settings and staff, add support notes, and **impersonate** a clinic (work in `/app` as if they were that practice). Non-admins who hit `/admin` are sent to `/app`.
+A user with role **super_admin**. They are not tied to one clinic. They can list every practice, see every lead and chatbot, edit billing and plans, change a clinic’s account settings and staff, add support notes, and **Open as clinic**. That lands them on the same `/app` dashboard the practice uses (`getClinicContext` plus the impersonation cookie). Do not maintain a second clinic UI for admins. Non-admins who hit `/admin` are sent to `/app`.
 
-Opening a clinic hub loads that organisation only. All-leads, users, activity, and plans use small queries. Impersonation sets a cookie and does not rewrite every table. That keeps admin navigation from timing out.
+Opening a clinic hub loads that organisation only. All-leads, users, activity, and plans use small queries. Impersonation sets the cookie on the HTTP redirect. That keeps admin navigation from timing out.
 
 On a live database the first admin is created from `ADMIN_EMAIL` and `ADMIN_PASSWORD`. Local JSON demo still seeds `clinic@dentchat.local` and `admin@dentchat.local`.
 
@@ -79,7 +79,7 @@ Main records (types in [`src/lib/types.ts`](../src/lib/types.ts)):
 - **supportNotes** — internal admin notes on a clinic.
 - **passwordResetTokens** — hashed reset links, one hour.
 
-Server mutations live in [`src/lib/actions.ts`](../src/lib/actions.ts). Browser forms usually `POST` to `/api/form/[name]`, which looks up a named handler and runs the matching action.
+Server mutations live in [`src/lib/actions.ts`](../src/lib/actions.ts). Browser forms usually `POST` to `/api/form/[name]`, which looks up a named handler and runs the matching action. When that action calls `redirect()`, the route answers with HTTP 303 so the browser opens the destination (clinic AI setup, studio, and similar) instead of showing an error on the API URL. **Set up with AI** in the clinic app also runs as a server action so the wizard appears immediately.
 
 ## Billing
 

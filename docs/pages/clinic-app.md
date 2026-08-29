@@ -1,6 +1,6 @@
 # Clinic app
 
-Everything under `/app` is the practice workspace. The layout (`src/app/app/layout.tsx`) requires a signed-in user with a clinic (`getClinicContext`). Super admins only get here by impersonating a clinic. The layout only loads an unread-notification count. Each page then loads the tables it needs (not every chat message and FAQ). Clicking a sidebar item highlights it immediately; the main canvas shows a short skeleton until that page arrives.
+Everything under `/app` is the practice workspace. Platform admins **Open as clinic** and land on these same pages — there is no separate admin copy of the dashboard. The layout (`src/app/app/layout.tsx`) requires a signed-in user with a clinic (`getClinicContext`). Super admins only get here by impersonating a clinic. The layout only loads an unread-notification count. Each page then loads the tables it needs. Clicking a sidebar item highlights it immediately; the main canvas shows a short skeleton until that page arrives.
 
 Nav: Overview, Chatbots, Leads, Pipelines, Conversations, Settings. The shell can search patients (submits to `/app/leads`) and shows unread “new lead” notifications. The dark sidebar uses the official LeadDr. wordmark (dark-background version) plus the practice name. The main canvas — search bar and page together — shares one cream background with the same soft colour wash, so the header is not a separate white strip.
 
@@ -22,7 +22,7 @@ The practice overview. It shows how many leads the clinic has captured, a 14-day
 **File:** `src/app/app/chatbots/page.tsx`  
 **Who:** clinic owner, clinic staff, impersonating admin
 
-Lists this practice’s chatbots as cards (name, greeting, widget key, active/inactive). **Set up with AI** creates a draft bot (`POST /api/form/createChatbot`) and opens the beginner wizard. Incomplete drafts show **Continue setup**. Finished bots open the studio. **Delete** on a card (after confirm) removes the bot, its FAQs, and treatment buttons. Patient leads stay. The embed snippet for that widget key stops working.
+Lists this practice’s chatbots as cards (name, greeting, widget key, active/inactive). **Set up with AI** creates a draft bot and opens the beginner wizard on `/app/chatbots/[id]/setup` straight away (server action, or `POST /api/form/createChatbot` which 303s to the same page). Incomplete drafts show **Continue setup**. Finished bots open the studio. **Delete** on a card (after confirm) removes the bot, its FAQs, and treatment buttons. Patient leads stay. The embed snippet for that widget key stops working.
 
 **Reads/writes:** reads `chatbots`; create writes an inactive draft; delete removes the bot (`POST /api/form/deleteChatbot`).
 
