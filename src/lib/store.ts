@@ -14,6 +14,7 @@ import {
   getPgChatbotOptions,
   getPgChatHistory,
   getPgClinicNotifyEmail,
+  getPgClinicUnreadCount,
   getPgKnowledgeForBot,
   getPgOwnedChatbot,
   getPgOrganizationById,
@@ -25,8 +26,11 @@ import {
   insertPgSupportNote,
   mutateOwnedBotPg,
   mutatePgStore,
+  readPgClinicConversation,
+  readPgClinicLead,
   readPgClinicStore,
   readPgStore,
+  type ClinicSlice,
   savePgOrganization,
   savePgPlan,
   setPgPassword,
@@ -45,9 +49,12 @@ import type {
   StoreData,
   SupportNote,
 } from "./types";
+import type { ClinicSlice } from "./store-pg";
 import { randomUUID } from "crypto";
 
+export type { ClinicSlice };
 export { slugify, DEMO_WIDGET_KEY };
+export type { ClinicSlice };
 
 export async function readStore(): Promise<StoreData> {
   if (useJsonStore()) return readJsonStore();
@@ -104,9 +111,51 @@ function filterStoreByOrg(store: StoreData, orgId: string): StoreData {
   };
 }
 
-export const readClinicStore = cache(async (orgId: string): Promise<StoreData> => {
+export const readClinicStore = cache(async (orgId: string, slice: ClinicSlice = "full"): Promise<StoreData> => {
   if (useJsonStore()) return filterStoreByOrg(await readJsonStore(), orgId);
-  return readPgClinicStore(orgId);
+  return readPgClinicStore(orgId, slice);
+});
+
+export const getClinicUnreadCount = cache(async (orgId: string): Promise<number> => {
+  if (useJsonStore()) {
+    const store = await readJsonStore();
+    return store.notifications.filter((n) => n.organizationId === orgId && !n.readAt).length;
+  }
+  return getPgClinicUnreadCount(orgId);
+});
+
+export const readClinicLead = cache(async (orgId: string, leadId: string): Promise<StoreData | null> => {
+  if (useJsonStore()) {
+    const store = filterStoreByOrg(await readJsonStore(), orgId);
+    const lead = store.leads.find((l) => l.id === leadId);
+    if (!lead) return null;
+    return {
+      ...store,
+      leads: [lead],
+      conversations: store.conversations.filter((c) => c.id === lead.conversationId),
+      messages: store.messages.filter((m) => m.conversationId === lead.conversationId),
+      leadTasks: store.leadTasks.filter((t) => t.leadId === leadId),
+      leadEvents: store.leadEvents.filter((e) => e.leadId === leadId),
+      leadNotes: store.leadNotes.filter((n) => n.leadId === leadId),
+      leadRecalls: store.leadRecalls.filter((r) => r.leadId === leadId),
+    };
+  }
+  return readPgClinicLead(orgId, leadId);
+});
+
+export const readClinicConversation = cache(async (orgId: string, conversationId: string): Promise<StoreData | null> => {
+  if (useJsonStore()) {
+    const store = filterStoreByOrg(await readJsonStore(), orgId);
+    const convo = store.conversations.find((c) => c.id === conversationId);
+    if (!convo) return null;
+    return {
+      ...store,
+      conversations: [convo],
+      leads: store.leads.filter((l) => l.id === convo.leadId || l.conversationId === conversationId),
+      messages: store.messages.filter((m) => m.conversationId === conversationId),
+    };
+  }
+  return readPgClinicConversation(orgId, conversationId);
 });
 
 export async function mutateOwnedChatbot<T>(
