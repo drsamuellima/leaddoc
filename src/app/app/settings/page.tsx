@@ -10,7 +10,7 @@ export default async function SettingsPage({
   searchParams: Promise<{ ok?: string; error?: string }>;
 }) {
   const { org } = await getClinicContext();
-  const store = await readClinicStore(org.id);
+  const store = await readClinicStore(org.id, "settings");
   const staff = store.profiles.filter((p) => p.organizationId === org.id);
   const plan = store.plans.find((p) => p.active) || store.plans[0];
   const { ok, error } = await searchParams;

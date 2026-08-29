@@ -30,11 +30,11 @@ import {
   readPgClinicLead,
   readPgClinicStore,
   readPgStore,
-  type ClinicSlice,
   savePgOrganization,
   savePgPlan,
   setPgPassword,
 } from "./store-pg";
+import type { ClinicSlice } from "./store-pg";
 import { applyPipelineToLead, matchPipeline, stageIdForStatus } from "./pipelines";
 import type {
   AuditLog,
@@ -49,12 +49,10 @@ import type {
   StoreData,
   SupportNote,
 } from "./types";
-import type { ClinicSlice } from "./store-pg";
 import { randomUUID } from "crypto";
 
 export type { ClinicSlice };
 export { slugify, DEMO_WIDGET_KEY };
-export type { ClinicSlice };
 
 export async function readStore(): Promise<StoreData> {
   if (useJsonStore()) return readJsonStore();

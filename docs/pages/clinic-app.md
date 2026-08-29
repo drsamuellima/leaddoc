@@ -1,6 +1,6 @@
 # Clinic app
 
-Everything under `/app` is the practice workspace. The layout (`src/app/app/layout.tsx`) requires a signed-in user with a clinic (`getClinicContext`). Super admins only get here by impersonating a clinic. Layout and page share one clinic data load for that request.
+Everything under `/app` is the practice workspace. The layout (`src/app/app/layout.tsx`) requires a signed-in user with a clinic (`getClinicContext`). Super admins only get here by impersonating a clinic. The layout only loads an unread-notification count. Each page then loads the tables it needs (not every chat message and FAQ). Clicking a sidebar item highlights it immediately; the main canvas shows a short skeleton until that page arrives.
 
 Nav: Overview, Chatbots, Leads, Pipelines, Conversations, Settings. The shell can search patients (submits to `/app/leads`) and shows unread “new lead” notifications. The dark sidebar uses the official LeadDr. wordmark (dark-background version) plus the practice name. The main canvas — search bar and page together — shares one cream background with the same soft colour wash, so the header is not a separate white strip.
 
@@ -98,7 +98,7 @@ Inline edits go through `patchLeadInline`. Bulk delete uses `deleteLeads`. Openi
 **File:** `src/app/app/leads/[id]/page.tsx`  
 **Who:** clinic owner, clinic staff, impersonating admin (lead must belong to this clinic)
 
-The full lead record. Tabs:
+The full lead record. Tabs (switch in the browser; the URL updates without reloading the page):
 
 - **Enquiry** — contact details, treatment, pipeline stage, value, status, assignee.
 - **Activity** — timeline of events on this lead.

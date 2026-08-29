@@ -1,6 +1,6 @@
 import { DashboardShell } from "@/components/dashboard-shell";
 import { getClinicContext } from "@/lib/auth";
-import { readClinicStore } from "@/lib/store";
+import { getClinicUnreadCount } from "@/lib/store";
 
 const nav = [
   { href: "/app", label: "Overview", icon: "home" as const },
@@ -13,8 +13,7 @@ const nav = [
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, org, impersonating } = await getClinicContext();
-  const store = await readClinicStore(org.id);
-  const unread = store.notifications.filter((n) => n.organizationId === org.id && !n.readAt).length;
+  const unread = await getClinicUnreadCount(org.id);
 
   return (
     <DashboardShell

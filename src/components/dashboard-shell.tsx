@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { BrandLogo } from "@/components/brand-logo";
 
 export type DashNavItem = {
@@ -135,6 +135,13 @@ export function DashboardShell(props: {
   children: ReactNode;
 }) {
   const pathname = usePathname();
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
+
+  useEffect(() => {
+    setPendingHref(null);
+  }, [pathname]);
+
+  const current = pendingHref ?? pathname;
 
   return (
     <div className="dash">
@@ -150,7 +157,12 @@ export function DashboardShell(props: {
             <Link
               key={item.href}
               href={item.href}
-              className={isActive(pathname, item.href, props.home) ? "active" : undefined}
+              prefetch
+              onClick={(event) => {
+                if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+                setPendingHref(item.href);
+              }}
+              className={isActive(current, item.href, props.home) ? "active" : undefined}
             >
               <Icon name={item.icon} />
               {item.label}
@@ -208,7 +220,7 @@ export function DashboardShell(props: {
               </div>
             </div>
           </header>
-          <main className="dash-main">{props.children}</main>
+          <main className={`dash-main${pendingHref && pendingHref !== pathname ? " is-pending" : ""}`}>{props.children}</main>
         </div>
       </div>
     </div>

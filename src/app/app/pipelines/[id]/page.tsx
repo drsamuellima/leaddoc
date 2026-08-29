@@ -20,7 +20,7 @@ export default async function PipelineDetailPage({
   const { id } = await params;
   const { ok } = await searchParams;
   const { org } = await getClinicContext();
-  const store = await readClinicStore(org.id);
+  const store = await readClinicStore(org.id, "pipelines");
   const pipeline = store.pipelines.find((p) => p.id === id && p.organizationId === org.id);
   if (!pipeline) notFound();
   const stages = sortedStages(pipeline);

@@ -12,7 +12,7 @@ export default async function PipelinesPage({
 }) {
   const { ok } = await searchParams;
   const { org } = await getClinicContext();
-  const store = await readClinicStore(org.id);
+  const store = await readClinicStore(org.id, "pipelines");
   const pipelines = store.pipelines.filter((p) => p.organizationId === org.id);
   const counts = Object.fromEntries(
     pipelines.map((p) => [p.id, store.leads.filter((l) => l.pipelineId === p.id).length]),

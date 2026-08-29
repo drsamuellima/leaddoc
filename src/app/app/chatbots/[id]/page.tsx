@@ -16,7 +16,7 @@ export default async function ChatbotEditorPage({
   const { id } = await params;
   const { ok } = await searchParams;
   const { org } = await getClinicContext();
-  const store = await readClinicStore(org.id);
+  const store = await readClinicStore(org.id, "studio");
   const bot = store.chatbots.find((b) => b.id === id && b.organizationId === org.id);
   if (!bot) notFound();
   if (!bot.setupComplete) redirect(`/app/chatbots/${id}/setup`);

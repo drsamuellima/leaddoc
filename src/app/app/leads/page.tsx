@@ -23,7 +23,7 @@ export default async function LeadsPage({
 }) {
   const { q, pipeline, assigned, page: pageRaw, ok } = await searchParams;
   const { org } = await getClinicContext();
-  const store = await readClinicStore(org.id);
+  const store = await readClinicStore(org.id, "leads");
   const query = (q || "").trim().toLowerCase();
   const staff = store.profiles.filter((p) => p.organizationId === org.id);
   const bots = store.chatbots.filter((b) => b.organizationId === org.id);

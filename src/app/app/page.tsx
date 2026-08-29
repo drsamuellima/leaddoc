@@ -40,7 +40,7 @@ function initials(name: string) {
 
 export default async function OverviewPage() {
   const { org } = await getClinicContext();
-  const store = await readClinicStore(org.id);
+  const store = await readClinicStore(org.id, "overview");
   const leads = store.leads.filter((l) => l.organizationId === org.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const bots = store.chatbots.filter((b) => b.organizationId === org.id);
   const convos = store.conversations.filter((c) => c.organizationId === org.id);

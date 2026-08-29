@@ -2,25 +2,20 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DeleteLeadButton } from "@/components/leads/delete-lead-button";
 import { LeadAvatar } from "@/components/leads/lead-avatar";
+import { LeadTabField, LeadTabPanel, LeadTabShell, type LeadTab } from "@/components/leads/lead-tabs";
 import { StaffAvatars } from "@/components/leads/staff-avatars";
 import { StatusBadge } from "@/components/ui";
 import { getClinicContext } from "@/lib/auth";
 import { formatLeadDate, formatLeadDateTime, telHref } from "@/lib/leads";
 import { findPipeline, formatGbp, formatGbpDisplay, sortedStages } from "@/lib/pipelines";
-import { readClinicStore } from "@/lib/store";
+import { readClinicLead } from "@/lib/store";
 import type { LeadEvent, LeadNote, LeadRecall, LeadTask, Message, Profile, TreatmentPipeline } from "@/lib/types";
-
-type LeadTab = "enquiry" | "activity" | "chat" | "followups" | "notes" | "recalls";
 
 function parseTab(value?: string): LeadTab {
   if (value === "enquiry" || value === "chat" || value === "followups" || value === "activity" || value === "notes" || value === "recalls") {
     return value;
   }
   return "activity";
-}
-
-function tabHref(id: string, tab: LeadTab) {
-  return tab === "activity" ? `/app/leads/${id}` : `/app/leads/${id}?tab=${tab}`;
 }
 
 export default async function LeadDetailPage({
@@ -34,9 +29,9 @@ export default async function LeadDetailPage({
   const { tab: tabRaw, ok } = await searchParams;
   const tab = parseTab(tabRaw);
   const { org } = await getClinicContext();
-  const store = await readClinicStore(org.id);
-  const lead = store.leads.find((l) => l.id === id && l.organizationId === org.id);
-  if (!lead) notFound();
+  const store = await readClinicLead(org.id, id);
+  const lead = store?.leads.find((l) => l.id === id && l.organizationId === org.id);
+  if (!store || !lead) notFound();
 
   const staff = store.profiles.filter((p) => p.organizationId === org.id);
   const assigned = staff.filter((p) => p.id === lead.assignedTo);
@@ -114,19 +109,10 @@ export default async function LeadDetailPage({
         </div>
       </header>
 
-      <nav className="lead-tabs">
-        {tabs.map((item) => (
-          <Link key={item.id} href={tabHref(lead.id, item.id)} className={tab === item.id ? "active" : undefined}>
-            {item.label}
-            {item.badge ? <span className="lead-tab-badge">{item.badge}</span> : null}
-          </Link>
-        ))}
-      </nav>
-
-      <div className="lead-columns">
-        <div className="lead-col-main">
-          {tab === "activity" ? (
-            <>
+      <LeadTabShell leadId={lead.id} initial={tab} tabs={tabs}>
+        <div className="lead-columns">
+          <div className="lead-col-main">
+            <LeadTabPanel when="activity">
               <ActivityFeed events={events} messages={messages} />
               <EnquiryCard
                 inquiry={lead.inquiry}
@@ -136,10 +122,8 @@ export default async function LeadDetailPage({
                 treatment={pipeline?.name || lead.treatment}
                 amount={formatGbpDisplay(lead.amountPence)}
               />
-            </>
-          ) : null}
-          {tab === "enquiry" ? (
-            <>
+            </LeadTabPanel>
+            <LeadTabPanel when="enquiry">
               <EnquiryCard
                 inquiry={lead.inquiry}
                 phone={lead.phone}
@@ -148,39 +132,43 @@ export default async function LeadDetailPage({
                 treatment={pipeline?.name || lead.treatment}
                 amount={formatGbpDisplay(lead.amountPence)}
               />
-              <LeadSaveForm lead={lead} staff={staff} tab={tab} pipelines={pipelines} />
-            </>
-          ) : null}
-          {tab === "notes" ? <NotesPanel leadId={lead.id} notes={notes} profiles={profileById} summary={lead.notes} /> : null}
-          {tab === "recalls" ? (
-            <RecallsPanel leadId={lead.id} recalls={recalls} profiles={profileById} />
-          ) : null}
-          {tab === "chat" ? <ChatPanel messages={messages} /> : null}
-          {tab === "followups" ? (
-            <TaskPanel
-              leadId={lead.id}
-              tab={tab}
-              openTasks={openTasks}
-              doneTasks={doneTasks}
-              profiles={profileById}
-            />
-          ) : null}
-        </div>
+              <LeadSaveForm lead={lead} staff={staff} pipelines={pipelines} />
+            </LeadTabPanel>
+            <LeadTabPanel when="notes">
+              <NotesPanel leadId={lead.id} notes={notes} profiles={profileById} summary={lead.notes} />
+            </LeadTabPanel>
+            <LeadTabPanel when="recalls">
+              <RecallsPanel leadId={lead.id} recalls={recalls} profiles={profileById} />
+            </LeadTabPanel>
+            <LeadTabPanel when="chat">
+              <ChatPanel messages={messages} />
+            </LeadTabPanel>
+            <LeadTabPanel when="followups">
+              <TaskPanel
+                leadId={lead.id}
+                openTasks={openTasks}
+                doneTasks={doneTasks}
+                profiles={profileById}
+              />
+            </LeadTabPanel>
+          </div>
 
-        <div className="lead-col-side">
-          {tab !== "followups" ? (
-            <TaskPanel
-              leadId={lead.id}
-              tab={tab}
-              openTasks={openTasks}
-              doneTasks={doneTasks}
-              profiles={profileById}
-              compact
-            />
-          ) : null}
-          {tab !== "enquiry" ? <LeadSaveForm lead={lead} staff={staff} tab={tab} pipelines={pipelines} /> : null}
+          <div className="lead-col-side">
+            <LeadTabPanel unless="followups">
+              <TaskPanel
+                leadId={lead.id}
+                openTasks={openTasks}
+                doneTasks={doneTasks}
+                profiles={profileById}
+                compact
+              />
+            </LeadTabPanel>
+            <LeadTabPanel unless="enquiry">
+              <LeadSaveForm lead={lead} staff={staff} pipelines={pipelines} />
+            </LeadTabPanel>
+          </div>
         </div>
-      </div>
+      </LeadTabShell>
     </div>
   );
 }
@@ -297,14 +285,12 @@ function ChatPanel({ messages }: { messages: Message[] }) {
 
 function TaskPanel({
   leadId,
-  tab,
   openTasks,
   doneTasks,
   profiles,
   compact,
 }: {
   leadId: string;
-  tab: LeadTab;
   openTasks: LeadTask[];
   doneTasks: LeadTask[];
   profiles: Map<string, Profile>;
@@ -317,7 +303,7 @@ function TaskPanel({
       </div>
       <form action="/api/form/createLeadTask" method="post" className="lead-task-create">
         <input type="hidden" name="leadId" value={leadId} />
-        <input type="hidden" name="tab" value={tab} />
+        <LeadTabField />
         <input name="title" required placeholder="Add a follow-up…" />
         <textarea name="body" rows={2} placeholder="Notes for the team (optional)" />
         <div className="lead-task-create-row">
@@ -333,13 +319,13 @@ function TaskPanel({
       </form>
       {openTasks.length === 0 ? <p className="text-sm text-neutral-500">No open follow-ups.</p> : null}
       {openTasks.map((task) => (
-        <TaskCard key={task.id} task={task} tab={tab} creator={profiles.get(task.createdBy)} />
+        <TaskCard key={task.id} task={task} creator={profiles.get(task.createdBy)} />
       ))}
       {(!compact || doneTasks.length > 0) && doneTasks.length > 0 ? (
         <div className="lead-task-history">
           <h3>Completed</h3>
           {doneTasks.map((task) => (
-            <TaskCard key={task.id} task={task} tab={tab} creator={profiles.get(task.createdBy)} done />
+            <TaskCard key={task.id} task={task} creator={profiles.get(task.createdBy)} done />
           ))}
         </div>
       ) : null}
@@ -349,12 +335,10 @@ function TaskPanel({
 
 function TaskCard({
   task,
-  tab,
   creator,
   done,
 }: {
   task: LeadTask;
-  tab: LeadTab;
   creator?: Profile;
   done?: boolean;
 }) {
@@ -368,7 +352,7 @@ function TaskCard({
         <form action="/api/form/completeLeadTask" method="post">
           <input type="hidden" name="id" value={task.id} />
           <input type="hidden" name="leadId" value={task.leadId} />
-          <input type="hidden" name="tab" value={tab} />
+          <LeadTabField />
           <button className="lead-task-check" type="submit" aria-label="Mark complete" />
         </form>
       )}
@@ -390,7 +374,6 @@ function TaskCard({
 function LeadSaveForm({
   lead,
   staff,
-  tab,
   pipelines,
 }: {
   lead: {
@@ -408,7 +391,6 @@ function LeadSaveForm({
     amountPence: number | null;
   };
   staff: Profile[];
-  tab: LeadTab;
   pipelines: TreatmentPipeline[];
 }) {
   const pipeline = findPipeline(pipelines, lead.pipelineId) || pipelines[0];
@@ -416,7 +398,7 @@ function LeadSaveForm({
   return (
     <form action="/api/form/updateLead" method="post" className="card space-y-3">
       <input type="hidden" name="id" value={lead.id} />
-      <input type="hidden" name="tab" value={tab} />
+      <LeadTabField />
       <h2 className="font-semibold">Patient & treatment</h2>
       <div>
         <label>Name</label>

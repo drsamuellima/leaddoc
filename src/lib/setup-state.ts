@@ -21,7 +21,7 @@ export function setupPayload(data: StoreData, bot: Chatbot) {
 
 export async function loadOwnedBot(id: string) {
   const { org } = await getClinicContext();
-  const store = await readClinicStore(org.id);
+  const store = await readClinicStore(org.id, "studio");
   const bot = store.chatbots.find((b) => b.id === id && b.organizationId === org.id);
   if (!bot) return null;
   return { org, store, bot };

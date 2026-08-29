@@ -2,14 +2,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BackLink, PageHeader } from "@/components/ui";
 import { getClinicContext } from "@/lib/auth";
-import { readClinicStore } from "@/lib/store";
+import { readClinicConversation } from "@/lib/store";
 
 export default async function ConversationPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { org } = await getClinicContext();
-  const store = await readClinicStore(org.id);
-  const convo = store.conversations.find((c) => c.id === id && c.organizationId === org.id);
-  if (!convo) notFound();
+  const store = await readClinicConversation(org.id, id);
+  const convo = store?.conversations.find((c) => c.id === id && c.organizationId === org.id);
+  if (!store || !convo) notFound();
   const lead = store.leads.find((l) => l.id === convo.leadId);
   const messages = store.messages.filter((m) => m.conversationId === id);
 

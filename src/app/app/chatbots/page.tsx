@@ -11,7 +11,7 @@ export default async function ChatbotsPage({
 }) {
   const { ok } = await searchParams;
   const { org } = await getClinicContext();
-  const store = await readClinicStore(org.id);
+  const store = await readClinicStore(org.id, "chatbots");
   const bots = store.chatbots.filter((b) => b.organizationId === org.id);
 
   return (

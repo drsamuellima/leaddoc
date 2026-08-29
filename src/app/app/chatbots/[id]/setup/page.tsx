@@ -9,7 +9,7 @@ import { notFound } from "next/navigation";
 export default async function ChatbotSetupPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { org } = await getClinicContext();
-  const store = await readClinicStore(org.id);
+  const store = await readClinicStore(org.id, "studio");
   const bot = store.chatbots.find((b) => b.id === id && b.organizationId === org.id);
   if (!bot) notFound();
   const origin = await publicOrigin();

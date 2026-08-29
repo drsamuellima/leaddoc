@@ -5,7 +5,7 @@ import { readClinicStore } from "@/lib/store";
 
 export default async function ConversationsPage() {
   const { org } = await getClinicContext();
-  const store = await readClinicStore(org.id);
+  const store = await readClinicStore(org.id, "conversations");
   const convos = store.conversations
     .filter((c) => c.organizationId === org.id)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
