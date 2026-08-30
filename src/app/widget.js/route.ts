@@ -7,7 +7,7 @@ export async function GET(request: Request) {
   var key=s && s.getAttribute("data-widget-key");
   if(!key) return;
   var iframe=document.createElement("iframe");
-  iframe.src=${JSON.stringify(origin)}+"/w/"+encodeURIComponent(key);
+  var src=${JSON.stringify(origin)}+"/w/"+encodeURIComponent(key);
   iframe.title="Clinic chat";
   iframe.allow="clipboard-write";
   iframe.setAttribute("allowtransparency","true");
@@ -18,8 +18,35 @@ export async function GET(request: Request) {
   var side="right";
   var isOpen=false;
   var sized=false;
+  var isolated=false;
+  var loaded=false;
+  var lastBox="";
   var probe=null;
-  var BASE="display:block!important;position:fixed!important;right:auto!important;bottom:auto!important;margin:0!important;padding:0!important;min-width:0!important;min-height:0!important;max-width:none!important;max-height:none!important;border:0!important;box-sizing:border-box!important;z-index:2147483646!important;background:transparent!important;background-color:transparent!important;color-scheme:normal;pointer-events:auto;overflow:hidden!important;";
+  iframe.addEventListener("load",function(){ loaded=true; });
+
+  function isolate(){
+    if(isolated) return;
+    var st=iframe.style;
+    st.setProperty("display","block","important");
+    st.setProperty("position","fixed","important");
+    st.setProperty("right","auto","important");
+    st.setProperty("bottom","auto","important");
+    st.setProperty("margin","0","important");
+    st.setProperty("padding","0","important");
+    st.setProperty("min-width","0","important");
+    st.setProperty("min-height","0","important");
+    st.setProperty("max-width","none","important");
+    st.setProperty("max-height","none","important");
+    st.setProperty("border","0","important");
+    st.setProperty("box-sizing","border-box","important");
+    st.setProperty("z-index","2147483646","important");
+    st.setProperty("background","transparent","important");
+    st.setProperty("background-color","transparent","important");
+    st.setProperty("overflow","hidden","important");
+    st.colorScheme="normal";
+    st.pointerEvents="auto";
+    isolated=true;
+  }
 
   function applyPos(pos){
     if(pos==="left"||pos==="bottom-left") side="left";
@@ -86,6 +113,7 @@ export async function GET(request: Request) {
 
   function place(){
     mount();
+    isolate();
     var vp=viewport();
     var safe=safeArea();
     var mobile=vp.width<480;
@@ -118,10 +146,18 @@ export async function GET(request: Request) {
       left=vx-r.left-num(st.borderLeftWidth);
       top=vy-r.top-num(st.borderTopWidth);
     }
-    var motion=!window.matchMedia||!window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    var trans=sized&&motion?"transition:width .5s cubic-bezier(.22,1,.36,1),height .5s cubic-bezier(.22,1,.36,1),top .5s cubic-bezier(.22,1,.36,1),left .5s cubic-bezier(.22,1,.36,1);":"transition:none;";
-    iframe.style.cssText=BASE+trans+"top:"+top+"px!important;left:"+left+"px!important;width:"+Math.round(w)+"px!important;height:"+Math.round(h)+"px!important;";
-    sized=true;
+    var box=Math.round(top)+","+Math.round(left)+","+Math.round(w)+","+Math.round(h);
+    if(box!==lastBox){
+      var motion=loaded&&sized&&(!window.matchMedia||!window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+      iframe.style.transition=motion?"width .5s cubic-bezier(.22,1,.36,1),height .5s cubic-bezier(.22,1,.36,1),top .5s cubic-bezier(.22,1,.36,1),left .5s cubic-bezier(.22,1,.36,1)":"none";
+      iframe.style.setProperty("top",Math.round(top)+"px","important");
+      iframe.style.setProperty("left",Math.round(left)+"px","important");
+      iframe.style.setProperty("width",Math.round(w)+"px","important");
+      iframe.style.setProperty("height",Math.round(h)+"px","important");
+      lastBox=box;
+      sized=true;
+    }
+    if(!iframe.getAttribute("src")) iframe.src=src;
   }
 
   window.addEventListener("resize",place);
