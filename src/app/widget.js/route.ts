@@ -13,10 +13,13 @@ export async function GET(request: Request) {
   iframe.setAttribute("allowtransparency","true");
   iframe.setAttribute("frameborder","0");
   iframe.setAttribute("scrolling","no");
+  iframe.setAttribute("data-dentchat-embed","true");
+  iframe.id="dentchat-widget";
   var side="right";
   var isOpen=false;
+  var sized=false;
   var probe=null;
-  var BASE="position:fixed;right:auto;bottom:auto;max-width:none;max-height:none;border:0;z-index:2147483646;background:transparent;background-color:transparent;color-scheme:normal;pointer-events:auto;overflow:hidden;";
+  var BASE="display:block!important;position:fixed!important;right:auto!important;bottom:auto!important;margin:0!important;padding:0!important;min-width:0!important;min-height:0!important;max-width:none!important;max-height:none!important;border:0!important;box-sizing:border-box!important;z-index:2147483646!important;background:transparent!important;background-color:transparent!important;color-scheme:normal;pointer-events:auto;overflow:hidden!important;";
 
   function applyPos(pos){
     if(pos==="left"||pos==="bottom-left") side="left";
@@ -85,11 +88,12 @@ export async function GET(request: Request) {
     mount();
     var vp=viewport();
     var safe=safeArea();
-    var gap=12;
+    var mobile=vp.width<480;
+    var gap=isOpen?(mobile?12:20):12;
     var w,h;
     if(isOpen){
-      w=Math.min(400,vp.width-16);
-      h=Math.min(640,vp.height-16-safe.bottom-safe.top);
+      w=mobile?vp.width-24:Math.min(400,vp.width-32);
+      h=Math.min(650,vp.height-(mobile?80:100)-safe.bottom-safe.top);
     } else {
       w=80;
       h=80;
@@ -114,7 +118,10 @@ export async function GET(request: Request) {
       left=vx-r.left-num(st.borderLeftWidth);
       top=vy-r.top-num(st.borderTopWidth);
     }
-    iframe.style.cssText=BASE+"top:"+top+"px;left:"+left+"px;width:"+Math.round(w)+"px;height:"+Math.round(h)+"px;";
+    var motion=!window.matchMedia||!window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    var trans=sized&&motion?"transition:width .5s cubic-bezier(.22,1,.36,1),height .5s cubic-bezier(.22,1,.36,1),top .5s cubic-bezier(.22,1,.36,1),left .5s cubic-bezier(.22,1,.36,1);":"transition:none;";
+    iframe.style.cssText=BASE+trans+"top:"+top+"px!important;left:"+left+"px!important;width:"+Math.round(w)+"px!important;height:"+Math.round(h)+"px!important;";
+    sized=true;
   }
 
   window.addEventListener("resize",place);
