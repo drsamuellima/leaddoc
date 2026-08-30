@@ -8,6 +8,22 @@ function edge(ctrl: WidgetController) {
   return ctrl.widgetPosition === "bottom-left" ? "justify-start" : "justify-end";
 }
 
+function Corner({
+  ctrl,
+  pad,
+  children,
+}: {
+  ctrl: WidgetController;
+  pad?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className={`flex h-full min-h-0 w-full items-end ${edge(ctrl)} ${pad || ""}`}>
+      {children}
+    </div>
+  );
+}
+
 function tokenStyle(ctrl: WidgetController): CSSProperties {
   return {
     fontFamily: ctrl.fontCss,
@@ -233,16 +249,10 @@ function OrbitalSkin({ ctrl }: { ctrl: WidgetController }) {
   return (
     <div data-widget-root data-skin="orbital" className="relative h-full max-h-full min-h-0 w-full overflow-hidden bg-transparent" style={{ ...tokenStyle(ctrl), ...previewStyle }}>
       {ctrl.open ? (
-        <div className={`flex h-full max-h-full min-h-0 ${edge(ctrl)} bg-transparent`}>
+        <Corner ctrl={ctrl}>
           <div
-            className="dentchat-panel relative flex h-full max-h-full min-h-0 w-full max-w-[420px] flex-col"
-            style={
-              ctrl.preview
-                ? undefined
-                : {
-                    background: "linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.14) 28%, rgba(0,0,0,0.26) 100%)",
-                  }
-            }
+            className={`dentchat-panel relative flex h-full max-h-full min-h-0 w-full flex-col overflow-hidden ${ctrl.preview ? "" : "rounded-[28px] shadow-2xl"}`}
+            style={ctrl.preview ? undefined : { background: ctrl.surface }}
           >
             <header className="sticky top-0 z-20 flex shrink-0 items-center justify-between gap-2 px-4 pb-2 pt-3">
               <div className="inline-flex min-w-0 items-center gap-2 rounded-full px-2 py-1 shadow-sm" style={{ background: ctrl.panel }}>
@@ -280,13 +290,13 @@ function OrbitalSkin({ ctrl }: { ctrl: WidgetController }) {
               <BrandMark />
             </div>
           </div>
-        </div>
+        </Corner>
       ) : (
-        <div className={`flex h-full items-end ${edge(ctrl)} p-2`}>
+        <Corner ctrl={ctrl} pad="p-2">
           <LauncherButton ctrl={ctrl} className="dentchat-launcher flex h-14 w-14 items-center justify-center rounded-full shadow-lg">
             <ChatIcon />
           </LauncherButton>
-        </div>
+        </Corner>
       )}
     </div>
   );
@@ -294,11 +304,11 @@ function OrbitalSkin({ ctrl }: { ctrl: WidgetController }) {
 
 function GlassSkin({ ctrl }: { ctrl: WidgetController }) {
   return (
-    <div data-widget-root data-skin="glass" className="relative h-full w-full overflow-hidden" style={{ ...tokenStyle(ctrl), background: ctrl.preview ? ctrl.surface : "transparent" }}>
+    <div data-widget-root data-skin="glass" className="relative h-full min-h-0 w-full overflow-hidden" style={{ ...tokenStyle(ctrl), background: ctrl.preview ? ctrl.surface : "transparent" }}>
       {ctrl.open ? (
-        <div className={`flex h-full items-end ${edge(ctrl)} p-3`}>
-          <div className="dentchat-panel dentchat-glass flex h-[min(100%,560px)] w-full max-w-[400px] flex-col overflow-hidden rounded-[28px] shadow-2xl">
-            <header className="flex items-center justify-between gap-2 px-3 pt-3">
+        <Corner ctrl={ctrl} pad={ctrl.preview ? "p-3" : ""}>
+          <div className="dentchat-panel dentchat-glass flex h-full min-h-0 w-full flex-col overflow-hidden rounded-[28px] shadow-2xl">
+            <header className="flex shrink-0 items-center justify-between gap-2 px-3 pt-3">
               <div className="flex min-w-0 items-center gap-2">
                 <Avatar src={ctrl.avatarImageUrl} name={ctrl.avatarLabel} accent={ctrl.accent} size={32} />
                 <div className="min-w-0">
@@ -323,18 +333,17 @@ function GlassSkin({ ctrl }: { ctrl: WidgetController }) {
                 }
               />
             </div>
-            <div className="flex justify-end px-3 pb-3">
+            <div className="flex shrink-0 justify-end px-3 pb-3">
               <BrandMark />
             </div>
           </div>
-        </div>
+        </Corner>
       ) : (
-        <div className={`flex h-full items-end ${edge(ctrl)} p-3`}>
-          <LauncherButton ctrl={ctrl} className="dentchat-launcher flex h-12 items-center gap-2 rounded-full px-4 text-sm font-semibold shadow-lg">
+        <Corner ctrl={ctrl} pad="p-2">
+          <LauncherButton ctrl={ctrl} className="dentchat-launcher flex h-14 w-14 items-center justify-center rounded-full shadow-lg">
             <ChatIcon />
-            Chat
           </LauncherButton>
-        </div>
+        </Corner>
       )}
     </div>
   );
@@ -342,14 +351,14 @@ function GlassSkin({ ctrl }: { ctrl: WidgetController }) {
 
 function SheetSkin({ ctrl }: { ctrl: WidgetController }) {
   return (
-    <div data-widget-root data-skin="sheet" className="relative h-full w-full overflow-hidden" style={{ ...tokenStyle(ctrl), background: ctrl.preview ? ctrl.surface : "transparent" }}>
+    <div data-widget-root data-skin="sheet" className="relative h-full min-h-0 w-full overflow-hidden" style={{ ...tokenStyle(ctrl), background: ctrl.preview ? ctrl.surface : "transparent" }}>
       {ctrl.open ? (
-        <div className="flex h-full items-end justify-center">
-          <div className="dentchat-panel flex max-h-[92%] w-full max-w-[420px] flex-col rounded-t-[28px] shadow-2xl" style={{ background: ctrl.panel }}>
-            <div className="flex justify-center pt-2">
+        <div className="flex h-full min-h-0 items-end justify-center px-1 pt-2">
+          <div className="dentchat-panel flex h-full max-h-full min-h-0 w-full flex-col overflow-hidden rounded-t-[28px] shadow-2xl" style={{ background: ctrl.panel }}>
+            <div className="flex shrink-0 justify-center pt-2">
               <span className="h-1 w-10 rounded-full bg-black/20" />
             </div>
-            <header className="flex items-center justify-between px-4 py-2">
+            <header className="flex shrink-0 items-center justify-between px-4 py-2">
               <div className="flex items-center gap-2">
                 <Avatar src={ctrl.avatarImageUrl} name={ctrl.avatarLabel} accent={ctrl.accent} size={36} />
                 <span className="text-[15px] font-semibold">{ctrl.clinicName}</span>
@@ -380,17 +389,17 @@ function SheetSkin({ ctrl }: { ctrl: WidgetController }) {
                 }
               />
             </div>
-            <div className="flex justify-center pb-4">
+            <div className="flex shrink-0 justify-center pb-4">
               <BrandMark />
             </div>
           </div>
         </div>
       ) : (
-        <div className={`flex h-full items-end ${edge(ctrl)} p-3`}>
-          <LauncherButton ctrl={ctrl} className="dentchat-launcher flex h-[52px] w-[52px] items-center justify-center rounded-full shadow-lg">
+        <Corner ctrl={ctrl} pad="p-2">
+          <LauncherButton ctrl={ctrl} className="dentchat-launcher flex h-14 w-14 items-center justify-center rounded-full shadow-lg">
             <ChatIcon />
           </LauncherButton>
-        </div>
+        </Corner>
       )}
     </div>
   );
@@ -398,11 +407,14 @@ function SheetSkin({ ctrl }: { ctrl: WidgetController }) {
 
 function MessengerSkin({ ctrl }: { ctrl: WidgetController }) {
   return (
-    <div data-widget-root data-skin="messenger" className="relative h-full w-full overflow-hidden" style={{ ...tokenStyle(ctrl), background: ctrl.preview ? ctrl.surface : "transparent" }}>
+    <div data-widget-root data-skin="messenger" className="relative h-full min-h-0 w-full overflow-hidden" style={{ ...tokenStyle(ctrl), background: ctrl.preview ? ctrl.surface : "transparent" }}>
       {ctrl.open ? (
-        <div className={`flex h-full ${edge(ctrl)}`}>
-          <div className="dentchat-panel flex h-full w-full max-w-[420px] flex-col" style={{ background: ctrl.surface }}>
-            <header className="flex items-center justify-between gap-2 px-3 py-2.5 shadow-sm" style={{ background: ctrl.panel }}>
+        <Corner ctrl={ctrl}>
+          <div
+            className={`dentchat-panel flex h-full min-h-0 w-full flex-col overflow-hidden ${ctrl.preview ? "" : "rounded-[26px] shadow-2xl"}`}
+            style={{ background: ctrl.surface }}
+          >
+            <header className="flex shrink-0 items-center justify-between gap-2 px-3 py-2.5 shadow-sm" style={{ background: ctrl.panel }}>
               <div className="flex min-w-0 items-center gap-2">
                 <Avatar src={ctrl.avatarImageUrl} name={ctrl.avatarLabel} accent={ctrl.accent} size={34} />
                 <div className="min-w-0">
@@ -441,17 +453,17 @@ function MessengerSkin({ ctrl }: { ctrl: WidgetController }) {
                 }
               />
             </div>
-            <div className="flex items-center justify-between px-3 py-2" style={{ background: ctrl.panel }}>
+            <div className="flex shrink-0 items-center justify-between px-3 py-2" style={{ background: ctrl.panel }}>
               <BrandMark />
             </div>
           </div>
-        </div>
+        </Corner>
       ) : (
-        <div className={`flex h-full items-end ${edge(ctrl)} p-2`}>
+        <Corner ctrl={ctrl} pad="p-2">
           <LauncherButton ctrl={ctrl} className="dentchat-launcher flex h-14 w-14 items-center justify-center rounded-full shadow-lg">
             <ChatIcon />
           </LauncherButton>
-        </div>
+        </Corner>
       )}
     </div>
   );
@@ -459,11 +471,14 @@ function MessengerSkin({ ctrl }: { ctrl: WidgetController }) {
 
 function DockSkin({ ctrl }: { ctrl: WidgetController }) {
   return (
-    <div data-widget-root data-skin="dock" className="relative h-full w-full overflow-hidden" style={{ ...tokenStyle(ctrl), background: ctrl.preview ? ctrl.surface : "transparent" }}>
+    <div data-widget-root data-skin="dock" className="relative h-full min-h-0 w-full overflow-hidden" style={{ ...tokenStyle(ctrl), background: ctrl.preview ? ctrl.surface : "transparent" }}>
       {ctrl.open ? (
-        <div className={`flex h-full ${edge(ctrl)}`}>
-          <div className="dentchat-panel flex h-full w-full max-w-[340px] flex-col" style={{ background: ctrl.panel }}>
-            <header className="flex items-center gap-2 px-3 py-3">
+        <Corner ctrl={ctrl}>
+          <div
+            className={`dentchat-panel flex h-full min-h-0 w-full flex-col overflow-hidden ${ctrl.preview ? "" : "rounded-[26px] shadow-2xl"}`}
+            style={{ background: ctrl.panel }}
+          >
+            <header className="flex shrink-0 items-center gap-2 px-3 py-3">
               <Avatar src={ctrl.avatarImageUrl} name={ctrl.avatarLabel} accent={ctrl.accent} size={44} />
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm font-semibold">{ctrl.clinicName}</div>
@@ -500,17 +515,17 @@ function DockSkin({ ctrl }: { ctrl: WidgetController }) {
                 }
               />
             </div>
-            <div className="px-3 pb-3">
+            <div className="shrink-0 px-3 pb-3">
               <BrandMark />
             </div>
           </div>
-        </div>
+        </Corner>
       ) : (
-        <div className={`flex h-full items-end ${edge(ctrl)} p-2`}>
+        <Corner ctrl={ctrl} pad="p-2">
           <LauncherButton ctrl={ctrl} className="dentchat-launcher flex h-14 w-14 items-center justify-center rounded-2xl shadow-lg">
             <ChatIcon />
           </LauncherButton>
-        </div>
+        </Corner>
       )}
     </div>
   );
@@ -518,11 +533,11 @@ function DockSkin({ ctrl }: { ctrl: WidgetController }) {
 
 function PulseSkin({ ctrl }: { ctrl: WidgetController }) {
   return (
-    <div data-widget-root data-skin="pulse" className="relative h-full w-full overflow-hidden" style={{ ...tokenStyle(ctrl), background: ctrl.preview ? ctrl.surface : "transparent" }}>
+    <div data-widget-root data-skin="pulse" className="relative h-full min-h-0 w-full overflow-hidden" style={{ ...tokenStyle(ctrl), background: ctrl.preview ? ctrl.surface : "transparent" }}>
       {ctrl.open ? (
-        <div className={`flex h-full ${edge(ctrl)} p-2`}>
-          <div className="dentchat-panel flex h-full w-full max-w-[400px] flex-col overflow-hidden rounded-[26px]" style={{ background: ctrl.panel }}>
-            <header className="flex items-center justify-between px-3 py-3">
+        <Corner ctrl={ctrl} pad={ctrl.preview ? "p-2" : ""}>
+          <div className="dentchat-panel flex h-full min-h-0 w-full flex-col overflow-hidden rounded-[26px] shadow-2xl" style={{ background: ctrl.panel }}>
+            <header className="flex shrink-0 items-center justify-between px-3 py-3">
               <div className="flex items-center gap-2">
                 <Avatar src={ctrl.avatarImageUrl} name={ctrl.avatarLabel} accent={ctrl.accent} size={30} />
                 <span className="text-sm font-semibold tracking-tight">{ctrl.clinicName}</span>
@@ -558,20 +573,20 @@ function PulseSkin({ ctrl }: { ctrl: WidgetController }) {
                 }
               />
             </div>
-            <div className="flex justify-end px-3 py-2">
+            <div className="flex shrink-0 justify-end px-3 py-2">
               <BrandMark />
             </div>
           </div>
-        </div>
+        </Corner>
       ) : (
-        <div className={`flex h-full items-end ${edge(ctrl)} p-3`}>
+        <Corner ctrl={ctrl} pad="p-2">
           <div className="relative">
             <span className="dentchat-pulse-ring absolute inset-0 rounded-full" style={{ background: ctrl.launcher }} />
             <LauncherButton ctrl={ctrl} className="dentchat-launcher relative flex h-14 w-14 items-center justify-center rounded-full shadow-lg">
               <ChatIcon />
             </LauncherButton>
           </div>
-        </div>
+        </Corner>
       )}
     </div>
   );

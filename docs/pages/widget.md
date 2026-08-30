@@ -17,8 +17,8 @@ The chat UI itself. `loadWidget` finds that chatbot and its organisation by widg
 
 **Visitor flow:**
 
-1. Closed launcher in the chosen corner — bottom right (default) or bottom left (or already open in preview).
-2. Opened panel greets the visitor (one or more greetings) and shows treatment buttons.
+1. Closed launcher in the chosen corner — bottom right (default) or bottom left (or already open in preview). On a live site the iframe is a small square in that corner; the button sits in the iframe’s matching bottom corner.
+2. Opened panel is a compact card in that same corner — not a full-page column. It greets the visitor (one or more greetings) and shows treatment buttons. On a phone it is nearly full width but still inset so the clinic site stays visible around it.
 3. Buttons are **lead** (start a chat about that treatment), **book** (open the booking URL), or **call** (tel: the practice phone). Phone and booking URL fall back from bot → organisation.
 4. Before chatting, the visitor must submit **name, email, phone, and enquiry**. That posts to `/api/widget/lead` and creates the CRM lead plus first AI reply.
 5. Further messages post to `/api/widget/chat`.
@@ -40,7 +40,9 @@ The loader script clinics paste on their site:
 <script src="https://your-origin/widget.js" data-widget-key="dc_..." async></script>
 ```
 
-It reads `data-widget-key`, creates a fixed-position iframe pointing at `/w/{key}`, and listens for `postMessage` from the iframe (`source: "dentchat"`, types `open` / `close`, plus `position`) so the iframe can sit on the left or right and grow from a small launcher to a tall panel.
+It reads `data-widget-key`, attaches a transparent iframe to the page root (the `html` element, or `body` only if `html` itself would trap `position: fixed`), and points it at `/w/{key}`. It listens for `postMessage` from the iframe (`source: "dentchat"`, types `open` / `close`, plus `position`) so the iframe can sit on the left or right.
+
+The loader does not trust CSS `position: fixed` alone. Some clinic sites put `transform`, `filter`, `perspective`, `contain`, or `will-change` on an ancestor; that makes “fixed” stick to a grey band or header instead of the real viewport. The script measures the visual viewport (with a `window` fallback), applies safe-area insets, and sets pixel `top` / `left` / `width` / `height`. Closed: about 80×80 in the chosen corner. Open: a card up to 400×640, inset 8–12px, never a full-viewport stretch from the top. It recalculates on resize, scroll, visual-viewport changes, and orientation change. Existing snippets that only set `data-widget-key` keep working.
 
 The script is generated with the public site origin: a non-local `NEXT_PUBLIC_APP_URL`, the incoming host, or the Vercel production domain. Localhost is only used in local demo. Cached for 60 seconds.
 

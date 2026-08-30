@@ -114,7 +114,7 @@ sequenceDiagram
 ```
 
 1. The clinic runs **Set up with AI** after signup (or opens an existing bot in the studio) and copies a snippet. It loads `/widget.js` from the live site URL (never localhost on Vercel) with `data-widget-key`.
-2. The script injects a transparent iframe pointing at `/w/{key}`. Closed, it is a small launcher in the clinic-chosen corner (bottom right or bottom left); open, it is a tall panel on that same side. The iframe tells the parent to resize and which side to use via `postMessage` (`source: "dentchat"`).
+2. The script injects a transparent iframe pointing at `/w/{key}` and pins it to the real viewport corner, even when the clinic site’s CSS would trap `position: fixed`. Closed, it is a small launcher (about 80×80) in the clinic-chosen corner (bottom right or bottom left). Open, it is a compact card on that same side — up to about 400×640, inset from the edges — not a full-height strip that covers the site logo. The iframe tells the parent to resize and which side to use via `postMessage` (`source: "dentchat"`).
 3. The visitor must submit contact details first. That creates a lead, a conversation, an in-app notification, and (if Resend is configured) an email to the clinic owner.
 4. Further messages go to `/api/widget/chat`. Replies use Gemini. Without a key, production errors; local JSON demo may use a FAQ keyword fallback.
 
