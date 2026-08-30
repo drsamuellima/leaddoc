@@ -43,7 +43,7 @@ AI-guided clinic sign-up for a new chatbot. Glass cards, numbered step rail, pro
 
 **Booking.** Dedicated form for a Dentally (or other) booking URL and the practice phone.
 
-**Go live / Open clinic.** Marks setup complete and opens the clinic workspace (`/app`). **Activate widget** also turns the public chat on. The embed snippet can be copied here or later from the studio. The script URL is the live site (`NEXT_PUBLIC_APP_URL` or the Vercel production domain), not localhost.
+**Go live / Open clinic.** Marks setup complete and opens the clinic workspace (`/app`). Pick **bottom right** or **bottom left** for the launcher on the clinic website (saves immediately). **Activate widget** also turns the public chat on. The embed snippet can be copied here or later from the studio. The script URL is the live site (`NEXT_PUBLIC_APP_URL` or the Vercel production domain), not localhost.
 
 Unknown ids return 404. Incomplete bots that open `/app/chatbots/[id]` are sent here. **Delete draft** removes the bot the same way as the list page.
 
@@ -58,9 +58,9 @@ Unknown ids return 404. Incomplete bots that open `/app/chatbots/[id]` are sent 
 
 The chatbot studio. Two-column layout: editors on the left with a sticky save bar, live preview in a framed card on the right. Glass panels, numbered sections, and the same motion language as the setup wizard. This is where a practice designs the public widget after the AI setup wizard (or when opening a finished bot). Drafts that are not yet complete redirect to [setup](#appchatbotsidsetup).
 
-**Look.** Six skins — orbital, glass, sheet, messenger, dock, pulse. They share the same actions (greetings, lead, book, call, chat) and only change chrome. Each skin has a modern suggested palette (accent, panel, ink, surface, visitor bubble, bot bubble, launcher) shown as colour dots. Choosing a skin applies that palette; colour and font fields stay editable so any combination is valid.
+**Look.** Six skins — orbital, glass, sheet, messenger, dock, pulse. They share the same actions (greetings, lead, book, call, chat) and only change chrome. Each skin has a modern suggested palette (accent, panel, ink, surface, visitor bubble, bot bubble, launcher) shown as colour dots. Choosing a skin applies that palette; colour and font fields stay editable so any combination is valid. **Location** is a two-choice pick: bottom right or bottom left. The studio preview and the live embed both follow it.
 
-**Colour and type.** Round swatches plus hex fields. Fonts load in the widget iframe (Geist, Instrument Sans, Manrope, Plus Jakarta, Outfit, Sora, DM Sans). Unsaved tokens are sent to the preview as query params. **Save chatbot** persists skin, font, colours, name, prompt, avatar, greetings, phone, booking URL, and the live flag.
+**Colour and type.** Round swatches plus hex fields. Fonts load in the widget iframe (Geist, Instrument Sans, Manrope, Plus Jakarta, Outfit, Sora, DM Sans). Unsaved tokens are sent to the preview as query params. **Save chatbot** persists skin, location, font, colours, name, prompt, avatar, greetings, phone, booking URL, and the live flag.
 
 **Identity and voice.** Name, live toggle, avatar name and crop, system prompt, greeting lines (one line = one bubble).
 

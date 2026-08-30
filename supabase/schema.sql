@@ -56,6 +56,7 @@ create table public.chatbots (
   panel_color text not null default '#ffffff',
   button_text_color text not null default '#1a1a1a',
   widget_style text not null default 'orbital',
+  widget_position text not null default 'bottom-right',
   font_family text not null default 'system',
   surface_color text not null default '#f4f4f0',
   user_bubble_color text not null default '',

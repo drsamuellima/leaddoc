@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { Chatbot, ChatbotOption, KnowledgeItem, SetupChecklist, SetupConfirmField, SetupExtract, SetupFaqDraft, SetupStep, SetupTreatmentDraft } from "@/lib/types";
-import { SETUP_STEPS, parseActionType } from "@/lib/types";
+import type { Chatbot, ChatbotOption, KnowledgeItem, SetupChecklist, SetupConfirmField, SetupExtract, SetupFaqDraft, SetupStep, SetupTreatmentDraft, WidgetPosition } from "@/lib/types";
+import { SETUP_STEPS, parseActionType, parseWidgetPosition } from "@/lib/types";
 import { checklistScore, emptyExtract, ensureSetup } from "@/lib/chatbot-setup";
 import { DeleteChatbotButton } from "@/components/chatbot-studio/delete-chatbot-button";
+import { LocationPicker } from "@/components/chatbot-studio/location-picker";
 
 type Payload = {
   bot: Chatbot;
@@ -64,6 +65,7 @@ export function ChatbotSetupWizard(props: { initial: Payload; snippet: string })
   const [chatInput, setChatInput] = useState("");
   const [chatBusy, setChatBusy] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [position, setPosition] = useState<WidgetPosition>(parseWidgetPosition(props.initial.bot.widgetPosition || "bottom-right"));
   const [saveHint, setSaveHint] = useState("Saved as you go");
   const faqTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const treatmentTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -108,6 +110,7 @@ export function ChatbotSetupWizard(props: { initial: Payload; snippet: string })
     if (next.bot.phone) setDraft((d) => ({ ...d, phone: next.bot.phone }));
     if (next.bot.bookingUrl) setDraft((d) => ({ ...d, bookingUrl: next.bot.bookingUrl }));
     if (next.bot.name && next.bot.name !== "New chatbot") setDraft((d) => ({ ...d, name: next.bot.name }));
+    if (next.bot.widgetPosition) setPosition(parseWidgetPosition(next.bot.widgetPosition));
   }
 
   async function patch(body: Record<string, unknown>) {
@@ -747,6 +750,17 @@ export function ChatbotSetupWizard(props: { initial: Payload; snippet: string })
             ) : (
               <p className="setup-note">Everything on the list is filled in.</p>
             )}
+            <div className="setup-location">
+              <p className="setup-label">Chat location</p>
+              <p className="setup-note">Pick the corner the launcher uses on the clinic website. You can change this later in the studio.</p>
+              <LocationPicker
+                value={position}
+                onChange={(next) => {
+                  setPosition(next);
+                  void patch({ widgetPosition: next });
+                }}
+              />
+            </div>
             <pre className="setup-snippet">{props.snippet}</pre>
           </section>
           <div className="setup-review-actions">

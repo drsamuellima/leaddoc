@@ -4,6 +4,7 @@ import { hashPassword } from "./crypto";
 import {
   parseActionType,
   parseWidgetFont,
+  parseWidgetPosition,
   parseWidgetStyle,
   widgetFieldDefaults,
   type Chatbot,
@@ -703,9 +704,14 @@ function normalizeStore(data: StoreData): { data: StoreData; changed: boolean } 
       changed = true;
     }
     const style = parseWidgetStyle(String(bot.widgetStyle || "orbital"));
+    const position = parseWidgetPosition(String(bot.widgetPosition || "bottom-right"));
     const font = parseWidgetFont(String(bot.fontFamily || "system"));
     if (bot.widgetStyle !== style) {
       bot.widgetStyle = style;
+      changed = true;
+    }
+    if (bot.widgetPosition !== position) {
+      bot.widgetPosition = position;
       changed = true;
     }
     if (bot.fontFamily !== font) {

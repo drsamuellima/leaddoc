@@ -15,6 +15,8 @@ export type WidgetStyle = "orbital" | "glass" | "sheet" | "messenger" | "dock" |
 
 export type WidgetFont = "system" | "instrument" | "manrope" | "jakarta" | "outfit" | "sora" | "dmSans";
 
+export type WidgetPosition = "bottom-right" | "bottom-left";
+
 export type Organization = {
   id: string;
   name: string;
@@ -64,6 +66,7 @@ export type Chatbot = {
   panelColor: string;
   buttonTextColor: string;
   widgetStyle: WidgetStyle;
+  widgetPosition: WidgetPosition;
   fontFamily: WidgetFont;
   surfaceColor: string;
   userBubbleColor: string;
@@ -331,6 +334,7 @@ export function widgetFieldDefaults(clinicName: string, primaryColor: string, av
     panelColor: "#ffffff",
     buttonTextColor: "#1a1a1a",
     widgetStyle: "orbital" as const,
+    widgetPosition: "bottom-right" as const,
     fontFamily: "system" as const,
     surfaceColor: "#f4f4f0",
     userBubbleColor: primaryColor || "#0f766e",
@@ -350,6 +354,7 @@ export function parseActionType(value: string): ChatbotActionType {
 
 const WIDGET_STYLES: WidgetStyle[] = ["orbital", "glass", "sheet", "messenger", "dock", "pulse"];
 const WIDGET_FONTS: WidgetFont[] = ["system", "instrument", "manrope", "jakarta", "outfit", "sora", "dmSans"];
+const WIDGET_POSITIONS: WidgetPosition[] = ["bottom-right", "bottom-left"];
 
 export function parseWidgetStyle(value: string): WidgetStyle {
   return WIDGET_STYLES.includes(value as WidgetStyle) ? (value as WidgetStyle) : "orbital";
@@ -357,4 +362,11 @@ export function parseWidgetStyle(value: string): WidgetStyle {
 
 export function parseWidgetFont(value: string): WidgetFont {
   return WIDGET_FONTS.includes(value as WidgetFont) ? (value as WidgetFont) : "system";
+}
+
+export function parseWidgetPosition(value: string): WidgetPosition {
+  const raw = String(value || "").toLowerCase();
+  if (raw === "left" || raw === "bottom-left") return "bottom-left";
+  if (WIDGET_POSITIONS.includes(raw as WidgetPosition)) return raw as WidgetPosition;
+  return "bottom-right";
 }

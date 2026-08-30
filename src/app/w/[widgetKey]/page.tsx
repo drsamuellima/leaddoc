@@ -11,6 +11,7 @@ export default async function WidgetPage({
   searchParams: Promise<{
     preview?: string;
     style?: string;
+    position?: string;
     font?: string;
     accent?: string;
     panel?: string;
@@ -43,6 +44,7 @@ export default async function WidgetPage({
       widgetKey={widgetKey}
       clinicName={org.name}
       widgetStyle={theme.widgetStyle}
+      widgetPosition={theme.widgetPosition}
       fontFamily={theme.fontFamily}
       accent={theme.accent}
       panel={theme.panel}

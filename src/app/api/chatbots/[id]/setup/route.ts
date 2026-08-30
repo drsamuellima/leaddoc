@@ -10,7 +10,7 @@ import {
 import { mutateOwnedSetup, setupPayload } from "@/lib/setup-state";
 import { nextFactToConfirm } from "@/lib/setup-interview";
 import type { SetupExtract, SetupFaqDraft, SetupTreatmentDraft } from "@/lib/types";
-import { parseActionType } from "@/lib/types";
+import { parseActionType, parseWidgetPosition } from "@/lib/types";
 
 export const maxDuration = 60;
 
@@ -66,6 +66,7 @@ export async function PATCH(request: Request, ctx: { params: Promise<{ id: strin
     if (typeof body.name === "string" && body.name.trim()) bot.name = body.name.trim();
     if (typeof body.phone === "string") bot.phone = body.phone.trim();
     if (typeof body.bookingUrl === "string") bot.bookingUrl = body.bookingUrl.trim();
+    if (typeof body.widgetPosition === "string") bot.widgetPosition = parseWidgetPosition(body.widgetPosition);
     if (typeof body.avatarName === "string") bot.avatarName = body.avatarName.trim();
     if (typeof body.systemPrompt === "string" && body.systemPrompt.trim()) bot.systemPrompt = body.systemPrompt.trim();
     if (Array.isArray(body.greetings)) {

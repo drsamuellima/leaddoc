@@ -3,9 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { AvatarCropField } from "@/components/avatar-crop-field";
 import { DeleteChatbotButton } from "@/components/chatbot-studio/delete-chatbot-button";
+import { LocationPicker } from "@/components/chatbot-studio/location-picker";
 import { StatusBadge } from "@/components/ui";
 import { KNOWLEDGE_PACKS, knowledgeKey } from "@/lib/knowledge-examples";
-import type { Chatbot, ChatbotOption, KnowledgeItem, Organization, WidgetFont, WidgetStyle } from "@/lib/types";
+import type { Chatbot, ChatbotOption, KnowledgeItem, Organization, WidgetFont, WidgetPosition, WidgetStyle } from "@/lib/types";
 import {
   appearanceToQuery,
   COLOR_FIELDS,
@@ -212,6 +213,7 @@ export function ChatbotStudio(props: {
           </div>
           <input type="hidden" name="id" value={props.bot.id} />
           <input type="hidden" name="widgetStyle" value={tokens.widgetStyle} />
+          <input type="hidden" name="widgetPosition" value={tokens.widgetPosition} />
           <input type="hidden" name="fontFamily" value={tokens.fontFamily} />
           {COLOR_FIELDS.map((field) => (
             <input key={field.key} type="hidden" name={tokenToField[field.key]} value={tokens[field.key]} />
@@ -282,6 +284,14 @@ export function ChatbotStudio(props: {
                   </span>
                 </button>
               ))}
+            </div>
+            <div className="mt-3">
+              <label>Location</label>
+              <p className="studio-lead">Where the launcher sits on the clinic website.</p>
+              <LocationPicker
+                value={tokens.widgetPosition}
+                onChange={(widgetPosition: WidgetPosition) => patch({ widgetPosition })}
+              />
             </div>
           </div>
 

@@ -36,7 +36,7 @@ import {
   setProfilePassword,
 } from "./store";
 import { knowledgeKey, KNOWLEDGE_PACKS } from "./knowledge-examples";
-import { parseActionType, parseWidgetFont, parseWidgetStyle, widgetFieldDefaults, type ChatbotActionType, type StoreData, type SubscriptionStatus } from "./types";
+import { parseActionType, parseWidgetFont, parseWidgetPosition, parseWidgetStyle, widgetFieldDefaults, type ChatbotActionType, type StoreData, type SubscriptionStatus } from "./types";
 import { completedSetup, emptySetup } from "./chatbot-setup";
 import { clinicAppPath } from "./impersonate";
 import { isLeadStatus, LEAD_STAGE_LABELS } from "./leads";
@@ -223,6 +223,7 @@ export async function saveChatbotAction(formData: FormData) {
     bot.panelColor = String(formData.get("panelColor") || bot.panelColor || "#ffffff");
     bot.buttonTextColor = String(formData.get("buttonTextColor") || bot.buttonTextColor || "#1a1a1a");
     bot.widgetStyle = parseWidgetStyle(String(formData.get("widgetStyle") || bot.widgetStyle || "orbital"));
+    bot.widgetPosition = parseWidgetPosition(String(formData.get("widgetPosition") || bot.widgetPosition || "bottom-right"));
     bot.fontFamily = parseWidgetFont(String(formData.get("fontFamily") || bot.fontFamily || "system"));
     bot.surfaceColor = String(formData.get("surfaceColor") || bot.surfaceColor || "#f4f4f0");
     bot.userBubbleColor = String(formData.get("userBubbleColor") || bot.userBubbleColor || bot.accentColor);

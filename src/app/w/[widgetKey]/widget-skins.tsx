@@ -4,6 +4,10 @@ import { BrandLogo } from "@/components/brand-logo";
 import type { CSSProperties, ReactNode } from "react";
 import { Avatar, TypingDots, type Option, type WidgetController } from "./chat-widget";
 
+function edge(ctrl: WidgetController) {
+  return ctrl.widgetPosition === "bottom-left" ? "justify-start" : "justify-end";
+}
+
 function tokenStyle(ctrl: WidgetController): CSSProperties {
   return {
     fontFamily: ctrl.fontCss,
@@ -229,7 +233,7 @@ function OrbitalSkin({ ctrl }: { ctrl: WidgetController }) {
   return (
     <div data-widget-root data-skin="orbital" className="relative h-full max-h-full min-h-0 w-full overflow-hidden bg-transparent" style={{ ...tokenStyle(ctrl), ...previewStyle }}>
       {ctrl.open ? (
-        <div className="flex h-full max-h-full min-h-0 justify-end bg-transparent">
+        <div className={`flex h-full max-h-full min-h-0 ${edge(ctrl)} bg-transparent`}>
           <div
             className="dentchat-panel relative flex h-full max-h-full min-h-0 w-full max-w-[420px] flex-col"
             style={
@@ -278,7 +282,7 @@ function OrbitalSkin({ ctrl }: { ctrl: WidgetController }) {
           </div>
         </div>
       ) : (
-        <div className="flex h-full items-end justify-end p-2">
+        <div className={`flex h-full items-end ${edge(ctrl)} p-2`}>
           <LauncherButton ctrl={ctrl} className="dentchat-launcher flex h-14 w-14 items-center justify-center rounded-full shadow-lg">
             <ChatIcon />
           </LauncherButton>
@@ -292,7 +296,7 @@ function GlassSkin({ ctrl }: { ctrl: WidgetController }) {
   return (
     <div data-widget-root data-skin="glass" className="relative h-full w-full overflow-hidden" style={{ ...tokenStyle(ctrl), background: ctrl.preview ? ctrl.surface : "transparent" }}>
       {ctrl.open ? (
-        <div className="flex h-full items-end justify-end p-3">
+        <div className={`flex h-full items-end ${edge(ctrl)} p-3`}>
           <div className="dentchat-panel dentchat-glass flex h-[min(100%,560px)] w-full max-w-[400px] flex-col overflow-hidden rounded-[28px] shadow-2xl">
             <header className="flex items-center justify-between gap-2 px-3 pt-3">
               <div className="flex min-w-0 items-center gap-2">
@@ -325,7 +329,7 @@ function GlassSkin({ ctrl }: { ctrl: WidgetController }) {
           </div>
         </div>
       ) : (
-        <div className="flex h-full items-end justify-end p-3">
+        <div className={`flex h-full items-end ${edge(ctrl)} p-3`}>
           <LauncherButton ctrl={ctrl} className="dentchat-launcher flex h-12 items-center gap-2 rounded-full px-4 text-sm font-semibold shadow-lg">
             <ChatIcon />
             Chat
@@ -382,7 +386,7 @@ function SheetSkin({ ctrl }: { ctrl: WidgetController }) {
           </div>
         </div>
       ) : (
-        <div className="flex h-full items-end justify-end p-3">
+        <div className={`flex h-full items-end ${edge(ctrl)} p-3`}>
           <LauncherButton ctrl={ctrl} className="dentchat-launcher flex h-[52px] w-[52px] items-center justify-center rounded-full shadow-lg">
             <ChatIcon />
           </LauncherButton>
@@ -396,7 +400,7 @@ function MessengerSkin({ ctrl }: { ctrl: WidgetController }) {
   return (
     <div data-widget-root data-skin="messenger" className="relative h-full w-full overflow-hidden" style={{ ...tokenStyle(ctrl), background: ctrl.preview ? ctrl.surface : "transparent" }}>
       {ctrl.open ? (
-        <div className="flex h-full justify-end">
+        <div className={`flex h-full ${edge(ctrl)}`}>
           <div className="dentchat-panel flex h-full w-full max-w-[420px] flex-col" style={{ background: ctrl.surface }}>
             <header className="flex items-center justify-between gap-2 px-3 py-2.5 shadow-sm" style={{ background: ctrl.panel }}>
               <div className="flex min-w-0 items-center gap-2">
@@ -443,7 +447,7 @@ function MessengerSkin({ ctrl }: { ctrl: WidgetController }) {
           </div>
         </div>
       ) : (
-        <div className="flex h-full items-end justify-end p-2">
+        <div className={`flex h-full items-end ${edge(ctrl)} p-2`}>
           <LauncherButton ctrl={ctrl} className="dentchat-launcher flex h-14 w-14 items-center justify-center rounded-full shadow-lg">
             <ChatIcon />
           </LauncherButton>
@@ -457,7 +461,7 @@ function DockSkin({ ctrl }: { ctrl: WidgetController }) {
   return (
     <div data-widget-root data-skin="dock" className="relative h-full w-full overflow-hidden" style={{ ...tokenStyle(ctrl), background: ctrl.preview ? ctrl.surface : "transparent" }}>
       {ctrl.open ? (
-        <div className="flex h-full justify-end">
+        <div className={`flex h-full ${edge(ctrl)}`}>
           <div className="dentchat-panel flex h-full w-full max-w-[340px] flex-col" style={{ background: ctrl.panel }}>
             <header className="flex items-center gap-2 px-3 py-3">
               <Avatar src={ctrl.avatarImageUrl} name={ctrl.avatarLabel} accent={ctrl.accent} size={44} />
@@ -502,7 +506,7 @@ function DockSkin({ ctrl }: { ctrl: WidgetController }) {
           </div>
         </div>
       ) : (
-        <div className="flex h-full items-end justify-end p-2">
+        <div className={`flex h-full items-end ${edge(ctrl)} p-2`}>
           <LauncherButton ctrl={ctrl} className="dentchat-launcher flex h-14 w-14 items-center justify-center rounded-2xl shadow-lg">
             <ChatIcon />
           </LauncherButton>
@@ -516,7 +520,7 @@ function PulseSkin({ ctrl }: { ctrl: WidgetController }) {
   return (
     <div data-widget-root data-skin="pulse" className="relative h-full w-full overflow-hidden" style={{ ...tokenStyle(ctrl), background: ctrl.preview ? ctrl.surface : "transparent" }}>
       {ctrl.open ? (
-        <div className="flex h-full justify-end p-2">
+        <div className={`flex h-full ${edge(ctrl)} p-2`}>
           <div className="dentchat-panel flex h-full w-full max-w-[400px] flex-col overflow-hidden rounded-[26px]" style={{ background: ctrl.panel }}>
             <header className="flex items-center justify-between px-3 py-3">
               <div className="flex items-center gap-2">
@@ -560,7 +564,7 @@ function PulseSkin({ ctrl }: { ctrl: WidgetController }) {
           </div>
         </div>
       ) : (
-        <div className="flex h-full items-end justify-end p-3">
+        <div className={`flex h-full items-end ${edge(ctrl)} p-3`}>
           <div className="relative">
             <span className="dentchat-pulse-ring absolute inset-0 rounded-full" style={{ background: ctrl.launcher }} />
             <LauncherButton ctrl={ctrl} className="dentchat-launcher relative flex h-14 w-14 items-center justify-center rounded-full shadow-lg">

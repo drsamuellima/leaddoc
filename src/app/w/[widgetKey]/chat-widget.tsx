@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import type { ChatbotActionType, WidgetFont, WidgetStyle } from "@/lib/types";
+import type { ChatbotActionType, WidgetFont, WidgetPosition, WidgetStyle } from "@/lib/types";
 import { fontStack } from "@/lib/widget-appearance";
 import { WidgetSkins } from "./widget-skins";
 
@@ -21,6 +21,7 @@ export type ChatWidgetProps = {
   widgetKey: string;
   clinicName: string;
   widgetStyle: WidgetStyle;
+  widgetPosition: WidgetPosition;
   fontFamily: WidgetFont;
   accent: string;
   panel: string;
@@ -74,9 +75,9 @@ function telHref(phone: string) {
   return cleaned ? `tel:${cleaned}` : "";
 }
 
-function notifyParent(type: "open" | "close") {
+function notifyParent(type: "open" | "close", position: WidgetPosition) {
   if (typeof window === "undefined") return;
-  window.parent.postMessage({ source: "dentchat", type }, "*");
+  window.parent.postMessage({ source: "dentchat", type, position }, "*");
 }
 
 async function readApiJson(res: Response): Promise<{ error?: string; conversationId?: string; reply?: string }> {
@@ -149,8 +150,8 @@ export function ChatWidget(props: ChatWidgetProps) {
   const avatarLabel = props.avatarName || props.clinicName;
 
   useEffect(() => {
-    notifyParent(open ? "open" : "close");
-  }, [open]);
+    notifyParent(open ? "open" : "close", props.widgetPosition);
+  }, [open, props.widgetPosition]);
 
   useEffect(() => {
     if (!open) {
@@ -178,12 +179,12 @@ export function ChatWidget(props: ChatWidgetProps) {
   }
 
   function close() {
-    notifyParent("close");
+    notifyParent("close", props.widgetPosition);
     setOpen(false);
   }
 
   function openChat() {
-    notifyParent("open");
+    notifyParent("open", props.widgetPosition);
     setOpen(true);
   }
 

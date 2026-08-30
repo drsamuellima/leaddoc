@@ -1,7 +1,7 @@
 import { appearanceFromQuery, type AppearanceTokens } from "./widget-appearance";
 import { findWidget } from "./store";
 import type { Chatbot, Organization } from "./types";
-import { parseWidgetFont, parseWidgetStyle } from "./types";
+import { parseWidgetFont, parseWidgetPosition, parseWidgetStyle } from "./types";
 
 export function widgetAllowed(org: Organization) {
   return (
@@ -22,6 +22,7 @@ export function widgetTheme(org: Organization, bot: Chatbot): AppearanceTokens &
   const accent = bot.accentColor || org.primaryColor || "#0f766e";
   return {
     widgetStyle: parseWidgetStyle(bot.widgetStyle || "orbital"),
+    widgetPosition: parseWidgetPosition(bot.widgetPosition || "bottom-right"),
     fontFamily: parseWidgetFont(bot.fontFamily || "system"),
     accent,
     panel: bot.panelColor || "#ffffff",

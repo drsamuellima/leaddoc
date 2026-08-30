@@ -238,7 +238,7 @@ Rejects non-http(s) URLs, localhost, and private IPs. Returns the updated bot pa
 **Method:** PATCH (JSON)  
 **Who:** signed-in clinic that owns this bot
 
-Autosave for the setup wizard. Can patch step, website URL, name, phone, booking URL, greetings, pending FAQs, pending services, **approve knowledge** (writes FAQs and service buttons, and fills extracted fields), **enter clinic** (marks setup complete and is followed by `/app` in the browser), or **go live** (sets `active` and `setupComplete`).
+Autosave for the setup wizard. Can patch step, website URL, name, phone, booking URL, widget location (`bottom-right` or `bottom-left`), greetings, pending FAQs, pending services, **approve knowledge** (writes FAQs and service buttons, and fills extracted fields), **enter clinic** (marks setup complete and is followed by `/app` in the browser), or **go live** (sets `active` and `setupComplete`).
 
 **Writes:** `chatbots`, sometimes `knowledgeItems` and `chatbotOptions`.
 

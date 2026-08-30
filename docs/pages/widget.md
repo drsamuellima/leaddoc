@@ -17,7 +17,7 @@ The chat UI itself. `loadWidget` finds that chatbot and its organisation by widg
 
 **Visitor flow:**
 
-1. Closed launcher in the corner (or already open in preview).
+1. Closed launcher in the chosen corner — bottom right (default) or bottom left (or already open in preview).
 2. Opened panel greets the visitor (one or more greetings) and shows treatment buttons.
 3. Buttons are **lead** (start a chat about that treatment), **book** (open the booking URL), or **call** (tel: the practice phone). Phone and booking URL fall back from bot → organisation.
 4. Before chatting, the visitor must submit **name, email, phone, and enquiry**. That posts to `/api/widget/lead` and creates the CRM lead plus first AI reply.
@@ -25,7 +25,7 @@ The chat UI itself. `loadWidget` finds that chatbot and its organisation by widg
 
 **Skins** (every skin still does lead, book, call, and chat): orbital, glass, sheet, messenger, dock, pulse. Each skin ships a modern suggested colour palette (accent, panel, ink, surface, bubbles, launcher). Clinics can mix any palette with any skin. A compact official LeadDr. wordmark sits on the panel instead of a “By LeadDoc” text badge. Clinic avatars and colours stay the practice’s branding.
 
-**Preview** (`?preview=1`, used by the studio): inactive bots are allowed; the panel starts open; query params can overlay colours, font, and skin without saving. Preview must not be treated as a real visitor session for production traffic.
+**Preview** (`?preview=1`, used by the studio): inactive bots are allowed; the panel starts open; query params can overlay colours, font, skin, and location without saving. Preview must not be treated as a real visitor session for production traffic.
 
 **Reads/writes:** reads chatbot, options, org branding. Writes happen via the widget APIs (lead, conversation, messages, notification, email).
 
@@ -40,7 +40,7 @@ The loader script clinics paste on their site:
 <script src="https://your-origin/widget.js" data-widget-key="dc_..." async></script>
 ```
 
-It reads `data-widget-key`, creates a fixed-position iframe pointing at `/w/{key}`, and listens for `postMessage` from the iframe (`source: "dentchat"`, types `open` / `close`) so the iframe can grow from a small launcher to a tall panel.
+It reads `data-widget-key`, creates a fixed-position iframe pointing at `/w/{key}`, and listens for `postMessage` from the iframe (`source: "dentchat"`, types `open` / `close`, plus `position`) so the iframe can sit on the left or right and grow from a small launcher to a tall panel.
 
 The script is generated with the public site origin: a non-local `NEXT_PUBLIC_APP_URL`, the incoming host, or the Vercel production domain. Localhost is only used in local demo. Cached for 60 seconds.
 

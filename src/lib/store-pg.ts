@@ -6,6 +6,7 @@ import { applyPipelineToLead, ensureOrgPipelines, matchPipeline, stageIdForStatu
 import {
   parseActionType,
   parseWidgetFont,
+  parseWidgetPosition,
   parseWidgetStyle,
   type AppNotification,
   type AuditLog,
@@ -151,6 +152,7 @@ function mapBot(row: Record<string, unknown>): Chatbot {
     panelColor: str(row.panel_color, "#ffffff"),
     buttonTextColor: str(row.button_text_color, "#1a1a1a"),
     widgetStyle: parseWidgetStyle(str(row.widget_style, "orbital")),
+    widgetPosition: parseWidgetPosition(str(row.widget_position, "bottom-right")),
     fontFamily: parseWidgetFont(str(row.font_family, "system")),
     surfaceColor: str(row.surface_color, "#f4f4f0"),
     userBubbleColor: str(row.user_bubble_color),
@@ -483,30 +485,7 @@ async function persist(tx: Tx, data: StoreData) {
   }
 
   for (const b of data.chatbots) {
-    await tx`
-      insert into chatbots as t (
-        id, organization_id, name, greeting, greetings, system_prompt, widget_key, active,
-        accent_color, panel_color, button_text_color, widget_style, font_family, surface_color,
-        user_bubble_color, assistant_bubble_color, launcher_color, avatar_name, avatar_image_url,
-        phone, booking_url, setup_complete, setup, created_at
-      ) values (
-        ${b.id}::uuid, ${b.organizationId}::uuid, ${b.name}, ${b.greeting}, ${tx.json(b.greetings)},
-        ${b.systemPrompt}, ${b.widgetKey}, ${b.active}, ${b.accentColor}, ${b.panelColor},
-        ${b.buttonTextColor}, ${b.widgetStyle}, ${b.fontFamily}, ${b.surfaceColor},
-        ${b.userBubbleColor}, ${b.assistantBubbleColor}, ${b.launcherColor}, ${b.avatarName},
-        ${b.avatarImageUrl}, ${b.phone}, ${b.bookingUrl}, ${b.setupComplete}, ${tx.json(b.setup)}, ${b.createdAt}
-      )
-      on conflict (id) do update set
-        name = excluded.name, greeting = excluded.greeting, greetings = excluded.greetings,
-        system_prompt = excluded.system_prompt, widget_key = excluded.widget_key, active = excluded.active,
-        accent_color = excluded.accent_color, panel_color = excluded.panel_color,
-        button_text_color = excluded.button_text_color, widget_style = excluded.widget_style,
-        font_family = excluded.font_family, surface_color = excluded.surface_color,
-        user_bubble_color = excluded.user_bubble_color, assistant_bubble_color = excluded.assistant_bubble_color,
-        launcher_color = excluded.launcher_color, avatar_name = excluded.avatar_name,
-        avatar_image_url = excluded.avatar_image_url, phone = excluded.phone, booking_url = excluded.booking_url,
-        setup_complete = excluded.setup_complete, setup = excluded.setup
-    `;
+    await persistChatbot(tx, b);
   }
 
   for (const o of data.chatbotOptions) {
@@ -641,6 +620,13 @@ async function persist(tx: Tx, data: StoreData) {
 }
 
 let bootstrapped = false;
+let chatbotColumnsReady = false;
+
+async function ensureChatbotColumns(db: Tx) {
+  if (chatbotColumnsReady) return;
+  await db`alter table chatbots add column if not exists widget_position text not null default 'bottom-right'`;
+  chatbotColumnsReady = true;
+}
 
 async function ensureBootstrap() {
   const sql = getSql();
@@ -892,16 +878,18 @@ export async function mutatePgStore<T>(fn: (data: StoreData) => T | Promise<T>):
 }
 
 async function persistChatbot(tx: Tx, b: Chatbot) {
+  await ensureChatbotColumns(tx);
+  const position = parseWidgetPosition(b.widgetPosition || "bottom-right");
   await tx`
     insert into chatbots as t (
       id, organization_id, name, greeting, greetings, system_prompt, widget_key, active,
-      accent_color, panel_color, button_text_color, widget_style, font_family, surface_color,
+      accent_color, panel_color, button_text_color, widget_style, widget_position, font_family, surface_color,
       user_bubble_color, assistant_bubble_color, launcher_color, avatar_name, avatar_image_url,
       phone, booking_url, setup_complete, setup, created_at
     ) values (
       ${b.id}::uuid, ${b.organizationId}::uuid, ${b.name}, ${b.greeting}, ${tx.json(b.greetings)},
       ${b.systemPrompt}, ${b.widgetKey}, ${b.active}, ${b.accentColor}, ${b.panelColor},
-      ${b.buttonTextColor}, ${b.widgetStyle}, ${b.fontFamily}, ${b.surfaceColor},
+      ${b.buttonTextColor}, ${b.widgetStyle}, ${position}, ${b.fontFamily}, ${b.surfaceColor},
       ${b.userBubbleColor}, ${b.assistantBubbleColor}, ${b.launcherColor}, ${b.avatarName},
       ${b.avatarImageUrl}, ${b.phone}, ${b.bookingUrl}, ${b.setupComplete}, ${tx.json(b.setup)}, ${b.createdAt}
     )
@@ -910,6 +898,7 @@ async function persistChatbot(tx: Tx, b: Chatbot) {
       system_prompt = excluded.system_prompt, widget_key = excluded.widget_key, active = excluded.active,
       accent_color = excluded.accent_color, panel_color = excluded.panel_color,
       button_text_color = excluded.button_text_color, widget_style = excluded.widget_style,
+      widget_position = excluded.widget_position,
       font_family = excluded.font_family, surface_color = excluded.surface_color,
       user_bubble_color = excluded.user_bubble_color, assistant_bubble_color = excluded.assistant_bubble_color,
       launcher_color = excluded.launcher_color, avatar_name = excluded.avatar_name,

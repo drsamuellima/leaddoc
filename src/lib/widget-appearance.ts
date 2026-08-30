@@ -1,8 +1,9 @@
-import type { WidgetFont, WidgetStyle } from "./types";
-import { parseWidgetFont, parseWidgetStyle } from "./types";
+import type { WidgetFont, WidgetPosition, WidgetStyle } from "./types";
+import { parseWidgetFont, parseWidgetPosition, parseWidgetStyle } from "./types";
 
 export type AppearanceTokens = {
   widgetStyle: WidgetStyle;
+  widgetPosition: WidgetPosition;
   fontFamily: WidgetFont;
   accent: string;
   panel: string;
@@ -112,6 +113,11 @@ export const WIDGET_STYLE_META: {
   },
 ];
 
+export const WIDGET_POSITION_META: { id: WidgetPosition; name: string; blurb: string }[] = [
+  { id: "bottom-right", name: "Bottom right", blurb: "Usual chat corner on a website." },
+  { id: "bottom-left", name: "Bottom left", blurb: "Opposite side — useful if the right is already busy." },
+];
+
 export const WIDGET_FONT_META: { id: WidgetFont; name: string; stack: string; cssVar: string }[] = [
   { id: "system", name: "Geist", stack: "var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif", cssVar: "--font-geist-sans" },
   { id: "instrument", name: "Instrument Sans", stack: "var(--font-instrument), ui-sans-serif, sans-serif", cssVar: "--font-instrument" },
@@ -142,6 +148,7 @@ export function parseHexColor(value: string, fallback: string) {
 export function appearanceToQuery(tokens: AppearanceTokens) {
   const q = new URLSearchParams();
   q.set("style", tokens.widgetStyle);
+  q.set("position", tokens.widgetPosition);
   q.set("font", tokens.fontFamily);
   q.set("accent", tokens.accent.replace("#", ""));
   q.set("panel", tokens.panel.replace("#", ""));
@@ -159,6 +166,7 @@ export function appearanceFromQuery(
 ): AppearanceTokens {
   return {
     widgetStyle: parseWidgetStyle(search.style || base.widgetStyle),
+    widgetPosition: parseWidgetPosition(search.position || base.widgetPosition),
     fontFamily: parseWidgetFont(search.font || base.fontFamily),
     accent: parseHexColor(search.accent || "", base.accent),
     panel: parseHexColor(search.panel || "", base.panel),
