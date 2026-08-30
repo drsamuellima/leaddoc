@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import { hashPassword } from "./crypto";
-import { getSql, type Tx } from "./db";
+import { getSql, withDbTimeout, type Tx } from "./db";
 import { emptySetup } from "./chatbot-setup";
 import { applyPipelineToLead, ensureOrgPipelines, matchPipeline, stageIdForStatus } from "./pipelines";
 import {
@@ -1171,6 +1171,20 @@ export async function getPgOwnedChatbot(botId: string, orgId: string) {
     select * from chatbots where id = ${botId}::uuid and organization_id = ${orgId}::uuid limit 1
   `;
   return rows[0] ? mapBot(rows[0] as Record<string, unknown>) : null;
+}
+
+export async function listPgChatbots(orgId: string): Promise<Chatbot[]> {
+  if (!isUuid(orgId)) return [];
+  const rows = await withDbTimeout(
+    getSql()`
+      select id, organization_id, name, greeting, greetings, widget_key, active, setup_complete, created_at
+      from chatbots
+      where organization_id = ${orgId}::uuid
+      order by created_at desc
+    `,
+    6000,
+  );
+  return rows.map((row) => mapBot(row as Record<string, unknown>));
 }
 
 export async function getPgWidgetByKey(widgetKey: string) {

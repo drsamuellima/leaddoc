@@ -3,7 +3,8 @@ import { CreateChatbotButton } from "@/components/chatbot-setup/create-chatbot-b
 import { EmptyState, PageHeader, StatusBadge } from "@/components/ui";
 import { DeleteChatbotButton } from "@/components/chatbot-studio/delete-chatbot-button";
 import { getClinicContext } from "@/lib/auth";
-import { readClinicStore } from "@/lib/store";
+import { listClinicChatbots } from "@/lib/store";
+import type { Chatbot } from "@/lib/types";
 
 export default async function ChatbotsPage({
   searchParams,
@@ -12,8 +13,13 @@ export default async function ChatbotsPage({
 }) {
   const { ok } = await searchParams;
   const { org } = await getClinicContext();
-  const store = await readClinicStore(org.id, "chatbots");
-  const bots = store.chatbots.filter((b) => b.organizationId === org.id);
+  let bots: Chatbot[] = [];
+  let loadError = false;
+  try {
+    bots = await listClinicChatbots(org.id);
+  } catch {
+    loadError = true;
+  }
 
   return (
     <div>
@@ -24,11 +30,12 @@ export default async function ChatbotsPage({
         action={<CreateChatbotButton />}
       />
       {ok === "deleted" ? <p className="lead-flash">Chatbot deleted. Patient leads were kept.</p> : null}
-      {bots.length === 0 ? (
+      {loadError ? <p className="lead-flash">Could not refresh chatbots. Try again.</p> : null}
+      {!loadError && bots.length === 0 ? (
         <div className="card">
           <EmptyState title="No chatbots yet" body="Set up with AI to scan your website and build the first draft." />
         </div>
-      ) : (
+      ) : bots.length === 0 ? null : (
         <div className="stagger grid gap-4 md:grid-cols-2">
           {bots.map((bot) => {
             const href = bot.setupComplete ? `/app/chatbots/${bot.id}` : `/app/chatbots/${bot.id}/setup`;

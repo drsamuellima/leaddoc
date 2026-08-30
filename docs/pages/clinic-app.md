@@ -22,7 +22,7 @@ The practice overview. It shows how many leads the clinic has captured, a 14-day
 **File:** `src/app/app/chatbots/page.tsx`  
 **Who:** clinic owner, clinic staff, impersonating admin
 
-Lists this practice’s chatbots as cards (name, greeting, widget key, active/inactive). This page only loads chatbot rows for the practice, not every lead and chat message. **Set up with AI** creates a draft bot and opens the beginner wizard on `/app/chatbots/[id]/setup` straight away (server action, or `POST /api/form/createChatbot` which 303s to the same page). Incomplete drafts show **Continue setup**. Finished bots open the studio. **Delete** on a card (after confirm) removes the bot, its FAQs, and treatment buttons. Patient leads stay. The embed snippet for that widget key stops working.
+Lists this practice’s chatbots as cards (name, greeting, widget key, active/inactive). The list is a single chatbot query (newest first), so impersonating admins see the same cards without waiting on leads or messages. If that query times out, the page still appears with a refresh note. **Set up with AI** creates a draft bot and opens the beginner wizard on `/app/chatbots/[id]/setup` straight away (server action, or `POST /api/form/createChatbot` which 303s to the same page). Incomplete drafts show **Continue setup**. Finished bots open the studio. **Delete** on a card (after confirm) removes the bot, its FAQs, and treatment buttons. Patient leads stay. The embed snippet for that widget key stops working.
 
 **Reads/writes:** reads `chatbots`; create writes an inactive draft; delete removes the bot (`POST /api/form/deleteChatbot`).
 

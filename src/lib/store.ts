@@ -17,6 +17,7 @@ import {
   getPgClinicUnreadCount,
   getPgKnowledgeForBot,
   getPgOwnedChatbot,
+  listPgChatbots,
   getPgOrganizationById,
   getPgPlans,
   getPgProfileById,
@@ -112,6 +113,16 @@ function filterStoreByOrg(store: StoreData, orgId: string): StoreData {
 export const readClinicStore = cache(async (orgId: string, slice: ClinicSlice = "full"): Promise<StoreData> => {
   if (useJsonStore()) return filterStoreByOrg(await readJsonStore(), orgId);
   return readPgClinicStore(orgId, slice);
+});
+
+export const listClinicChatbots = cache(async (orgId: string) => {
+  if (useJsonStore()) {
+    const store = await readJsonStore();
+    return store.chatbots
+      .filter((b) => b.organizationId === orgId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+  return listPgChatbots(orgId);
 });
 
 export const getClinicUnreadCount = cache(async (orgId: string): Promise<number> => {

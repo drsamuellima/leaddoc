@@ -3,7 +3,8 @@ import { ImpersonateForm } from "@/components/admin/impersonate-form";
 import { DeleteChatbotButton } from "@/components/chatbot-studio/delete-chatbot-button";
 import { BackLink, EmptyState, PageHeader, StatusBadge } from "@/components/ui";
 import { requireAdmin } from "@/lib/auth";
-import { readClinicStore } from "@/lib/store";
+import { getOrganizationById, listClinicChatbots } from "@/lib/store";
+import type { Chatbot } from "@/lib/types";
 
 export default async function AdminChatbotsPage({
   params,
@@ -15,10 +16,15 @@ export default async function AdminChatbotsPage({
   await requireAdmin();
   const { id } = await params;
   const { ok } = await searchParams;
-  const store = await readClinicStore(id, "chatbots");
-  const org = store.organizations.find((o) => o.id === id);
+  const org = await getOrganizationById(id);
   if (!org) notFound();
-  const bots = store.chatbots.filter((b) => b.organizationId === id);
+  let bots: Chatbot[] = [];
+  let loadError = false;
+  try {
+    bots = await listClinicChatbots(id);
+  } catch {
+    loadError = true;
+  }
 
   return (
     <div>
@@ -48,8 +54,11 @@ export default async function AdminChatbotsPage({
         }
       />
       {ok === "deleted" ? <p className="lead-flash">Chatbot deleted.</p> : null}
+      {loadError ? <p className="lead-flash">Could not refresh chatbots. Try again.</p> : null}
       <div className="card p-2 page-enter">
-        {bots.length === 0 ? (
+        {loadError ? (
+          <EmptyState title="Chatbots unavailable" body="Try again in a moment." />
+        ) : bots.length === 0 ? (
           <EmptyState title="No chatbots" body="Set up with AI to scan the clinic site, or add a ready chatbot." />
         ) : (
           bots.map((bot) => {
