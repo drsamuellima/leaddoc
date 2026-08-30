@@ -22,7 +22,7 @@ The practice overview. It shows how many leads the clinic has captured, a 14-day
 **File:** `src/app/app/chatbots/page.tsx`  
 **Who:** clinic owner, clinic staff, impersonating admin
 
-Lists this practice’s chatbots as cards (name, greeting, widget key, active/inactive). **Set up with AI** creates a draft bot and opens the beginner wizard on `/app/chatbots/[id]/setup` straight away (server action, or `POST /api/form/createChatbot` which 303s to the same page). Incomplete drafts show **Continue setup**. Finished bots open the studio. **Delete** on a card (after confirm) removes the bot, its FAQs, and treatment buttons. Patient leads stay. The embed snippet for that widget key stops working.
+Lists this practice’s chatbots as cards (name, greeting, widget key, active/inactive). This page only loads chatbot rows for the practice, not every lead and chat message. **Set up with AI** creates a draft bot and opens the beginner wizard on `/app/chatbots/[id]/setup` straight away (server action, or `POST /api/form/createChatbot` which 303s to the same page). Incomplete drafts show **Continue setup**. Finished bots open the studio. **Delete** on a card (after confirm) removes the bot, its FAQs, and treatment buttons. Patient leads stay. The embed snippet for that widget key stops working.
 
 **Reads/writes:** reads `chatbots`; create writes an inactive draft; delete removes the bot (`POST /api/form/deleteChatbot`).
 
@@ -43,7 +43,7 @@ AI-guided clinic sign-up for a new chatbot. Glass cards, numbered step rail, pro
 
 **Booking.** Dedicated form for a Dentally (or other) booking URL and the practice phone.
 
-**Go live / Open clinic.** Marks setup complete and opens the clinic workspace (`/app`). **Activate widget** also turns the public chat on. The embed snippet can be copied here or later from the studio.
+**Go live / Open clinic.** Marks setup complete and opens the clinic workspace (`/app`). **Activate widget** also turns the public chat on. The embed snippet can be copied here or later from the studio. The script URL is the live site (`NEXT_PUBLIC_APP_URL` or the Vercel production domain), not localhost.
 
 Unknown ids return 404. Incomplete bots that open `/app/chatbots/[id]` are sent here. **Delete draft** removes the bot the same way as the list page.
 
@@ -70,7 +70,7 @@ The chatbot studio. Two-column layout: editors on the left with a sticky save ba
 
 **Knowledge.** Example FAQs are grouped (practice, patients, treatments, fees). Each example is an editable title, question, and answer. **Edit & add** saves the (possibly changed) text. After it is on the bot, the same card becomes **Save edits** plus **Remove**. Packs import a whole group. FAQs that no longer match a catalog example (or were written from scratch) appear under Custom FAQs, also editable. The AI uses these items when it replies.
 
-**Embed.** Snippet and widget key for WordPress or any site footer.
+**Embed.** Snippet and widget key for WordPress or any site footer. The snippet always points at the live site origin, not localhost.
 
 **Delete.** Confirms, then removes the bot, FAQs, and treatment buttons (`deleteChatbot`). Leads stay. Returns to the chatbot list.
 

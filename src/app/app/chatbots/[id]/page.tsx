@@ -1,7 +1,7 @@
 import { ChatbotStudio } from "@/components/chatbot-studio/studio";
 import { PageHeader, StatusBadge } from "@/components/ui";
 import { getClinicContext } from "@/lib/auth";
-import { publicOrigin } from "@/lib/integrations";
+import { publicOrigin, widgetSnippet } from "@/lib/integrations";
 import { readClinicStore } from "@/lib/store";
 import { widgetTheme } from "@/lib/widget";
 import { notFound, redirect } from "next/navigation";
@@ -23,7 +23,7 @@ export default async function ChatbotEditorPage({
   const options = store.chatbotOptions.filter((o) => o.chatbotId === bot.id).sort((a, b) => a.sortOrder - b.sortOrder);
   const faqs = store.knowledgeItems.filter((k) => k.chatbotId === bot.id);
   const origin = await publicOrigin();
-  const snippet = `<script src="${origin}/widget.js" data-widget-key="${bot.widgetKey}" async></script>`;
+  const snippet = widgetSnippet(origin, bot.widgetKey);
   const greetingsText = (bot.greetings?.length ? bot.greetings : [bot.greeting]).join("\n");
   const theme = widgetTheme(org, bot);
 

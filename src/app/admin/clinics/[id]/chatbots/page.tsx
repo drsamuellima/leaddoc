@@ -15,7 +15,7 @@ export default async function AdminChatbotsPage({
   await requireAdmin();
   const { id } = await params;
   const { ok } = await searchParams;
-  const store = await readClinicStore(id);
+  const store = await readClinicStore(id, "chatbots");
   const org = store.organizations.find((o) => o.id === id);
   if (!org) notFound();
   const bots = store.chatbots.filter((b) => b.organizationId === id);

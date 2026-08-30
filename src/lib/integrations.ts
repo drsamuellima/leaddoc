@@ -16,8 +16,22 @@ function isLocalUrl(url: string) {
   }
 }
 
+function vercelPublicUrl() {
+  const prod = (process.env.VERCEL_PROJECT_PRODUCTION_URL || "").replace(/\/$/, "");
+  if (prod) return prod.startsWith("http") ? prod : `https://${prod}`;
+  if (process.env.VERCEL_ENV === "production") {
+    const host = (process.env.VERCEL_URL || "").replace(/\/$/, "");
+    if (host) return `https://${host}`;
+  }
+  return "";
+}
+
+function firstLiveUrl(...candidates: string[]) {
+  return candidates.find((url) => url && !isLocalUrl(url)) || "";
+}
+
 export function appUrl() {
-  return configuredAppUrl() || "http://localhost:3000";
+  return firstLiveUrl(configuredAppUrl(), vercelPublicUrl()) || configuredAppUrl() || "http://localhost:3000";
 }
 
 /** Prefer the live request host so snippets/iframes match the running port (e.g. 3001). */
@@ -36,8 +50,9 @@ export function originFromRequest(request: Request) {
 export function resolvePublicOrigin(request?: Request) {
   const env = configuredAppUrl();
   const fromRequest = request ? originFromRequest(request) : "";
-  if (fromRequest && (!env || isLocalUrl(env))) return fromRequest;
-  return env || fromRequest || "http://localhost:3000";
+  const live = firstLiveUrl(env, fromRequest, vercelPublicUrl());
+  if (live) return live;
+  return fromRequest || env || "http://localhost:3000";
 }
 
 export async function publicOrigin() {
@@ -46,6 +61,10 @@ export async function publicOrigin() {
   if (!host) return resolvePublicOrigin();
   const proto = h.get("x-forwarded-proto") || (isLocalHost(host.split(":")[0]) ? "http" : "https");
   return resolvePublicOrigin(new Request(`${proto}://${host}/`, { headers: h }));
+}
+
+export function widgetSnippet(origin: string, widgetKey: string) {
+  return `<script src="${origin}/widget.js" data-widget-key="${widgetKey}" async></script>`;
 }
 
 export function hasStripe() {

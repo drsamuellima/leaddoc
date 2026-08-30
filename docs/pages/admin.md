@@ -103,7 +103,7 @@ Without Stripe keys this is an error on a live database. Local JSON demo can sti
 **File:** `src/app/admin/clinics/[id]/chatbots/page.tsx`  
 **Who:** platform admin
 
-That clinic’s chatbots. **Set up with AI** creates a draft and impersonates into the setup wizard. **Add ready chatbot** creates a finished bot and opens the studio. **Edit** impersonates into studio or setup. **Delete** removes the bot (`adminDeleteChatbot`).
+That clinic’s chatbots. This screen only loads chatbot rows for that practice. **Set up with AI** creates a draft and impersonates into the setup wizard. **Add ready chatbot** creates a finished bot and opens the studio. **Edit** impersonates into studio or setup. **Delete** removes the bot (`adminDeleteChatbot`).
 
 **Reads/writes:** `chatbots` for that organisation.
 

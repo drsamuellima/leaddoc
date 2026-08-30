@@ -42,7 +42,7 @@ The loader script clinics paste on their site:
 
 It reads `data-widget-key`, creates a fixed-position iframe pointing at `/w/{key}`, and listens for `postMessage` from the iframe (`source: "dentchat"`, types `open` / `close`) so the iframe can grow from a small launcher to a tall panel.
 
-The script is generated with the public origin (`NEXT_PUBLIC_APP_URL` or the request origin). Cached for 60 seconds.
+The script is generated with the public site origin: a non-local `NEXT_PUBLIC_APP_URL`, the incoming host, or the Vercel production domain. Localhost is only used in local demo. Cached for 60 seconds.
 
 **Reads/writes:** none on the store. GET only.
 
